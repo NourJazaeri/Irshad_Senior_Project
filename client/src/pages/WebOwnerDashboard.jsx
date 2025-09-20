@@ -10,6 +10,7 @@ import '../styles/dashboard.css';
 export default function WebOwnerDashboard() {
   const [companyCount, setCompanyCount] = useState('—')
   const [pendingCount, setPendingCount] = useState('—')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     fetch('/api/companies/count')
@@ -42,8 +43,8 @@ export default function WebOwnerDashboard() {
   }, [])
 
   return (
-    <div className="dashboard-root">
-      <Sidebar />
+    <div className={`dashboard-root${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <main className="main">
         <Topbar />
         <WelcomeSection />

@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FiHome, FiUsers, FiClipboard, FiSettings } from 'react-icons/fi';
 import '../styles/dashboard.css';
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, setCollapsed }) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+      <div className="sidebar-toggle" onClick={() => setCollapsed(!collapsed)}>
+        <div className="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
       <div className="brand">
         <div className="brand-mark">wo</div>
       </div>
