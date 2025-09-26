@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiSearch, FiLogOut } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import '../styles/dashboard.css';
+import '../styles/owner-components.css';
 
 export default function Topbar() {
   const navigate = useNavigate();
@@ -29,18 +29,20 @@ export default function Topbar() {
   };
 
   return (
-    <header className="topbar">
-      <h1 className="page-title">Web_Owner - Homepage</h1>
-      <div className="search">
-        <FiSearch />
+    <header className="wo-topbar">
+      <div className="wo-search">
         <input 
-          placeholder="Search dashboard..." 
+          type="text" 
+          placeholder="Search..." 
           onKeyPress={handleSearch}
         />
       </div>
-      <button className="logout" onClick={handleLogout}>
-        <FiLogOut /> Logout
-      </button>
+      <div className="wo-topbar__right">
+        <button className="wo-link" onClick={handleLogout}>
+          <FiLogOut /> Logout
+        </button>
+        <div className="wo-top-avatar">WO</div>
+      </div>
     </header>
   );
 }

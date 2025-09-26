@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchCompanies } from "../../api/companies";
-import CompanyCard from "../../components/WebOwner/CompanyCard.jsx";
-import EmptyState from "../../components/common/EmptyState.jsx";
-import "../../styles/owner.css";
+import { fetchCompanies } from "../services/companies";
+import CompanyCard from "../components/CompanyCard.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import "../styles/owner-components.css";
 
 export default function CompaniesPage() {
   const [data, setData] = useState({ items: [], total: 0 });

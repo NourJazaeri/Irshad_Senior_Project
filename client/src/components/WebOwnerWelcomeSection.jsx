@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../styles/dashboard.css';
+import '../styles/owner-components.css';
 
 export default function WelcomeSection() {
   return (

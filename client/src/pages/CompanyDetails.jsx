@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchCompany, fetchCompanyAdmin } from "../../api/companies";
-import EmptyState from "../../components/common/EmptyState.jsx";
-import "../../styles/owner.css";
+import { fetchCompany, fetchCompanyAdmin } from "../services/companies";
+import EmptyState from "../components/EmptyState.jsx";
+import "../styles/owner-components.css";
 
 export default function CompanyDetails() {
   const { id } = useParams();
@@ -271,6 +271,7 @@ export default function CompanyDetails() {
               <div className="wo-empty-state">
                 <span className="wo-empty-icon">👤</span>
                 <p>Admin information not available</p>
+                <p className="wo-empty-subtitle">This company was registered without an admin user linked to it.</p>
               </div>
             )}
           </div>

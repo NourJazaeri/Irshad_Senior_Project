@@ -19,7 +19,7 @@ html, body, #root {
 }
 
 /* Global body styles for login page - highest specificity */
-html body {
+body.login-page {
   margin: 0 !important;
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji" !important;
   color: var(--text) !important;
@@ -27,8 +27,8 @@ html body {
   padding: 0 !important;
 }
 
-/* Dark overlay to improve contrast */
-body::before { content: ''; position: fixed; inset: 0; background: var(--bg-overlay); z-index: 0; }
+/* Dark overlay to improve contrast - only for login pages */
+body.login-page::before { content: ''; position: fixed; inset: 0; background: var(--bg-overlay); z-index: 0; }
 
 .app-container { position: relative; z-index: 1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; align-items: center; min-height: 100vh; padding: 56px clamp(24px, 6vw, 80px); }
 

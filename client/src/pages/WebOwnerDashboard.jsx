@@ -1,17 +1,14 @@
 
 import React, { useEffect, useState } from 'react'
 
-import Sidebar from '../components/Sidebar';
-import Topbar from '../components/Topbar';
-import WelcomeSection from '../components/WelcomeSection';
+import WelcomeSection from '../components/WebOwnerWelcomeSection';
 import KPIs from '../components/KPIs';
 import QuickLinks from '../components/QuickLinks';
-import '../styles/dashboard.css';
+import '../styles/owner-components.css';
 
 export default function WebOwnerDashboard() {
   const [companyCount, setCompanyCount] = useState('—')
-  const [pendingCount, setPendingCount] = useState('—')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pendingCount, setPendingCount] = useState('—');
 
   useEffect(() => {
     // Fetch companies count
@@ -50,14 +47,10 @@ export default function WebOwnerDashboard() {
   }, [])
 
   return (
-    <div className={`dashboard-root${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-      <main className="main">
-        <Topbar />
-        <WelcomeSection />
-        <KPIs companyCount={companyCount} pendingCount={pendingCount} />
-        <QuickLinks />
-      </main>
+    <div>
+      <WelcomeSection />
+      <KPIs companyCount={companyCount} pendingCount={pendingCount} />
+      <QuickLinks />
     </div>
   )
 }

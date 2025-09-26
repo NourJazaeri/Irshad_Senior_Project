@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -8,8 +8,8 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import registrationRequests from './routes/registrationRequests.js';
 import countsRoutes from './routes/counts.js';
+import companiesRoutes from './routes/companies.js';
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +19,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
-// Middleware
+// CORS MIDDLEWARE - MUST BE FIRST, BEFORE ANY ROUTES
 app.use(cors({ 
   origin: [CLIENT_ORIGIN, "*"], 
   credentials: true,
@@ -48,10 +48,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API routes
+// API ROUTES - AFTER CORS MIDDLEWARE
 app.use('/api', countsRoutes);
 app.use('/api/registration-requests', registrationRequests);
 app.use('/api/auth', authRoutes);
+app.use('/api/companies', companiesRoutes);
 
 // Serve frontend build if exists
 const clientDist = path.join(__dirname, '../client/dist');
@@ -67,7 +68,8 @@ if (fs.existsSync(clientDist)) {
       endpoints: {
         health: '/api/health',
         registration: '/api/registration-requests',
-        auth: '/api/auth'
+        auth: '/api/auth',
+        companies: '/api/companies'
       }
     });
   });
@@ -131,6 +133,8 @@ app.use('/api', (req, res) => {
       console.log('   GET  /api/registration-requests');
       console.log('   POST /api/auth/login');
       console.log('   POST /api/auth/register');
+      console.log('   GET  /api/companies');
+      console.log('   GET  /api/companies/:id');
     });
     
   } catch (error) {

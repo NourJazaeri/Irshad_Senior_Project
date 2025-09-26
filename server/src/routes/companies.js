@@ -106,8 +106,9 @@ router.get('/:id/admin', async (req, res, next) => {
     
     if (!company.AdminObjectUserID) {
       return res.status(404).json({ 
-        error: 'AdminObjectUserID not found in company record',
-        companyId: companyId
+        error: 'No admin user linked to this company. The company was registered without an admin user ID.',
+        companyId: companyId,
+        suggestion: 'This company needs to be linked to an admin user to display admin information.'
       });
     }
 

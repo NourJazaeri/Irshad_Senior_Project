@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FiHome, FiUsers, FiClipboard, FiSettings } from 'react-icons/fi';
-import '../styles/dashboard.css';
+import '../styles/owner-components.css';
 
 export default function Sidebar({ collapsed, setCollapsed }) {
   const [activeItem, setActiveItem] = useState('dashboard');
@@ -15,52 +15,47 @@ export default function Sidebar({ collapsed, setCollapsed }) {
   };
 
   return (
-    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
-      <div className="sidebar-toggle" onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Sidebar toggle clicked - Toggle is working!');
-        setCollapsed(!collapsed);
-      }}>
-        <div className="hamburger">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+    <aside className="wo-sidebar">
+      <div className="wo-brand">
+        <div className="wo-logo">WO</div>
       </div>
-      <div className="brand">
-        <div className="brand-mark">wo</div>
-      </div>
-      <nav className="nav">
+      <nav className="wo-nav">
         <button 
-          className={`nav-item ${activeItem === 'dashboard' ? 'active' : ''}`}
+          className={`wo-nav__item ${activeItem === 'dashboard' ? 'active' : ''}`}
           onClick={(e) => handleItemClick('dashboard', e)}
           style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
         >
-          <FiHome /> <span>Dashboard</span>
+          <span className="wo-ico">🏠</span> <span>Dashboard</span>
         </button>
         <button 
-          className={`nav-item ${activeItem === 'companies' ? 'active' : ''}`}
+          className={`wo-nav__item ${activeItem === 'companies' ? 'active' : ''}`}
           onClick={(e) => handleItemClick('companies', e)}
           style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
         >
-          <FiUsers /> <span>Companies</span>
+          <span className="wo-ico">🏢</span> <span>Companies</span>
         </button>
         <button 
-          className={`nav-item ${activeItem === 'registrations' ? 'active' : ''}`}
+          className={`wo-nav__item ${activeItem === 'registrations' ? 'active' : ''}`}
           onClick={(e) => handleItemClick('registrations', e)}
           style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
         >
-          <FiClipboard /> <span>Registrations</span>
+          <span className="wo-ico">📋</span> <span>Registrations</span>
         </button>
         <button 
-          className={`nav-item ${activeItem === 'settings' ? 'active' : ''}`}
+          className={`wo-nav__item ${activeItem === 'settings' ? 'active' : ''}`}
           onClick={(e) => handleItemClick('settings', e)}
           style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
         >
-          <FiSettings /> <span>Settings</span>
+          <span className="wo-ico">📊</span> <span>Settings</span>
         </button>
       </nav>
+      <div className="wo-sidebar__user">
+        <div className="wo-avatar">WO</div>
+        <div>
+          <div className="wo-user__name">Web Owner</div>
+          <div className="wo-user__mail">owner@platform.com</div>
+        </div>
+      </div>
     </aside>
   );
 }

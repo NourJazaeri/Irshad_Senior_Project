@@ -1,11 +1,12 @@
 
-/* intentionally minimal; page styles live in styles/dashboard.css */
-
+/* intentionally minimal; page styles live in styles/ */
 
 #root {
+  max-width: none;
   width: 100%;
   margin: 0;
   padding: 0;
+  text-align: initial;
   min-height: 100vh;
 }
 

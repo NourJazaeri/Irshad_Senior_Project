@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import Sidebar from "../../components/WebOwner/Sidebar.jsx";
-import Topbar from "../../components/WebOwner/Topbar.jsx";
-import WelcomeSection from "../../components/WebOwner/WelcomeSection.jsx";
-import "../../styles/owner.css";
+import Sidebar from "../components/WebOwnerSidebar.jsx";
+import Topbar from "../components/WebOwnerTopbar.jsx";
+import WelcomeSection from "../components/WebOwnerWelcomeSection.jsx";
+import "../styles/owner-components.css";
 
 export default function OwnerLayout() {
   const { pathname } = useLocation();

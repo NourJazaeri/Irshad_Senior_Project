@@ -1,10 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Hero from "../components/Hero";
 import LoginCard from "../components/LoginCard";
 import "../styles/login.css";
 
 function LoginPage() {
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Add login-page class to body when component mounts
+    document.body.classList.add('login-page');
+    
+    // Remove login-page class when component unmounts
+    return () => {
+      document.body.classList.remove('login-page');
+    };
+  }, []);
 
   const handleLogin = (data) => {
     setUser(data.user); // save user info in state

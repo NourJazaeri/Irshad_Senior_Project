@@ -1,30 +1,30 @@
 import React from 'react';
 import { FiDatabase, FiUserCheck, FiTrendingUp } from 'react-icons/fi';
-import '../styles/dashboard.css';
+import { useNavigate } from 'react-router-dom';
+import '../styles/owner-components.css';
 
 export default function QuickLinks() {
+  const navigate = useNavigate();
+
   const handleViewCompanies = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Viewing Active Companies - Button clicked!');
-    alert('Viewing Active Companies - Button is working!');
-    // Add functionality here
+    console.log('Navigating to Active Companies page...');
+    navigate('/owner/companies');
   };
 
   const handleViewRegistrations = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Viewing Pending Registrations - Button clicked!');
-    alert('Viewing Pending Registrations - Button is working!');
-    // Add functionality here
+    console.log('Navigating to Pending Registrations page...');
+    navigate('/owner/registrations');
   };
 
   const handleViewHistory = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Viewing Usage History - Button clicked!');
-    alert('Viewing Usage History - Button is working!');
-    // Add functionality here
+    console.log('Navigating to Usage History page...');
+    navigate('/owner/reports');
   };
 
   return (

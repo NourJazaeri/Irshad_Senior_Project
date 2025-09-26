@@ -13,7 +13,8 @@ const CompanySchema = new Schema({
   size: { type: Number },                         // numeric employees
   logoUrl: String,                                // store full URL if you have one
   reg_reqID: { type: Types.ObjectId, ref: 'RegistrationRequest' }, // match doc
-  adminUserID: { type: Types.ObjectId, ref: 'Admin' }
+  adminUserID: { type: Types.ObjectId, ref: 'Admin' },
+  AdminObjectUserID: { type: Types.ObjectId, ref: 'Admin' } // Database field name
 }, { collection: 'Company', timestamps: true });
 
 CompanySchema.index({ name: 'text', crn: 'text' });
