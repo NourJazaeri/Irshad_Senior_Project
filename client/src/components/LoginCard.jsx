@@ -22,7 +22,7 @@ function LoginCard({ onLogin }) {
       if (res.success) {
         onLogin?.(res.user);
         localStorage.setItem("token", res.token);
-        
+        localStorage.setItem("sessionId", res.sessionId);
         // Use the redirect URL from backend or fallback
         if (res.redirectTo) {
           window.location.href = res.redirectTo;
