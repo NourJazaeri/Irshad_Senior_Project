@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import registrationRequests from './routes/registrationRequests.js';
+import countsRoutes from './routes/counts.js';
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // API routes
+app.use('/api', countsRoutes);
 app.use('/api/registration-requests', registrationRequests);
 app.use('/api/auth', authRoutes);
 

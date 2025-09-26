@@ -1,10 +1,13 @@
 /* --- Base resets (from Web_Owner_Dashboard_Zainah) --- */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-width: 320px;
+  min-height: 100vh;
 }
 
 /* --- Theme & defaults (from main) --- */
@@ -28,14 +31,7 @@ a {
   color: #646cff;
   text-decoration: inherit;
 }
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-}
+a:hover { color: #535bf2; }
 
 h1 {
   font-size: 3.2em;
@@ -51,49 +47,17 @@ button {
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s; /* ✅ fixed */
 }
-button:hover {
-  border-color: #646cff;
-}
+button:hover { border-color: #646cff; }
 button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
 
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
     background-color: #ffffff;
   }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  a:hover { color: #747bff; }
+  button { background-color: #f9f9f9; }
 }
-
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
-

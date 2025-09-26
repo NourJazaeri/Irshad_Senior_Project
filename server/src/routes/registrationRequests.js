@@ -42,6 +42,7 @@ router.get('/', async (_, res, next) => {
   } catch (err) { next(err); }
 });
 
+
 // ---- Get single request ----
 router.get('/:id', async (req, res, next) => {
   try {

@@ -1,4 +1,6 @@
-const { Schema, model, models, Types } = require('mongoose');
+import mongoose from 'mongoose';
+const { Schema, Types } = mongoose;
+
 const CompanySchema = new Schema({
   companyID: String,                              // was in your docs
   name: { type: String, required: true, trim: true },
@@ -20,4 +22,5 @@ CompanySchema.index({ name: 'text', crn: 'text' });
 // });
 CompanySchema.set('toJSON', { virtuals: true });
 
-module.exports = models.Company || model('Company', CompanySchema);
+const Company = mongoose.models.Company || mongoose.model('Company', CompanySchema);
+export default Company;

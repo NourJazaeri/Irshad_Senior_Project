@@ -14,6 +14,7 @@ export default function WebOwnerDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
+    // Fetch companies count
     fetch('/api/companies/count')
       .then(r => {
         if (!r.ok) {
@@ -22,12 +23,15 @@ export default function WebOwnerDashboard() {
         return r.json()
       })
       .then(d => {
+        console.log('Companies count response:', d);
         setCompanyCount(d.count?.toLocaleString?.() ?? String(d.count))
       })
       .catch(err => {
+        console.error('Companies count error:', err);
         setCompanyCount('Error')
       })
 
+    // Fetch pending registration requests count
     fetch('/api/registration-requests/count')
       .then(r => {
         if (!r.ok) {
@@ -36,9 +40,11 @@ export default function WebOwnerDashboard() {
         return r.json()
       })
       .then(d => {
+        console.log('Registration requests count response:', d);
         setPendingCount(d.count?.toLocaleString?.() ?? String(d.count))
       })
       .catch(err => {
+        console.error('Registration requests count error:', err);
         setPendingCount('Error')
       })
   }, [])
@@ -57,5 +63,4 @@ export default function WebOwnerDashboard() {
 }
 
 
-export default WebOwnerDashboard;
 
