@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 
 import Sidebar from '../components/Sidebar';
@@ -55,4 +56,6 @@ export default function WebOwnerDashboard() {
   )
 }
 
+
+export default WebOwnerDashboard;
 
