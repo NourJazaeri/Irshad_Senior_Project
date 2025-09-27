@@ -38,14 +38,49 @@ const upload = multer({
 // ---- Health endpoint ----
 router.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
 
+// ---- Debug endpoint to check WebOwners ----
+router.get('/debug/webowners', async (_, res) => {
+  try {
+    const WebOwner = (await import('../models/WebOwner.js')).default;
+    const webowners = await WebOwner.find({}, 'loginEmail fname lname');
+    res.json({ webowners });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---- List requests ----
 router.get('/', async (_, res, next) => {
   try {
     const requests = await RegistrationRequest.find()
-      .populate('reviewedBy_userID', 'email firstName lastName')
+      .populate('reviewedBy_userID', 'loginEmail fname lname')
       .sort({ submittedAt: -1 });
+    
+    // Debug: Log the populated data
+    console.log('=== DEBUG: Registration Requests ===');
+    requests.forEach((req, index) => {
+      console.log(`Request ${index}:`, {
+        id: req._id,
+        status: req.status,
+        reviewedBy_userID_raw: req.reviewedBy_userID,
+        reviewedBy_userID_type: typeof req.reviewedBy_userID,
+        reviewedBy_userID_populated: req.populated('reviewedBy_userID')
+      });
+      
+      if (req.reviewedBy_userID && typeof req.reviewedBy_userID === 'object') {
+        console.log(`  -> Populated WebOwner data:`, {
+          loginEmail: req.reviewedBy_userID.loginEmail,
+          fname: req.reviewedBy_userID.fname,
+          lname: req.reviewedBy_userID.lname
+        });
+      }
+    });
+    
     res.json(requests);
-  } catch (err) { next(err); }
+  } catch (err) { 
+    console.error('Error in GET /:', err);
+    next(err); 
+  }
 });
 
 

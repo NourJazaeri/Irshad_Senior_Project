@@ -15,7 +15,7 @@ const listRequests = async (req, res) => {
     // Use Mongoose model with population to get referenced data
     const filter = status ? { status } : {};
     const items = await RegistrationRequest.find(filter)
-      .populate('reviewedBy_userID', 'email firstName lastName')
+      .populate('reviewedBy_userID', 'loginEmail fname lname')
       .sort({ submittedAt: -1 });
     console.log(`🔍 Filtered documents (status: ${status}): ${items.length}`);
     

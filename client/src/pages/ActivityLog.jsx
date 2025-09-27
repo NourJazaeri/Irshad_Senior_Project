@@ -28,18 +28,25 @@ export default function ActivityLog() {
             const companyData = regRequest.application?.company || {};
             const status = regRequest.status || 'pending';
             
+            // Debug: Log the reviewedBy_userID data
+            console.log('Debug - regRequest.reviewedBy_userID:', regRequest.reviewedBy_userID);
+            console.log('Debug - typeof reviewedBy_userID:', typeof regRequest.reviewedBy_userID);
+            
             // Extract reviewedBy information from populated data
             let reviewedBy = 'N/A';
             if (regRequest.reviewedBy_userID) {
               if (typeof regRequest.reviewedBy_userID === 'object') {
-                // If populated, use the WebOwner's email or name
-                reviewedBy = regRequest.reviewedBy_userID.email || 
-                           `${regRequest.reviewedBy_userID.firstName || ''} ${regRequest.reviewedBy_userID.lastName || ''}`.trim() ||
-                           'Web Owner';
+                // If populated, prioritize full name, fallback to email
+                const fullName = `${regRequest.reviewedBy_userID.fname || ''} ${regRequest.reviewedBy_userID.lname || ''}`.trim();
+                reviewedBy = fullName || regRequest.reviewedBy_userID.loginEmail || 'Web Owner';
+                console.log('Debug - fullName:', fullName, 'loginEmail:', regRequest.reviewedBy_userID.loginEmail);
               } else {
                 // If not populated, it's just the ID
                 reviewedBy = 'Web Owner';
+                console.log('Debug - reviewedBy_userID is just an ID:', regRequest.reviewedBy_userID);
               }
+            } else {
+              console.log('Debug - No reviewedBy_userID found');
             }
             
             return {
