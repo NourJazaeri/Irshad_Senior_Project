@@ -41,7 +41,9 @@ router.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() 
 // ---- List requests ----
 router.get('/', async (_, res, next) => {
   try {
-    const requests = await RegistrationRequest.find().sort({ submittedAt: -1 });
+    const requests = await RegistrationRequest.find()
+      .populate('reviewedBy_userID', 'email firstName lastName')
+      .sort({ submittedAt: -1 });
     res.json(requests);
   } catch (err) { next(err); }
 });

@@ -20,10 +20,10 @@ export default function QuickLinks() {
     navigate('/owner/registrations');
   };
 
-  const handleViewHistory = (e) => {
+  const handleViewActivityLog = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Navigating to Usage History page...');
+    console.log('Navigating to Activity Log page...');
     navigate('/owner/reports');
   };
 
@@ -43,9 +43,9 @@ export default function QuickLinks() {
       </div>
       <div className="card">
         <div className="card-icon"><FiTrendingUp /></div>
-        <div className="card-title">Usage History</div>
-        <p className="card-text">Access detailed reports on platform history and user engagement.</p>
-        <button className="btn" onClick={handleViewHistory}>View Details</button>
+        <div className="card-title">Reports & Activity Log</div>
+        <p className="card-text">View detailed activity logs and company registration history.</p>
+        <button className="btn" onClick={handleViewActivityLog}>View Details</button>
       </div>
     </section>
   );

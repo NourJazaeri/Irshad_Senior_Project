@@ -12,22 +12,11 @@ const listRequests = async (req, res) => {
   try {
     const { status = "pending" } = req.query;
     
-    // Use direct collection access to bypass schema restrictions
-    const mongoose = await import('mongoose');
-    const collection = mongoose.default.connection.db.collection('RegistrationRequest');
-    
-    // Debug: Check what's in the database
-    const allItems = await collection.find({}).toArray();
-    console.log(`📊 Total documents found: ${allItems.length}`);
-    console.log(`🔗 Database: ${mongoose.default.connection.db.databaseName}`);
-    
-    if (allItems.length > 0) {
-      console.log('📄 Sample document:');
-      console.log(JSON.stringify(allItems[0], null, 2));
-    }
-    
+    // Use Mongoose model with population to get referenced data
     const filter = status ? { status } : {};
-    const items = await collection.find(filter).sort({ submittedAt: -1 }).toArray();
+    const items = await RegistrationRequest.find(filter)
+      .populate('reviewedBy_userID', 'email firstName lastName')
+      .sort({ submittedAt: -1 });
     console.log(`🔍 Filtered documents (status: ${status}): ${items.length}`);
     
     res.json(items);

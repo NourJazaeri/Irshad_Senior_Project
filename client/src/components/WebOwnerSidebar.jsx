@@ -44,7 +44,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
           to="/owner/reports" 
           className={`wo-nav__item ${isActive('reports') ? 'active' : ''}`}
         >
-          <span className="wo-ico">📊</span> <span className="wo-nav__text">Reports</span>
+          <span className="wo-ico">📊</span> <span className="wo-nav__text">Reports & Activity</span>
         </Link>
       </nav>
       <div className="wo-sidebar__user">

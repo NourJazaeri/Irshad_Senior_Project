@@ -19,6 +19,10 @@ import Dashboard from "./pages/WebOwnerDashboard.jsx";
 import Registrations from "./pages/Registrations.jsx";
 import Reports from "./pages/Reports.jsx";
 
+// Import UsageReport pages
+import ActivityLog from "./pages/ActivityLog.jsx";
+import ReportCompanyDetails from "./pages/ReportCompanyDetails.jsx";
+
 import "./App.css";
 import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
@@ -64,10 +68,13 @@ export default function App() {
           <Route path="reports" element={<Reports />} />
         </Route>
 
+        {/* UsageReport Routes */}
+        <Route path="/activity-log" element={<ActivityLog />} />
+        <Route path="/company-details/:companyId" element={<ReportCompanyDetails />} />
+
         {/* Additional Dashboard Routes */}
         <Route path="/companies" element={<div style={{padding: '20px'}}><h2>Companies Management</h2><p>This page will show all registered companies.</p></div>} />
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />
-        <Route path="/history" element={<div style={{padding: '20px'}}><h2>Usage History</h2><p>This page will show platform usage history and reports.</p></div>} />
         <Route path="/settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain dashboard settings.</p></div>} />
       </Routes>
       {!isLoginRoute && !isOwnerRoute && <Footer />}
