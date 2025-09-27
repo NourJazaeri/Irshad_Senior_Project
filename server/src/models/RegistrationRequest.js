@@ -14,7 +14,7 @@ const RegistrationRequestSchema = new Schema({
       name:       { type: String, required: true, trim: true },
       description:{ type: String, trim: true },
       branches:   { type: String, trim: true },
-      crn:        { type: String, required: true, trim: true },
+      CRN:        { type: String, required: true, trim: true },
       taxNo:      { type: String, trim: true },
       industry:   { type: String, required: true },
       size:       { type: String, required: true },

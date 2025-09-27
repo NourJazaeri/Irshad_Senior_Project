@@ -154,7 +154,7 @@ export default function CompanyRegistration() {
       });
 
       // Submit to MongoDB via API
-      const response = await fetch(`${API_BASE}/api/registration-requests`, {
+      const response = await fetch(`${API_BASE}/api/company-registration-forms`, {
         method: 'POST',
         body: submitData
       });

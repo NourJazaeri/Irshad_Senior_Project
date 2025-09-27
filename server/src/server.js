@@ -6,9 +6,10 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
-import registrationRequests from './routes/registrationRequests.js';
-import countsRoutes from './routes/counts.js';
-import companiesRoutes from './routes/companies.js';
+import companyRegistrationForms from './routes/companyRegistrationForms.js';
+import webownerRequestManagement from './routes/webownerRequestManagement.js';
+import dashboardCounts from './routes/dashboardCounts.js';
+import displayingCompanies from './routes/displayingCompanies.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +50,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // API ROUTES - AFTER CORS MIDDLEWARE
-app.use('/api', countsRoutes);
-app.use('/api/registration-requests', registrationRequests);
+app.use('/api', dashboardCounts);
+app.use('/api/company-registration-forms', companyRegistrationForms);
+app.use('/api/webowner/request-management', webownerRequestManagement);
 app.use('/api/auth', authRoutes);
-app.use('/api/companies', companiesRoutes);
+app.use('/api/companies', displayingCompanies);
 
 // Serve frontend build if exists
 const clientDist = path.join(__dirname, '../client/dist');
@@ -67,7 +69,12 @@ if (fs.existsSync(clientDist)) {
       message: 'Backend server is running',
       endpoints: {
         health: '/api/health',
-        registration: '/api/registration-requests',
+        companyRegistrationForms: '/api/company-registration-forms',
+        companyRegistrationApprove: '/api/company-registration-forms/:id/approve',
+        companyRegistrationReject: '/api/company-registration-forms/:id/reject',
+        webownerRequestManagement: '/api/webowner/request-management',
+        webownerRequestApprove: '/api/webowner/request-management/:id/approve',
+        webownerRequestReject: '/api/webowner/request-management/:id/reject',
         auth: '/api/auth',
         companies: '/api/companies'
       }
@@ -129,8 +136,13 @@ app.use('/api', (req, res) => {
       
       console.log('\n📋 Available endpoints:');
       console.log('   GET  /api/health');
-      console.log('   POST /api/registration-requests');
-      console.log('   GET  /api/registration-requests');
+      console.log('   POST /api/company-registration-forms');
+      console.log('   GET  /api/company-registration-forms');
+      console.log('   POST /api/company-registration-forms/:id/approve');
+      console.log('   POST /api/company-registration-forms/:id/reject');
+      console.log('   GET  /api/webowner/request-management');
+      console.log('   POST /api/webowner/request-management/:id/approve');
+      console.log('   POST /api/webowner/request-management/:id/reject');
       console.log('   POST /api/auth/login');
       console.log('   POST /api/auth/register');
       console.log('   GET  /api/companies');

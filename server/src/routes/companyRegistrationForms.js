@@ -7,6 +7,10 @@ import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 
 import RegistrationRequest from '../models/RegistrationRequest.js';
+import Company from '../models/Company.js';
+import Admin from '../models/Admin.js';
+import Employee from '../models/Employees.js';
+import { authenticateWebOwner } from '../middleware/auth.js';
 
 const { Types } = mongoose;
 const __filename = fileURLToPath(import.meta.url);
@@ -72,8 +76,8 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
 
     // Validate required fields from React frontend
     const requiredFields = [
-      'companyName', 'description', 'branches', 'commercialRegistrationNumber', 'taxNumber', 'industry', 'companySize', 'linkedinProfileUrl',
-      'adminEmail', 'adminPassword'
+      'companyName', 'commercialRegistrationNumber', 'industry', 'companySize',
+      'adminFirstName', 'adminLastName', 'adminEmail', 'adminPhone', 'adminPosition', 'adminPassword'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -93,7 +97,7 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
           name: req.body.companyName,
           description: req.body.description || null,
           branches: req.body.branches || null,
-          crn: req.body.commercialRegistrationNumber,
+          CRN: req.body.commercialRegistrationNumber,
           taxNo: req.body.taxNumber || null,
           industry: req.body.industry,
           size: req.body.companySize,
@@ -102,7 +106,11 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
         },
         admin: {
           LoginEmail: req.body.adminEmail.toLowerCase(),
-          passwordHash: await bcrypt.hash(req.body.adminPassword, 10) // Hash the password
+          passwordHash: await bcrypt.hash(req.body.adminPassword, 10),
+          firstName: req.body.adminFirstName,
+          lastName: req.body.adminLastName,
+          phone: req.body.adminPhone,
+          position: req.body.adminPosition,
         }
       }
     });
@@ -138,6 +146,105 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
       error: 'Internal server error', 
       details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
+  }
+});
+
+// ---- APPROVE request ----
+router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
+  try {
+    const rr = await RegistrationRequest.findOne({ _id: req.params.id, status: "pending" });
+    if (!rr) {
+      return res.status(404).json({ ok: false, error: "Request not found or already processed" });
+    }
+
+    const c = rr.application.company;
+    const a = rr.application.admin;
+
+    // Create/find admin user
+    let adminUser = await Admin.findOne({ loginEmail: a.LoginEmail });
+    if (!adminUser) {
+      adminUser = await Admin.create({
+        firstName: a.firstName || "Unknown",
+        lastName: a.lastName || "Unknown",
+        loginEmail: a.LoginEmail,
+        phone: a.phone || "",
+        position: a.position || "",
+        passwordHash: a.passwordHash,
+      });
+    }
+
+    // Create/find employee
+    let employee = await Employee.findOne({ email: a.LoginEmail });
+    if (!employee) {
+      employee = await Employee.create({
+        fname: a.firstName || "Unknown",
+        lname: a.lastName || "Unknown",
+        email: a.LoginEmail,
+        phone: a.phone || "",
+        position: "Admin",
+        ObjectCompanyID: null,
+      });
+    }
+
+    // Create company
+    const companyDoc = await Company.create({
+      name: c.name,
+      CRN: c.CRN,
+      industry: c.industry,
+      description: c.description || "",
+      branches: c.branches || "",
+      taxNo: c.taxNo || "",
+      linkedin: c.linkedIn || "",
+      size: c.size,
+      logoUrl: c.logoFilename ? `/uploads/${c.logoFilename}` : "",
+      reg_reqID: rr._id,
+      AdminObjectUserID: adminUser._id,
+    });
+
+    // Update employee with company ID
+    employee.ObjectCompanyID = companyDoc._id;
+    await employee.save();
+
+    // Update registration request
+    rr.status = "approved";
+    rr.reviewedAt = new Date();
+    rr.reviewedBy_userID = req.webOwner.id; // WebOwner who reviewed this request
+    rr.AdminObjectUserID = adminUser._id;
+    await rr.save();
+
+    res.json({
+      ok: true,
+      message: "Registration request approved successfully",
+      companyID: companyDoc._id,
+      adminUserID: adminUser._id,
+      employeeID: employee._id,
+    });
+  } catch (err) {
+    console.error('Error approving request:', err);
+    next(err);
+  }
+});
+
+// ---- REJECT request ----
+router.post('/:id/reject', authenticateWebOwner, async (req, res, next) => {
+  try {
+    const rr = await RegistrationRequest.findOne({ _id: req.params.id, status: "pending" });
+    if (!rr) {
+      return res.status(404).json({ ok: false, error: "Request not found or already processed" });
+    }
+
+    rr.status = "rejected";
+    rr.reviewedAt = new Date();
+    rr.reviewedBy_userID = req.webOwner.id; // WebOwner who reviewed this request
+    await rr.save();
+
+    res.json({ 
+      ok: true, 
+      message: "Registration request rejected successfully" 
+    });
+  } catch (err) {
+    console.error('Error rejecting request:', err);
+    next(err);
   }
 });
 

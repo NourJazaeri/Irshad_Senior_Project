@@ -17,7 +17,7 @@ const CompanySchema = new Schema({
   AdminObjectUserID: { type: Types.ObjectId, ref: 'Admin' } // Database field name
 }, { collection: 'Company', timestamps: true });
 
-CompanySchema.index({ name: 'text', crn: 'text' });
+CompanySchema.index({ name: 'text', CRN: 'text' });
 // CompanySchema.virtual('logoUrl').get(function () {
 //   return this.logoFilename ? `/uploads/${this.logoFilename}` : null;
 // });

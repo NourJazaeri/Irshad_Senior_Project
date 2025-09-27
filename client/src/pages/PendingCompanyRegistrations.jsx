@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import '../styles/dashboard.css';
+import '../styles/owner-components.css';
 
 const API = import.meta.env.VITE_API || 'http://localhost:5000';
 
@@ -12,13 +12,13 @@ export default function PendingCompanyRegistrations() {
   const load = async (status = activeTab) => {
     try {
       // Try new API endpoint first
-      console.log(`🔄 Loading ${status} requests from: ${API}/api/owner/registration-requests?status=${status}`);
-      let res = await fetch(`${API}/api/owner/registration-requests?status=${status}`);
+      console.log(`🔄 Loading ${status} requests from: ${API}/api/webowner/request-management?status=${status}`);
+      let res = await fetch(`${API}/api/webowner/request-management?status=${status}`);
       
       if (!res.ok) {
         console.log('❌ New endpoint failed, trying old endpoint...');
         // Fallback to old endpoint
-        res = await fetch(`${API}/api/registration-requests?status=${status}`);
+        res = await fetch(`${API}/api/company-registration-forms?status=${status}`);
       }
       
       if (!res.ok) {
@@ -53,17 +53,31 @@ export default function PendingCompanyRegistrations() {
 
     setBusy(id);
     try {
-      const res = await fetch(`${API}/api/owner/registration-requests/${id}/${action}`, {
+      // Get the authentication token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to perform this action.');
+        return;
+      }
+
+      const res = await fetch(`${API}/api/webowner/request-management/${id}/${action}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
       });
-      if (!res.ok) throw new Error('Request failed');
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Request failed');
+      }
+      
       await load();
       alert(`${verb}d successfully.`);
     } catch (e) {
-      alert(`${verb} failed. Please try again.`);
+      console.error(`${verb} error:`, e);
+      alert(`${verb} failed: ${e.message}. Please try again.`);
     } finally {
       setBusy(null);
     }
@@ -82,11 +96,9 @@ export default function PendingCompanyRegistrations() {
               {c.name} <span className={`status status-${req.status}`}>({req.status})</span>
             </div>
             <div className="reg-meta">
-              Admin: {a.email || a.loginEmail || a.LoginEmail || 'N/A'}
-              <br />
-              Industry: {c.industry} • Employees: {c.size}
-              <br />
-              Submitted: {new Date(req.submittedAt).toLocaleDateString()}
+              <div className="meta-line">
+                <span className="meta-label">Admin:</span> {a.email || a.loginEmail || a.LoginEmail || 'N/A'}
+              </div>
             </div>
           </div>
 
@@ -117,41 +129,62 @@ export default function PendingCompanyRegistrations() {
 
         {isOpen && (
           <div className="reg-details">
-            <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand)' }}>Company Information</h4>
-            <div className="grid-2">
-              <div>
-                <strong>CRN:</strong> {c.CRN || '-'}
-              </div>
-              <div>
-                <strong>Tax No:</strong> {c.taxNo || '-'}
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <strong>Description:</strong> {c.description || '-'}
-              </div>
-              <div>
-                <strong>Branches:</strong> {c.branches || '-'}
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <strong>LinkedIn:</strong> {c.linkedIn || '-'}
-              </div>
-              {c.logoUrl && (
-                <div style={{ gridColumn: '1 / -1', marginTop: 8 }}>
-                  <img
-                    src={`${API}${c.logoUrl}`}
-                    alt="Company Logo"
-                    style={{ maxHeight: 80, borderRadius: '8px', border: '1px solid #e5e7eb' }}
-                  />
+            <div className="details-section">
+              <h4>Company Information</h4>
+              <div className="details-grid">
+                <div className="detail-item">
+                  <span className="detail-label">Company Name:</span>
+                  <span className="detail-value">{c.name}</span>
                 </div>
-              )}
+                <div className="detail-item">
+                  <span className="detail-label">CRN:</span>
+                  <span className="detail-value">{c.CRN || '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Tax Number:</span>
+                  <span className="detail-value">{c.taxNo || '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Industry:</span>
+                  <span className="detail-value">{c.industry}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Company Size:</span>
+                  <span className="detail-value">{c.size} employees</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Branches:</span>
+                  <span className="detail-value">{c.branches || '-'}</span>
+                </div>
+                <div className="detail-item full-width">
+                  <span className="detail-label">Description:</span>
+                  <span className="detail-value">{c.description || '-'}</span>
+                </div>
+                <div className="detail-item full-width">
+                  <span className="detail-label">LinkedIn:</span>
+                  <span className="detail-value">
+                    {c.linkedIn ? (
+                      <a href={c.linkedIn} target="_blank" rel="noopener noreferrer" className="detail-link">
+                        {c.linkedIn}
+                      </a>
+                    ) : '-'}
+                  </span>
+                </div>
+                {c.logoUrl && (
+                  <div className="detail-item full-width logo-item">
+                    <span className="detail-label">Company Logo:</span>
+                    <div className="logo-container">
+                      <img
+                        src={`${API}${c.logoUrl}`}
+                        alt="Company Logo"
+                        className="company-logo"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             
-            <h4 style={{ margin: '16px 0 12px 0', color: 'var(--brand)' }}>Admin Information</h4>
-            <div className="grid-2">
-              <div>
-                <strong>Email:</strong> {a.email || a.loginEmail || a.LoginEmail || '-'}
-              </div>
-            </div>
-
           </div>
         )}
       </div>
@@ -189,18 +222,21 @@ export default function PendingCompanyRegistrations() {
       <div className="tabs">
         <button 
           className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
+          data-status="pending"
           onClick={() => setActiveTab('pending')}
         >
           Pending
         </button>
         <button 
           className={`tab-btn ${activeTab === 'approved' ? 'active' : ''}`}
+          data-status="approved"
           onClick={() => setActiveTab('approved')}
         >
           Approved
         </button>
         <button 
           className={`tab-btn ${activeTab === 'rejected' ? 'active' : ''}`}
+          data-status="rejected"
           onClick={() => setActiveTab('rejected')}
         >
           Rejected

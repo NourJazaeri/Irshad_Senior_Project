@@ -1,10 +1,14 @@
+import express from "express";
 import RegistrationRequest from "../models/RegistrationRequest.js";
 import Company from "../models/Company.js";
 import Admin from "../models/Admin.js";
 import Employee from "../models/Employees.js";
+import { authenticateWebOwner } from "../middleware/auth.js";
+
+const router = express.Router();
 
 // List all registration requests with optional status filter
-export const listRequests = async (req, res) => {
+const listRequests = async (req, res) => {
   try {
     const { status = "pending" } = req.query;
     
@@ -34,7 +38,7 @@ export const listRequests = async (req, res) => {
 };
 
 // Get a single registration request by ID
-export const getRequest = async (req, res) => {
+const getRequest = async (req, res) => {
   try {
     const { id } = req.params;
     const request = await RegistrationRequest.findById(id);
@@ -51,7 +55,7 @@ export const getRequest = async (req, res) => {
 };
 
 // Approve a registration request
-export const approveRequest = async (req, res) => {
+const approveRequest = async (req, res) => {
   try {
     // Use direct collection access to bypass schema restrictions
     const mongoose = await import('mongoose');
@@ -152,6 +156,7 @@ export const approveRequest = async (req, res) => {
         $set: { 
           status: "approved",
           reviewedAt: new Date(),
+          reviewedBy_userID: req.webOwner.id, // WebOwner who reviewed this request
           AdminObjectUserID: adminUser._id,
           updatedAt: new Date()
         }
@@ -174,7 +179,7 @@ export const approveRequest = async (req, res) => {
 };
 
 // Reject a registration request
-export const rejectRequest = async (req, res) => {
+const rejectRequest = async (req, res) => {
   try {
     // Use direct collection access to bypass schema restrictions
     const mongoose = await import('mongoose');
@@ -199,6 +204,7 @@ export const rejectRequest = async (req, res) => {
         $set: { 
           status: "rejected",
           reviewedAt: new Date(),
+          reviewedBy_userID: req.webOwner.id, // WebOwner who reviewed this request
           updatedAt: new Date()
         }
       }
@@ -215,3 +221,17 @@ export const rejectRequest = async (req, res) => {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 };
+
+// GET /api/owner/registration-requests - List all requests (with optional status filter)
+router.get("/", listRequests);
+
+// GET /api/owner/registration-requests/:id - Get specific request
+router.get("/:id", getRequest);
+
+// POST /api/owner/registration-requests/:id/approve - Approve request
+router.post("/:id/approve", authenticateWebOwner, approveRequest);
+
+// POST /api/owner/registration-requests/:id/reject - Reject request
+router.post("/:id/reject", authenticateWebOwner, rejectRequest);
+
+export default router;

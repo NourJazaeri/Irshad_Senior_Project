@@ -1,3 +1,5 @@
+import PendingCompanyRegistrations from './PendingCompanyRegistrations.jsx';
+
 export default function Registrations() {
-  return <div className="wo-empty">Registrations coming soon…</div>;
+  return <PendingCompanyRegistrations />;
 }
