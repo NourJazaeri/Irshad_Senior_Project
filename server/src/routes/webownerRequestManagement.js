@@ -3,7 +3,7 @@ import RegistrationRequest from "../models/RegistrationRequest.js";
 import Company from "../models/Company.js";
 import Admin from "../models/Admin.js";
 import Employee from "../models/Employees.js";
-import { authenticateWebOwner } from "./auth.js";
+import { authenticateWebOwner } from "../middleware/authSec.js";
 
 const router = express.Router();
 
