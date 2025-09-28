@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { FiHome, FiUsers, FiClipboard, FiSettings } from 'react-icons/fi';
+import { FiHome, FiUsers, FiClipboard, FiSettings, FiLogOut } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { logoutUser } from '../services/api';
 import '../styles/owner-components.css';
 
 export default function Sidebar({ collapsed, setCollapsed }) {
   const [activeItem, setActiveItem] = useState('dashboard');
+  const navigate = useNavigate();
 
   const handleItemClick = (item, e) => {
     e.preventDefault();
@@ -12,6 +15,32 @@ export default function Sidebar({ collapsed, setCollapsed }) {
     console.log(`Clicked on ${item} - Sidebar navigation working!`);
     alert(`Clicked on ${item} - Sidebar navigation is working!`);
     // Add functionality here
+  };
+
+  const handleLogout = async () => {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (sessionId) {
+        // Call backend to update session
+        await logoutUser(sessionId);
+      }
+
+      // Clear JWT and session data from localStorage
+      localStorage.removeItem("token");
+      localStorage.removeItem("sessionId");
+      localStorage.removeItem("user");
+
+      // Redirect to login
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if backend call fails, still clear local data and redirect
+      localStorage.removeItem("token");
+      localStorage.removeItem("sessionId");
+      localStorage.removeItem("user");
+      navigate("/login");
+    }
   };
 
   return (
@@ -55,6 +84,11 @@ export default function Sidebar({ collapsed, setCollapsed }) {
           <div className="wo-user__name">Web Owner</div>
           <div className="wo-user__mail">owner@platform.com</div>
         </div>
+      </div>
+      <div className="wo-sidebar__logout">
+        <button className="wo-logout-btn" onClick={handleLogout}>
+          <FiLogOut /> Logout
+        </button>
       </div>
     </aside>
   );

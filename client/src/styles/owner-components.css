@@ -16,13 +16,80 @@
 .wo-nav__text{transition:opacity 0.3s ease}
 .wo-sidebar--collapsed .wo-nav__text{opacity:0;width:0;overflow:hidden}
 .wo-sidebar--collapsed .wo-nav__item{justify-content:center;padding:10px 8px}
-.wo-sidebar__user{margin-top:auto;padding:14px;display:flex;gap:10px;align-items:center;border-top:1px solid #325c78;transition:all 0.3s ease}
+.wo-sidebar__user{padding:14px;display:flex;gap:10px;align-items:center;border-top:1px solid #325c78;transition:all 0.3s ease}
 .wo-sidebar--collapsed .wo-sidebar__user{justify-content:center;padding:14px 8px}
 .wo-avatar{width:36px;height:36px;border-radius:50%;background:#e6eef5;color:#274b63;display:grid;place-items:center;font-weight:700;flex-shrink:0}
 .wo-user__info{transition:opacity 0.3s ease}
 .wo-sidebar--collapsed .wo-user__info{opacity:0;width:0;overflow:hidden}
 .wo-user__name{font-weight:600}
 .wo-user__mail{font-size:.9rem;opacity:.85}
+
+/* Logout Button Styling */
+.wo-sidebar__logout {
+  padding: 10px;
+  border-top: 1px solid #325c78;
+  margin-top: auto;
+}
+
+.wo-logout-btn {
+  background: none;
+  border: none;
+  color: #e6eef5;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.wo-logout-btn:hover {
+  background: #365f7b;
+  color: #fff;
+}
+
+.wo-sidebar--collapsed .wo-logout-btn {
+  justify-content: center;
+  padding: 10px 8px;
+}
+
+.wo-sidebar--collapsed .wo-logout-btn span {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+/* Usage Report Sidebar Logout */
+.sidebar-logout {
+  padding: 10px;
+  border-top: 1px solid #325c78;
+  margin-top: auto;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  color: #e6eef5;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+  background: #365f7b;
+  color: #fff;
+}
 
 .wo-main{display:grid;grid-template-rows:56px 1fr auto;flex:1;transition:margin-left 0.3s ease;min-height:100vh;overflow-x:hidden;min-width:0;order:2;width:calc(100% - 260px)}
 .wo-shell:has(.wo-sidebar--collapsed) .wo-main{width:calc(100% - 64px)}

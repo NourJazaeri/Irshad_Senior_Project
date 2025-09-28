@@ -50,7 +50,7 @@ export const authenticateWebOwner = async (req, res, next) => {
   }
 };
 
-// Optional: General authentication middleware for any role
+// General authentication middleware for any role
 export const authenticate = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');

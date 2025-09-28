@@ -22,7 +22,9 @@ export default function UsageReportTopbar({ searchTerm = '', setSearchTerm = () 
         />
       </div>
       
-      <button className="logout"><FiLogOut /> Logout</button>
+     {/* Replace button with your reusable Logout component */}
+      <Logout className="logout" />
+      
     </header>
   );
 }

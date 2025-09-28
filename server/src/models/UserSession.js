@@ -30,5 +30,5 @@ const UserSessionSchema = new Schema(
   { collection: "User_Session", timestamps: true }
 );
 
-const UserSession = models.UserSession || model("UserSession", UserSessionSchema);
+const UserSession = models.User_Session || model("User_Session", UserSessionSchema);
 export default UserSession;

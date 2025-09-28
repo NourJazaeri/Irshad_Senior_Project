@@ -10,6 +10,85 @@ import UserSession from "../models/UserSession.js";
 
 const router = express.Router();
 
+// ===== MIDDLEWARE FUNCTIONS =====
+// Middleware to authenticate WebOwner requests
+export const authenticateWebOwner = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Access denied. No token provided.' 
+      });
+    }
+
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Check if the user is a WebOwner
+    if (decoded.role !== 'WebOwner') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. WebOwner role required.' 
+      });
+    }
+
+    // Find the WebOwner to ensure they still exist
+    const webOwner = await WebOwner.findById(decoded.id);
+    if (!webOwner) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'WebOwner not found.' 
+      });
+    }
+
+    // Add WebOwner info to request object
+    req.webOwner = {
+      id: webOwner._id,
+      email: webOwner.loginEmail,
+      name: `${webOwner.fname} ${webOwner.lname}`
+    };
+
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Invalid token.' 
+    });
+  }
+};
+
+// General authentication middleware for any role
+export const authenticate = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Access denied. No token provided.' 
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = {
+      id: decoded.id,
+      role: decoded.role
+    };
+
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Invalid token.' 
+    });
+  }
+};
+
+// ===== ROUTE HANDLERS =====
 // Role to model mapping
 const roleModels = {
   Admin,
@@ -121,6 +200,36 @@ router.post("/login", async (req, res) => {
     
     return res.status(500).json({ message: err.message || "Server error in auth" });
   }
+})
+////// Logout///////////
+
+// LOGOUT route
+router.post("/logout", async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ message: "Session ID is required" });
+    }
+
+    const session = await UserSession.findByIdAndUpdate(
+      sessionId,
+      { logoutTime: new Date(), isActive: false },
+      { new: true }
+    );
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    return res.json({ success: true, message: "Logout successful" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    return res.status(500).json({ message: "Server error during logout" });
+  }
 });
+
+
+;
 
 export default router;
