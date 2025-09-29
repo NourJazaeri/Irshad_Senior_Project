@@ -55,7 +55,7 @@ router.post("/login", async (req, res) => {
     console.log("User found:", user ? JSON.stringify(user, null, 2) : "NO USER FOUND");
     
     if (!user) {
-      return res.status(404).json({ message: "Account not found" });
+      return res.status(401).json({ message: "Incorrect email or password. Try again." });
     }
 
     // Password check
@@ -64,7 +64,7 @@ router.post("/login", async (req, res) => {
     console.log("Password match:", isMatch);
     
     if (!isMatch) {
-      return res.status(401).json({ message: "Incorrect password" });
+      return res.status(401).json({ message: "Incorrect email or password. Try again." });
     }
 
     // JWT Token
