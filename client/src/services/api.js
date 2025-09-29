@@ -15,11 +15,22 @@ export async function loginUser({ email, password, role }) {
 
     console.log("Response status:", response.status);
     
+    // Always attempt to parse JSON body
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Prefer server-provided message, fallback to generic per status
+      const message = data?.message || (
+        response.status === 400 ? "Email, password and role are required" :
+        response.status === 401 ? "Incorrect password" :
+        response.status === 403 ? "You are not allowed to log in" :
+        response.status === 404 ? "Account not found" :
+        response.status === 503 ? "Service temporarily unavailable. Please try again later." :
+        "Login failed"
+      );
+      return { success: false, message };
     }
     
-    const data = await response.json();
     console.log("Response data:", data);
     
     return data;
@@ -27,7 +38,7 @@ export async function loginUser({ email, password, role }) {
     console.error("Error logging in:", error);
     return { 
       success: false, 
-      message: error.message || "Cannot connect to server. Check if backend is running." 
+      message: "Network error - cannot connect to server" 
     };
   }
 }

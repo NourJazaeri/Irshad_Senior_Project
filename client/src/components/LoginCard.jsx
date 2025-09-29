@@ -37,11 +37,11 @@ function LoginCard({ onLogin }) {
           window.location.href = redirectMap[res.user.role] || '/';
         }
       } else {
-        setErrorMsg(res.message || "Invalid credentials");
+        setErrorMsg(res.message || "Login failed");
       }
     } catch (error) {
       console.error("Login error:", error);
-      setErrorMsg("Network error - cannot connect to server");
+      setErrorMsg(error?.message || "Network error - cannot connect to server");
     }
 
     setLoading(false);

@@ -10,6 +10,7 @@ import companyRegistrationForms from './routes/companyRegistrationForms.js';
 import webownerRequestManagement from './routes/webownerRequestManagement.js';
 import dashboardCounts from './routes/dashboardCounts.js';
 import displayingCompanies from './routes/displayingCompanies.js';
+import companyProfile from './routes/companyProfile.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,6 +56,7 @@ app.use('/api/company-registration-forms', companyRegistrationForms);
 app.use('/api/webowner/request-management', webownerRequestManagement);
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', displayingCompanies);
+app.use('/api/company-profile', companyProfile);
 
 // Serve frontend build if exists
 const clientDist = path.join(__dirname, '../client/dist');
@@ -144,9 +146,11 @@ app.use('/api', (req, res) => {
       console.log('   POST /api/webowner/request-management/:id/approve');
       console.log('   POST /api/webowner/request-management/:id/reject');
       console.log('   POST /api/auth/login');
-      console.log('   POST /api/auth/register');
+      console.log('   POST /api/auth/logout');
       console.log('   GET  /api/companies');
       console.log('   GET  /api/companies/:id');
+      console.log('   GET  /api/company-profile/me');
+      console.log('   PUT  /api/company-profile/me');
     });
     
   } catch (error) {

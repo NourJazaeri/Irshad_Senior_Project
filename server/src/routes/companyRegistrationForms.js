@@ -11,7 +11,7 @@ import Company from '../models/Company.js';
 import Admin from '../models/Admin.js';
 import Employee from '../models/Employees.js';
 
-import { authenticateWebOwner } from '../middleware/authSec.js';
+import { authenticateWebOwner } from '../middleware/authMiddleware.js';
 
 const { Types } = mongoose;
 const __filename = fileURLToPath(import.meta.url);

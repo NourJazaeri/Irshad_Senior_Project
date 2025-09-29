@@ -35,7 +35,7 @@ router.post("/login", async (req, res) => {
     // Validation
     if (!role || !email || !password) {
       console.log("Missing fields - role:", role, "email:", email);
-      return res.status(400).json({ message: "Please provide role, email and password" });
+      return res.status(400).json({ message: "Email, password and role are required" });
     }
 
     console.log("Looking for role:", role);
@@ -44,7 +44,7 @@ router.post("/login", async (req, res) => {
     
     if (!UserModel) {
       console.log("Invalid role provided:", role);
-      return res.status(400).json({ message: "Invalid role" });
+      return res.status(400).json({ message: "Invalid role selected" });
     }
 
     // Find user (case-insensitive search)
@@ -55,7 +55,7 @@ router.post("/login", async (req, res) => {
     console.log("User found:", user ? JSON.stringify(user, null, 2) : "NO USER FOUND");
     
     if (!user) {
-      return res.status(401).json({ message: "Login failed: email not found" });
+      return res.status(404).json({ message: "Account not found" });
     }
 
     // Password check
@@ -64,7 +64,7 @@ router.post("/login", async (req, res) => {
     console.log("Password match:", isMatch);
     
     if (!isMatch) {
-      return res.status(401).json({ message: "Login failed: incorrect password" });
+      return res.status(401).json({ message: "Incorrect password" });
     }
 
     // JWT Token
@@ -88,6 +88,9 @@ router.post("/login", async (req, res) => {
     }
 
     console.log("=== LOGIN SUCCESSFUL ===");
+    console.log("👤 User ID:", user._id);
+    console.log("👤 User Email:", user.loginEmail);
+    console.log("👤 User Role:", role);
     
     return res.json({
       success: true,
@@ -110,15 +113,15 @@ router.post("/login", async (req, res) => {
     
     // Check if it's a MongoDB connection error
     if (err.name === 'MongoNetworkError' || err.name === 'MongoTimeoutError') {
-      return res.status(500).json({ message: "Database connection failed" });
+      return res.status(503).json({ message: "Cannot connect to database. Please try again later." });
     }
     
     // Check if it's a validation error
     if (err.name === 'ValidationError') {
-      return res.status(500).json({ message: `Data validation error: ${err.message}` });
+      return res.status(400).json({ message: `Invalid data: ${err.message}` });
     }
     
-    return res.status(500).json({ message: err.message || "Server error in auth" });
+    return res.status(500).json({ message: "Something went wrong during login" });
   }
 })
 ////// Logout///////////

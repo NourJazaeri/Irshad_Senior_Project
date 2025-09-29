@@ -6,10 +6,13 @@ import Footer from "./components/Footer.jsx";
 
 import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
-import AdminDashboard from "./pages/AdminDashboard.jsx";
+import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
+
+// Import Admin layout
+import AdminLayout from "./pages/AdminLayout.jsx";
 
 // Import WebOwner layout and pages
 import OwnerLayout from "./pages/OwnerLayout.jsx";
@@ -33,15 +36,17 @@ export default function App() {
   
   // Define routes that should NOT have Navbar and Footer
   const loginRoutes = ['/', '/login', '/auth'];
-  const dashboardRoutes = ['/admin', '/supervisor', '/trainee', '/webowner'];
+  const dashboardRoutes = ['/supervisor', '/trainee', '/webowner'];
+  const adminRoutes = ['/admin'];
   const ownerRoutes = ['/owner'];
   const isLoginRoute = loginRoutes.includes(location.pathname);
   const isDashboardRoute = dashboardRoutes.includes(location.pathname);
+  const isAdminRoute = location.pathname.startsWith('/admin');
   const isOwnerRoute = location.pathname.startsWith('/owner');
 
   return (
     <>
-      {!isLoginRoute && !isDashboardRoute && !isOwnerRoute && <Navbar />}
+      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
         {/* Login Routes - Set as default page */}
         <Route path="/" element={<LoginPage />} />
@@ -52,8 +57,12 @@ export default function App() {
         <Route path="/registration" element={<CompanyRegistration />} />
         <Route path="/register" element={<CompanyRegistration />} />
 
+        {/* Admin Layout Routes */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<CompanyProfile />} />
+        </Route>
+
         {/* Dashboard Routes */}
-        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/supervisor" element={<SupervisorDashboard />} />
         <Route path="/trainee" element={<TraineeDashboard />} />
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
@@ -77,7 +86,7 @@ export default function App() {
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />
         <Route path="/settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain dashboard settings.</p></div>} />
       </Routes>
-      {!isLoginRoute && !isOwnerRoute && <Footer />}
+      {!isLoginRoute && !isAdminRoute && !isOwnerRoute && <Footer />}
     </>
   );
 }
