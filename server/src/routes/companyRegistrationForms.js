@@ -140,7 +140,7 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
           industry: req.body.industry,
           size: req.body.companySize,
           linkedIn: req.body.linkedinProfileUrl || null,
-          logoFilename: req.file ? req.file.filename : null
+          logoUrl: req.file ? req.file.filename : null
         },
         admin: {
           LoginEmail: req.body.adminEmail.toLowerCase(),
@@ -230,8 +230,8 @@ router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
       taxNo: c.taxNo || "",
       linkedin: c.linkedIn || "",
       size: c.size,
-      logoUrl: c.logoFilename ? `/uploads/${c.logoFilename}` : "",
-      reg_reqID: rr._id,
+      logoUrl: c.logoUrl ? `/uploads/${c.logoUrl}` : "",
+      ObjectRegReqID: rr._id,
       AdminObjectUserID: adminUser._id,
     });
 

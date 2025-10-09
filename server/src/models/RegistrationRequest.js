@@ -20,7 +20,7 @@ const RegistrationRequestSchema = new Schema({
       industry:   { type: String, required: true },
       size:       { type: String, required: true },
       linkedIn:   { type: String, trim: true },
-      logoFilename: String   // store filename only
+      logoUrl: String,    // store filename only
     },
     admin: {
       LoginEmail:      { type: String, required: true, lowercase: true, trim: true, match: [/^\S+@\S+\.\S+$/, 'Invalid email'] },

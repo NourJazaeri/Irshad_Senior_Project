@@ -15,6 +15,7 @@ const TraineeSchema = new Schema(
     },
     passwordHash: { type: String, required: true },
     EmpObjectUserID: { type: Types.ObjectId, ref: "Employees", required: true, unique: true },
+    ObjectGroupID: { type: Types.ObjectId, ref: "Group"}
   },
   { collection: "Trainee", timestamps: true }
 );

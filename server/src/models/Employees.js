@@ -11,11 +11,11 @@ const EmployeeSchema = new Schema(
     phone: { type: String },
     position: {
       type: String,
-      enum: ["Admin", "Supervisor", "Trainee", "WebsiteOwner"],
       required: true,
     },
     EmpID: { type: String, unique: true },
     ObjectCompanyID: { type: Schema.Types.ObjectId, ref: "Company" },
+    ObjectDepartmentID: {type: Schema.Types.ObjectId, ref: "Department"}
   },
   { collection: "Employee", timestamps: true }
 );

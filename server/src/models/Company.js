@@ -12,14 +12,14 @@ const CompanySchema = new Schema({
   linkedin: String,                               // lower per doc (or keep as-is)
   size: { type: Number },                         // numeric employees
   logoUrl: String,                                // store full URL if you have one
-  reg_reqID: { type: Types.ObjectId, ref: 'RegistrationRequest' }, // match doc
+  ObjectRegReqID: { type: Types.ObjectId, ref: 'RegistrationRequest' }, // match Atlas DB
   adminUserID: { type: Types.ObjectId, ref: 'Admin' },
   AdminObjectUserID: { type: Types.ObjectId, ref: 'Admin' } // Database field name
 }, { collection: 'Company', timestamps: true });
 
 CompanySchema.index({ name: 'text', CRN: 'text' });
 // CompanySchema.virtual('logoUrl').get(function () {
-//   return this.logoFilename ? `/uploads/${this.logoFilename}` : null;
+//   return this.logoUrl ? `/uploads/${this.logoUrl}` : null;
 // });
 CompanySchema.set('toJSON', { virtuals: true });
 
