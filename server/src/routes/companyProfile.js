@@ -109,10 +109,7 @@ router.put("/me", requireAdmin, async (req, res) => {
       if (typeof req.body[k] !== "undefined") allowed[k] = req.body[k];
     }
 
-    // convert branches (string → array) if needed
-    if (typeof allowed.branches === "string") {
-      allowed.branches = allowed.branches.split(",").map(s => s.trim()).filter(Boolean);
-    }
+    // Keep branches as string - no conversion needed
 
     const company = await Company.findOneAndUpdate(
       { AdminObjectUserID: adminId },

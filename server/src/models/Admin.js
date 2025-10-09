@@ -5,7 +5,7 @@ const { Schema, model, Types, models } = mongoose;
 const AdminSchema = new Schema(
   {
     // _id is the PK and also FK to Employees
-    _id: { type: Types.ObjectId, auto: true, ref: "Employees" },
+    _id: { type: Types.ObjectId, auto: true },
     loginEmail: {
       type: String,
       required: true,

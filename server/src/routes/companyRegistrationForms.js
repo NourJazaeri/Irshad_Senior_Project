@@ -115,7 +115,7 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
     // Validate required fields from React frontend
     const requiredFields = [
       'companyName', 'commercialRegistrationNumber', 'industry', 'companySize',
-      'adminFirstName', 'adminLastName', 'adminEmail', 'adminPhone', 'adminPosition', 'adminPassword'
+      'adminEmail', 'adminPassword'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -144,11 +144,7 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
         },
         admin: {
           LoginEmail: req.body.adminEmail.toLowerCase(),
-          passwordHash: await bcrypt.hash(req.body.adminPassword, 10),
-          firstName: req.body.adminFirstName,
-          lastName: req.body.adminLastName,
-          phone: req.body.adminPhone,
-          position: req.body.adminPosition,
+          passwordHash: await bcrypt.hash(req.body.adminPassword, 10)
         }
       }
     });
