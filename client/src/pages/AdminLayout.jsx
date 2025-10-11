@@ -20,10 +20,6 @@ export default function AdminLayout() {
           <Outlet />
         </div>
 
-        <footer className="admin-footer">
-          © {new Date().getFullYear()} Company Management Platform. All rights reserved.
-          <div className="admin-footer__icons">⚙️ 🔒 🛈</div>
-        </footer>
       </main>
     </div>
   );

@@ -10,9 +10,15 @@ import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
+import UserManagement from "./pages/UserManagement.jsx";
 
 // Import Admin layout
 import AdminLayout from "./pages/AdminLayout.jsx";
+
+// Import user detail pages
+import EmployeeDetails from "./pages/EmployeeDetails.jsx";
+import TraineeDetails from "./pages/TraineeDetails.jsx";
+import SupervisorDetails from "./pages/SupervisorDetails.jsx";
 
 // Import WebOwner layout and pages
 import OwnerLayout from "./pages/OwnerLayout.jsx";
@@ -60,6 +66,10 @@ export default function App() {
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<CompanyProfile />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="employees/:id" element={<EmployeeDetails />} />
+          <Route path="trainees/:id" element={<TraineeDetails />} />
+          <Route path="supervisors/:id" element={<SupervisorDetails />} />
         </Route>
 
         {/* Dashboard Routes */}

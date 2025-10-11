@@ -70,6 +70,14 @@ export default function AdminSidebar({ collapsed, setCollapsed }) {
         </Link>
         
         <Link 
+          to="/admin/users" 
+          className={`admin-nav__item ${isActive('/admin/users') ? 'active' : ''}`}
+        >
+          <span className="admin-ico">👥</span>
+          <span className="admin-nav__text">User Management</span>
+        </Link>
+        
+        <Link 
           to="/admin/registrations" 
           className={`admin-nav__item ${isActive('/admin/registrations') ? 'active' : ''}`}
         >

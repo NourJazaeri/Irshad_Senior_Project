@@ -27,10 +27,6 @@ export default function OwnerLayout() {
           <Outlet />
         </div>
 
-        <footer className="wo-footer">
-          © {new Date().getFullYear()} Platform Owner. All rights reserved.
-          <div className="wo-footer__icons">⚙️ 🔒 🛈</div>
-        </footer>
       </main>
     </div>
   );
