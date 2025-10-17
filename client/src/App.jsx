@@ -66,10 +66,6 @@ export default function App() {
   }
 />
 
-
-
-
-
         {/* Login Routes - Set as default page */}
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />

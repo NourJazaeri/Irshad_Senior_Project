@@ -1,39 +1,36 @@
-// client/src/components/CreateGroupButton.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/modal.css";
 
-function CreateGroupButton({ departmentName, departmentId, adminId }) {
+function CreateGroupButton({ departmentName, adminId }) {
   const [showModal, setShowModal] = useState(false);
   const [groupName, setGroupName] = useState("");
   const navigate = useNavigate();
 
   const handleNext = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // ✅ prevents the form from refreshing the page
 
     if (!groupName.trim()) {
       alert("Please enter a group name.");
       return;
     }
 
-    // Close modal
-    setShowModal(false);
+    setShowModal(false); // ✅ close the popup
 
-    // Choose which identifier to use in the URL (prefer id when available)
-    const identifier = departmentId || departmentName || "";
-    const encoded = encodeURIComponent(identifier);
-    navigate(`/departments/${encoded}/assign-members`, {
-      state: { groupName, departmentName, departmentId, adminId },
+    // ✅ Navigate to Assign Members page
+    navigate(`/departments/${encodeURIComponent(departmentName)}/assign-members`, {
+      state: { groupName, departmentName, adminId },
     });
-
   };
 
   return (
     <>
+      {/* --- Create Button --- */}
       <button className="button-primary" onClick={() => setShowModal(true)}>
         + Create Group
       </button>
 
+      {/* --- Popup Modal --- */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -56,6 +53,8 @@ function CreateGroupButton({ departmentName, departmentId, adminId }) {
                 >
                   Cancel
                 </button>
+
+                {/* ✅ This button triggers the handleNext onSubmit */}
                 <button type="submit" className="next-btn">
                   Next → Assign Members
                 </button>
