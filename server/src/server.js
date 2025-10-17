@@ -11,6 +11,7 @@ import webownerRequestManagement from './routes/webownerRequestManagement.js';
 import dashboardCounts from './routes/dashboardCounts.js';
 import displayingCompanies from './routes/displayingCompanies.js';
 import companyProfile from './routes/companyProfile.js';
+import employeeRoutes from "./routes/employees.js";
 import groupRoutes from "./routes/groups.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,9 @@ if (fs.existsSync(clientDist)) {
     });
   });
 }
+////// for sp2//////
+app.use("/api/employees", employeeRoutes);
+app.use("/api/groups", groupRoutes);
 
 // Enhanced error handler
 app.use((err, req, res, next) => {
@@ -158,9 +162,7 @@ app.use('/api', (req, res) => {
     process.exit(1);
   }
 
-///// add to sp2///////
 
 
-app.use("/api/groups", groupRoutes);
 
 })();
