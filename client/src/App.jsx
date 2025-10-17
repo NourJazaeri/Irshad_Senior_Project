@@ -57,7 +57,15 @@ export default function App() {
   {/* Assign members - support both name and id param variants */}
   <Route path="/departments/:departmentName/assign-members" element={<AssignMembers />} />
   
-    
+    <Route
+  path="/test-assign"
+  element={
+    <AssignMembers
+      key="mock"
+    />
+  }
+/>
+
 
 
 
