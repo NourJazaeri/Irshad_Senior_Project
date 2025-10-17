@@ -1,6 +1,5 @@
 import React from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
-
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 
@@ -30,6 +29,10 @@ import "./App.css";
 import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
 import "./styles/owner-components.css";
+///////////////////////////////////////
+import DepartmentDetails from "./pages/DepartmentDetails.jsx"; // ✅ import your 
+import AssignMembers from "./pages/AssignMembers.jsx";
+
 
 export default function App() {
   const location = useLocation();
@@ -48,6 +51,17 @@ export default function App() {
     <>
       {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
+
+  {/* Department Details - support both name and id param variants */}
+  <Route path="/departments/:departmentName/details" element={<DepartmentDetails />} />
+  {/* Assign members - support both name and id param variants */}
+  <Route path="/departments/:departmentName/assign-members" element={<AssignMembers />} />
+  
+    
+
+
+
+
         {/* Login Routes - Set as default page */}
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -88,5 +102,9 @@ export default function App() {
       </Routes>
       {!isLoginRoute && !isAdminRoute && !isOwnerRoute && <Footer />}
     </>
+   
+
+
+
   );
 }

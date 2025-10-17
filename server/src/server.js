@@ -11,7 +11,7 @@ import webownerRequestManagement from './routes/webownerRequestManagement.js';
 import dashboardCounts from './routes/dashboardCounts.js';
 import displayingCompanies from './routes/displayingCompanies.js';
 import companyProfile from './routes/companyProfile.js';
-
+import groupRoutes from "./routes/groups.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,4 +157,10 @@ app.use('/api', (req, res) => {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
+
+///// add to sp2///////
+
+
+app.use("/api/groups", groupRoutes);
+
 })();
