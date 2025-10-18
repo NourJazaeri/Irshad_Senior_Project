@@ -11,6 +11,7 @@ import webownerRequestManagement from './routes/webownerRequestManagement.js';
 import dashboardCounts from './routes/dashboardCounts.js';
 import displayingCompanies from './routes/displayingCompanies.js';
 import companyProfile from './routes/companyProfile.js';
+import contentRoutes from './routes/content.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,6 +58,7 @@ app.use('/api/webowner/request-management', webownerRequestManagement);
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', displayingCompanies);
 app.use('/api/company-profile', companyProfile);
+app.use('/api/content', contentRoutes);
 
 // Serve frontend build if exists
 const clientDist = path.join(__dirname, '../client/dist');

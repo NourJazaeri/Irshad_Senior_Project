@@ -74,3 +74,77 @@ export async function logoutUser(sessionId) {
     };
   }
 }
+
+// Content API functions
+export async function saveContent(contentData) {
+  try {
+    console.log("Sending save content request to:", `${API_BASE}/api/content/save-content`);
+    
+    const response = await fetch(`${API_BASE}/api/content/save-content`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(contentData),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok) {
+      return {
+        success: true,
+        data: data.content,
+        message: data.message || "Content saved successfully"
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || `Server error: ${response.status}`
+      };
+    }
+  } catch (error) {
+    console.error("Error saving content:", error);
+    return { 
+      success: false, 
+      message: error.message || "Cannot connect to server to save content." 
+    };
+  }
+}
+
+export async function getContent(params = {}) {
+  try {
+    const queryParams = new URLSearchParams(params);
+    const url = `${API_BASE}/api/content/content${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    
+    console.log("Fetching content from:", url);
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { 
+        "Accept": "application/json"
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok) {
+      return {
+        success: true,
+        data: Array.isArray(data) ? data : [],
+        message: "Content fetched successfully"
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || `Server error: ${response.status}`
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching content:", error);
+    return { 
+      success: false, 
+      message: error.message || "Cannot connect to server to fetch content." 
+    };
+  }
+}

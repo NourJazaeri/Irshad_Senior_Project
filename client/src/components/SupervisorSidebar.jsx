@@ -4,7 +4,7 @@ import { FiLogOut } from 'react-icons/fi';
 import { logoutUser } from '../services/api';
 import '../styles/admin-components.css';
 
-export default function AdminSidebar({ collapsed, setCollapsed }) {
+export default function SupervisorSidebar({ collapsed, setCollapsed }) {
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -49,62 +49,36 @@ export default function AdminSidebar({ collapsed, setCollapsed }) {
       </div>
       
       <div className="admin-brand">
-        <div className="admin-logo">
-          <span className="admin-logo-text">Irshad</span>
-        </div>
+        <div className="admin-logo">SU</div>
       </div>
       
       <nav className="admin-nav">
         <Link 
-          to="/admin" 
-          className={`admin-nav__item ${isActive('/admin') ? 'active' : ''}`}
+          to="/supervisor" 
+          className={`admin-nav__item ${location.pathname === '/supervisor' ? 'active' : ''}`}
         >
-         
-          <span className="admin-nav__text">Company Profile</span>
+          <span className="admin-ico">🏠</span>
+          <span className="admin-nav__text">Dashboard</span>
         </Link>
         
         <Link 
-          to="/admin/companies" 
-          className={`admin-nav__item ${isActive('/admin/companies') ? 'active' : ''}`}
+          to="/supervisor/templates" 
+          className={`admin-nav__item ${isActive('/supervisor/templates') ? 'active' : ''}`}
         >
-        
-          <span className="admin-nav__text">Manage Companies</span>
-        </Link>
-        
-        <Link 
-          to="/admin/registrations" 
-          className={`admin-nav__item ${isActive('/admin/registrations') ? 'active' : ''}`}
-        >
-      
-          <span className="admin-nav__text">Registrations</span>
-        </Link>
-        
-        <Link 
-          to="/admin/reports" 
-          className={`admin-nav__item ${isActive('/admin/reports') ? 'active' : ''}`}
-        >
-       
-          <span className="admin-nav__text">Reports</span>
-        </Link>
-        
-        <Link 
-          to="/admin/templates" 
-          className={`admin-nav__item ${isActive('/admin/templates') ? 'active' : ''}`}
-        >
-       
+          <span className="admin-ico">📋</span>
           <span className="admin-nav__text">Ready Templates</span>
         </Link>
       </nav>
       
-      <div className="admin-sidebar__logout">
-        <div className="admin-sidebar__user">
-          <div className="admin-avatar">A</div>
-          <div className="admin-user__info">
-            <div className="admin-user__name">Admin</div>
-            <div className="admin-user__mail">admin@company.com</div>
-          </div>
+      <div className="admin-sidebar__user">
+        <div className="admin-avatar">S</div>
+        <div className="admin-user__info">
+          <div className="admin-user__name">Supervisor</div>
+          <div className="admin-user__mail">supervisor@company.com</div>
         </div>
-        
+      </div>
+      
+      <div className="admin-sidebar__logout">
         <button className="admin-logout-btn" onClick={handleLogout}>
           <FiLogOut className="admin-ico" />
           <span>Logout</span>

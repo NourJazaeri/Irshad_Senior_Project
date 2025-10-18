@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import AdminSidebar from "../components/AdminSidebar.jsx";
-import AdminTopbar from "../components/AdminTopbar.jsx";
+import SupervisorSidebar from "../components/SupervisorSidebar.jsx";
+import SupervisorTopbar from "../components/SupervisorTopbar.jsx";
 import "../styles/admin-components.css";
 
-export default function AdminLayout() {
+export default function SupervisorLayout() {
   const { pathname } = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="admin-shell">
-      <AdminSidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <SupervisorSidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       <main className="admin-main">
-        <AdminTopbar />
+        <SupervisorTopbar />
 
         <div className="admin-content">
           {/* page content from child routes */}
@@ -21,8 +21,8 @@ export default function AdminLayout() {
         </div>
 
         <footer className="admin-footer">
-          © {new Date().getFullYear()} Company Management Platform. All rights reserved.
-        
+          © {new Date().getFullYear()} Supervisor Management Platform. All rights reserved.
+          <div className="admin-footer__icons">⚙️ 🔒 🛈</div>
         </footer>
       </main>
     </div>

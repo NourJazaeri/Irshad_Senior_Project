@@ -11,8 +11,13 @@ import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
 
-// Import Admin layout
+// Import Admin layout and pages
 import AdminLayout from "./pages/AdminLayout.jsx";
+import AdminTemplateManagement from "./pages/AdminTemplateManagement.jsx";
+
+// Import Supervisor layout and pages
+import SupervisorLayout from "./pages/SupervisorLayout.jsx";
+import SupervisorTemplateManagement from "./pages/SupervisorTemplateManagement.jsx";
 
 // Import WebOwner layout and pages
 import OwnerLayout from "./pages/OwnerLayout.jsx";
@@ -39,14 +44,16 @@ export default function App() {
   const dashboardRoutes = ['/supervisor', '/trainee', '/webowner'];
   const adminRoutes = ['/admin'];
   const ownerRoutes = ['/owner'];
+  const supervisorRoutes = ['/supervisor'];
   const isLoginRoute = loginRoutes.includes(location.pathname);
   const isDashboardRoute = dashboardRoutes.includes(location.pathname);
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isOwnerRoute = location.pathname.startsWith('/owner');
+  const isSupervisorRoute = location.pathname.startsWith('/supervisor');
 
   return (
     <>
-      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
+      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && !isSupervisorRoute && <Navbar />}
       <Routes>
         {/* Login Routes - Set as default page */}
         <Route path="/" element={<LoginPage />} />
@@ -60,10 +67,16 @@ export default function App() {
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<CompanyProfile />} />
+          <Route path="templates" element={<AdminTemplateManagement />} />
+        </Route>
+
+        {/* Supervisor Layout Routes */}
+        <Route path="/supervisor" element={<SupervisorLayout />}>
+          <Route index element={<SupervisorDashboard />} />
+          <Route path="templates" element={<SupervisorTemplateManagement />} />
         </Route>
 
         {/* Dashboard Routes */}
-        <Route path="/supervisor" element={<SupervisorDashboard />} />
         <Route path="/trainee" element={<TraineeDashboard />} />
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
 
@@ -86,7 +99,7 @@ export default function App() {
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />
         <Route path="/settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain dashboard settings.</p></div>} />
       </Routes>
-      {!isLoginRoute && !isAdminRoute && !isOwnerRoute && <Footer />}
+      {!isLoginRoute && !isAdminRoute && !isOwnerRoute && !isSupervisorRoute && <Footer />}
     </>
   );
 }
