@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import AdminSidebar from "../components/AdminSidebar.jsx";
-import AdminTopbar from "../components/AdminTopbar.jsx";
+import AdminSidebar from "../components/AdminSidebar";
+import AdminTopbar from "../components/AdminTopbar";
 import "../styles/admin-components.css";
 
 export default function AdminLayout() {
@@ -9,7 +9,7 @@ export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="admin-shell">
+    <div className="admin-shell h-screen">
       <AdminSidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       <main className="admin-main">

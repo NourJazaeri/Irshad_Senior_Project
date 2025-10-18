@@ -75,23 +75,12 @@ export async function logoutUser(sessionId) {
   }
 }
 
-////////////////////////////// addition for SP2///////////////////////////////////////////
-
-// client/src/services/api.js
-
-// const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
-// ---------------------------------------------
-// 🟢 1) Fetch employees by department name
-// ---------------------------------------------
 export async function getEmployeesByDepartment({ departmentName, search = "" }) {
   try {
     const token = localStorage.getItem("token");
 
     const res = await fetch(
-      `${API_BASE}/api/employees/by-department?departmentName=${encodeURIComponent(
-        departmentName
-      )}&search=${encodeURIComponent(search)}`,
+      `${API_BASE}/api/employees/by-department?departmentName=${encodeURIComponent(departmentName)}&search=${encodeURIComponent(search)}`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -112,9 +101,32 @@ export async function getEmployeesByDepartment({ departmentName, search = "" }) 
   }
 }
 
-// ---------------------------------------------
-// 🟣 2) Finalize group creation (Submit Group)
-// ---------------------------------------------
+export async function getEmployeesByDepartmentId({ departmentId, search = "" }) {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${API_BASE}/api/employees/by-department-id/${departmentId}?search=${encodeURIComponent(search)}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Failed to load employees: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.employees || [];
+  } catch (err) {
+    console.error("❌ getEmployeesByDepartmentId error:", err);
+    throw err;
+  }
+}
+
 export async function finalizeGroup(payload) {
   try {
     const token = localStorage.getItem("token");

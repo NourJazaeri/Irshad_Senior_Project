@@ -15,8 +15,62 @@ export default function AssignMembers() {
   // From the previous step (CreateGroupButton navigate state)
   const groupName = state?.groupName || "";
   const adminId = state?.adminId || localStorage.getItem("userId");
-  // If state contains departmentName (preferred), use it; otherwise fall back
-  const departmentName = state?.departmentName || departmentNameParam;
+  
+  // Fix for URL parameter issue - if departmentNameParam is :departmentName, extract from URL
+  let departmentName = state?.departmentName || departmentNameParam;
+  
+  // If departmentName is still :departmentName or contains :, try to extract from URL path
+  if (departmentName === ":departmentName" || departmentName.includes(":")) {
+    const pathParts = window.location.pathname.split("/");
+    const departmentIndex = pathParts.findIndex(part => part === "departments");
+    if (departmentIndex !== -1 && pathParts[departmentIndex + 1]) {
+      departmentName = decodeURIComponent(pathParts[departmentIndex + 1]);
+    } else {
+      // Try alternative path patterns
+      const adminIndex = pathParts.findIndex(part => part === "admin");
+      if (adminIndex !== -1) {
+        const adminDepartmentIndex = pathParts.findIndex((part, index) => index > adminIndex && part === "departments");
+        if (adminDepartmentIndex !== -1 && pathParts[adminDepartmentIndex + 1]) {
+          departmentName = decodeURIComponent(pathParts[adminDepartmentIndex + 1]);
+        }
+      }
+    }
+  }
+  
+  // Final fallback - if still no valid department name, try to extract from any part of the URL
+  if (!departmentName || departmentName === ":departmentName" || departmentName.includes(":")) {
+    const urlParts = window.location.pathname.split("/");
+    // Look for any part that looks like a department name (not empty, not 'departments', not 'admin', not 'assign-members')
+    const possibleDepartment = urlParts.find(part => 
+      part && 
+      part !== 'departments' && 
+      part !== 'admin' && 
+      part !== 'assign-members' && 
+      part !== 'details' &&
+      !part.includes(':') &&
+      part.length > 2
+    );
+    if (possibleDepartment) {
+      departmentName = decodeURIComponent(possibleDepartment);
+    }
+  }
+  
+  // Temporary fallback for testing - if still no valid department name, use a default
+  if (!departmentName || departmentName === ":departmentName" || departmentName.includes(":")) {
+    departmentName = "Human Resources"; // Default for testing
+    console.log("⚠️ Using fallback department name:", departmentName);
+  }
+  
+  // Debug logging
+  console.log("🔍 AssignMembers Debug:", {
+    params,
+    departmentNameParam,
+    state,
+    departmentName,
+    location: useLocation(),
+    pathname: window.location.pathname,
+    urlParts: window.location.pathname.split("/")
+  });
 
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +91,7 @@ export default function AssignMembers() {
     // If required information is missing and there's no way to proceed, redirect back
     // but only when we have an identifier to go back to. Otherwise show an error.
     if ((!groupName || !departmentName || !adminId) && departmentNameParam) {
-      navigate(`/departments/${encodeURIComponent(departmentNameParam)}/details`);
+      navigate(`/admin/departments/${encodeURIComponent(departmentNameParam)}/details`);
     }
   }, [groupName, departmentName, adminId, navigate, departmentNameParam]);
 
@@ -48,6 +102,15 @@ export default function AssignMembers() {
       try {
         setLoading(true);
         setErrorMsg("");
+        
+        // Check if departmentName is valid
+        if (!departmentName || departmentName === ":departmentName" || departmentName.includes(":")) {
+          setErrorMsg("Invalid department name. Please navigate to this page from the department list.");
+          setLoading(false);
+          return;
+        }
+        
+        console.log("🔍 Making API call with departmentName:", departmentName);
         const data = await getEmployeesByDepartment({
           departmentName,
           search,
@@ -132,7 +195,7 @@ export default function AssignMembers() {
       // Success UX
       alert("Group created successfully!");
       // Go back to department details
-      navigate(`/departments/${encodeURIComponent(departmentName)}/details`);
+      navigate(`/admin/departments/${encodeURIComponent(departmentName)}/details`);
     } catch (err) {
       console.error(err);
       setErrorMsg(err?.message || "Failed to create group");
@@ -144,7 +207,7 @@ export default function AssignMembers() {
   return (
     <div className="assign-container">
       <div className="assign-header">
-        <div>
+        <div className="assign-header-left">
           <div className="breadcrumbs">
             Departments / {departmentName} / Assign Members
           </div>
@@ -156,13 +219,13 @@ export default function AssignMembers() {
             className={`btn ${mode === "supervisor" ? "btn-dark" : "btn-light"}`}
             onClick={() => setMode(mode === "supervisor" ? null : "supervisor")}
           >
-            Assign Supervisor
+            {mode === "supervisor" ? "✓" : "👨‍💼"} Assign Supervisor
           </button>
           <button
             className={`btn ${mode === "trainees" ? "btn-dark" : "btn-light"}`}
             onClick={() => setMode(mode === "trainees" ? null : "trainees")}
           >
-            Add Trainees
+            {mode === "trainees" ? "✓" : "👥"} Add Trainees
           </button>
 
           <button
@@ -171,39 +234,53 @@ export default function AssignMembers() {
             disabled={submitting}
             title="Creates the group with selected supervisor & trainees"
           >
-            {submitting ? "Submitting..." : "Submit Group"}
+            {submitting ? "⏳ Submitting..." : "🚀 Submit Group"}
           </button>
         </div>
       </div>
 
       {/* Selection summary */}
       <section className="summary-card">
+        <h3 style={{ margin: '0 0 20px 0', color: '#1e293b', fontSize: '18px', fontWeight: '700' }}>
+          📋 Group Assignment Summary
+        </h3>
         <div className="summary-row">
-          <div><b>Group:</b> {groupName}</div>
-          <div><b>Department:</b> {departmentName}</div>
+          <div><b>Group:</b> <span style={{ color: '#1e40af', fontWeight: '600' }}>{groupName}</span></div>
+          <div><b>Department:</b> <span style={{ color: '#059669', fontWeight: '600' }}>{departmentName}</span></div>
         </div>
         <div className="summary-row">
           <div>
             <b>Supervisor:</b>{" "}
-            {selectedSupervisor
-              ? `${selectedSupervisor.fname} ${selectedSupervisor.lname}`
-              : <span className="muted">None selected</span>}
+            {selectedSupervisor ? (
+              <span style={{ color: '#dc2626', fontWeight: '600' }}>
+                👨‍💼 {selectedSupervisor.fname} {selectedSupervisor.lname}
+              </span>
+            ) : (
+              <span className="muted">❌ None selected</span>
+            )}
           </div>
           <div>
             <b>Trainees:</b>{" "}
-            {selectedTrainees.length
-              ? selectedTrainees.map(t => `${t.fname} ${t.lname}`).join(", ")
-              : <span className="muted">None selected</span>}
+            {selectedTrainees.length ? (
+              <span style={{ color: '#059669', fontWeight: '600' }}>
+                👥 {selectedTrainees.length} selected: {selectedTrainees.map(t => `${t.fname} ${t.lname}`).join(", ")}
+              </span>
+            ) : (
+              <span className="muted">❌ None selected</span>
+            )}
           </div>
         </div>
       </section>
 
       {/* Search + Table */}
       <section className="table-card">
+        <h3 style={{ margin: '0 0 20px 0', color: '#1e293b', fontSize: '18px', fontWeight: '700' }}>
+          👥 Available Employees
+        </h3>
         <div className="table-toolbar">
           <input
             type="text"
-            placeholder="Search by name, email, or position..."
+            placeholder="🔍 Search by name, email, or position..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -212,7 +289,7 @@ export default function AssignMembers() {
               Selecting: <b>{mode === "supervisor" ? "Supervisor (1)" : "Trainees (multi)"}</b>
             </div>
           ) : (
-            <div className="muted">Choose an action to start selecting</div>
+            <div className="muted">💡 Choose an action above to start selecting</div>
           )}
         </div>
 
@@ -227,40 +304,45 @@ export default function AssignMembers() {
             <table className="emp-table">
               <thead>
                 <tr>
-                  <th style={{width: 42}}></th>
-                  <th>Name</th>
-                  <th>Position</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>Department</th>
+                  <th style={{width: 50}}>Select</th>
+                  <th>👤 Name</th>
+                  <th>💼 Position</th>
+                  <th>📞 Phone</th>
+                  <th>📧 Email</th>
+                  <th>🏢 Department</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="muted" style={{textAlign: "center"}}>
-                      No employees found.
+                    <td colSpan={6} className="empty-state">
+                      <div>
+                        <h3>{loading ? '⏳ Loading employees...' : '🔍 No employees found'}</h3>
+                        <p>{loading ? 'Please wait while we fetch the employee list' : 'Try adjusting your search criteria'}</p>
+                      </div>
                     </td>
                   </tr>
                 )}
                 {filtered.map(emp => {
                   const fullName = `${emp.fname} ${emp.lname}`;
                   return (
-                    <tr key={emp._id}>
+                    <tr key={emp._id} className={isChecked(emp._id) ? 'selected' : ''}>
                       <td>
                         <input
                           type="checkbox"
                           checked={isChecked(emp._id)}
                           onChange={() => toggleSelection(emp)}
                           disabled={!mode}
-                          title={!mode ? "Choose an action above" : undefined}
+                          title={mode ? `Select ${fullName}` : 'Choose a selection mode first'}
                         />
                       </td>
-                      <td>{fullName}</td>
-                      <td>{emp.position || "-"}</td>
-                      <td>{emp.phone || "-"}</td>
-                      <td>{emp.email || "-"}</td>
-                      <td>{emp.departmentName || "-"}</td>
+                      <td style={{ fontWeight: '600', color: '#1e293b' }}>
+                        {fullName}
+                      </td>
+                      <td style={{ color: '#475569' }}>{emp.position || "-"}</td>
+                      <td style={{ color: '#6b7280' }}>{emp.phone || "-"}</td>
+                      <td style={{ color: '#6b7280', fontSize: '13px' }}>{emp.email || "-"}</td>
+                      <td style={{ color: '#059669', fontWeight: '500' }}>{emp.departmentName || "-"}</td>
                     </tr>
                   );
                 })}

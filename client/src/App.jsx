@@ -52,19 +52,15 @@ export default function App() {
       {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
 
-  {/* Department Details - support both name and id param variants */}
-  <Route path="/departments/:departmentName/details" element={<DepartmentDetails />} />
-  {/* Assign members - support both name and id param variants */}
-  <Route path="/departments/:departmentName/assign-members" element={<AssignMembers />} />
-  
+    {/* Test route for AssignMembers */}
     <Route
-  path="/test-assign"
-  element={
-    <AssignMembers
-      key="mock"
+      path="/test-assign"
+      element={
+        <AdminLayout>
+          <AssignMembers key="mock" />
+        </AdminLayout>
+      }
     />
-  }
-/>
 
         {/* Login Routes - Set as default page */}
         <Route path="/" element={<LoginPage />} />
@@ -75,9 +71,15 @@ export default function App() {
         <Route path="/registration" element={<CompanyRegistration />} />
         <Route path="/register" element={<CompanyRegistration />} />
 
+        {/* Redirect old department routes to admin routes */}
+        <Route path="/departments/:departmentName/details" element={<AdminLayout><DepartmentDetails /></AdminLayout>} />
+        <Route path="/departments/:departmentName/assign-members" element={<AdminLayout><AssignMembers /></AdminLayout>} />
+
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<CompanyProfile />} />
+          <Route path="departments/:departmentName/details" element={<DepartmentDetails />} />
+          <Route path="departments/:departmentName/assign-members" element={<AssignMembers />} />
         </Route>
 
         {/* Dashboard Routes */}

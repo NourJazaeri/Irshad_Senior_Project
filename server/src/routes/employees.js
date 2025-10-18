@@ -16,7 +16,7 @@ router.get("/by-department", async (req, res) => {
 
     // find department by name
     const department = await Department.findOne({
-      name: { $regex: new RegExp(`^${departmentName}$`, "i") },
+      departmentName: { $regex: new RegExp(`^${departmentName}$`, "i") },
     });
 
     if (!department) {
@@ -36,18 +36,57 @@ router.get("/by-department", async (req, res) => {
     }
 
     const employees = await Employee.find(query)
-      .populate("ObjectDepartmentID", "name")
+      .populate("ObjectDepartmentID", "departmentName")
       .lean();
 
     // map to include departmentName in each record
     const formatted = employees.map((e) => ({
       ...e,
-      departmentName: e.ObjectDepartmentID?.name || "—",
+      departmentName: e.ObjectDepartmentID?.departmentName || "—",
     }));
 
     res.json({ employees: formatted });
   } catch (err) {
     console.error("Error fetching employees:", err);
+    res.status(500).json({ message: "Server error while loading employees" });
+  }
+});
+
+// GET /api/employees/by-department-id/:departmentId
+router.get("/by-department-id/:departmentId", async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const { search } = req.query;
+
+    if (!departmentId) {
+      return res.status(400).json({ message: "departmentId is required" });
+    }
+
+    // build query for employees of that department
+    const query = { ObjectDepartmentID: departmentId };
+
+    if (search) {
+      query.$or = [
+        { fname: { $regex: search, $options: "i" } },
+        { lname: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { position: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const employees = await Employee.find(query)
+      .populate("ObjectDepartmentID", "departmentName")
+      .lean();
+
+    // map to include departmentName in each record
+    const formatted = employees.map((e) => ({
+      ...e,
+      departmentName: e.ObjectDepartmentID?.departmentName || "—",
+    }));
+
+    res.json({ employees: formatted });
+  } catch (err) {
+    console.error("Error fetching employees by department ID:", err);
     res.status(500).json({ message: "Server error while loading employees" });
   }
 });
