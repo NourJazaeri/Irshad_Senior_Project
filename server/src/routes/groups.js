@@ -1,14 +1,347 @@
 // backend/src/routes/groups.js
 import express from "express";
+import mongoose from "mongoose";
 import Group from "../models/Group.js";
 import Department from "../models/Department.js";
 import Supervisor from "../models/Supervisor.js";
 import Trainee from "../models/Trainee.js";
+import { requireAdmin } from "../middleware/authMiddleware.js";
+import { generateRandomPassword, sendLoginCredentials, sendGroupCreationNotification, testEmailConfiguration } from "../services/emailService.js";
 
 const router = express.Router();
 
+/* ============================================================
+   ✅ Get all groups for a department
+   ============================================================ */
+router.get("/by-department/:departmentId", requireAdmin, async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+
+    const groups = await Group.find({ ObjectDepartmentID: departmentId })
+      .populate("SupervisorObjectUserID", "fname lname")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      ok: true,
+      groups: groups.map((g) => ({
+        _id: g._id,
+        groupName: g.groupName,
+        numOfMembers: g.numOfMembers || 0,
+        supervisorName: g.SupervisorObjectUserID
+          ? `${g.SupervisorObjectUserID.fname} ${g.SupervisorObjectUserID.lname}`
+          : "N/A",
+      })),
+    });
+  } catch (err) {
+    console.error("❌ Error fetching groups:", err);
+    res.status(500).json({ ok: false, message: "Failed to fetch groups" });
+  }
+});
+
+/* ============================================================
+   ✏️ Rename (Update) group
+   ============================================================ */
+router.put("/:id", requireAdmin, async (req, res) => {
+  try {
+    const { groupName } = req.body;
+    if (!groupName) {
+      return res.status(400).json({ ok: false, message: "Group name is required" });
+    }
+
+    const updated = await Group.findByIdAndUpdate(
+      req.params.id,
+      { groupName },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ ok: false, message: "Group not found" });
+    }
+
+    res.json({ ok: true, message: "Group renamed successfully", group: updated });
+  } catch (err) {
+    console.error("❌ Error renaming group:", err);
+    res.status(500).json({ ok: false, message: "Failed to rename group" });
+  }
+});
+
+router.delete("/:id", requireAdmin, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+
+    // 1️⃣ Verify group exists
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ ok: false, message: "Group not found" });
+    }
+
+    console.log(`🧨 Deleting group "${group.groupName}" (${groupId})...`);
+
+    // Convert to ObjectId for safe matching
+    const groupObjectId = new mongoose.Types.ObjectId(groupId);
+
+    // 2️⃣ Find trainees linked to this group
+    const trainees = await Trainee.find({ ObjectGroupID: groupObjectId });
+    console.log(`📋 Found ${trainees.length} trainees assigned to this group.`);
+
+    if (trainees.length > 0) {
+      console.table(
+        trainees.map(t => ({
+          id: t._id.toString(),
+          email: t.loginEmail,
+          groupID: t.ObjectGroupID.toString()
+        }))
+      );
+    }
+
+    // 3️⃣ Unassign all trainees from this group (try multiple approaches)
+    let updateResult = await Trainee.updateMany(
+      { ObjectGroupID: groupObjectId },
+      { $unset: { ObjectGroupID: 1 } }
+    );
+
+    // Also try with string ID matching
+    const updateResult2 = await Trainee.updateMany(
+      { ObjectGroupID: groupId },
+      { $unset: { ObjectGroupID: 1 } }
+    );
+
+    const totalModified = updateResult.modifiedCount + updateResult2.modifiedCount;
+    console.log(`✅ Unassigned ${totalModified} trainees from group (ObjectId: ${updateResult.modifiedCount}, String: ${updateResult2.modifiedCount}).`);
+
+    // 4️⃣ Update department member count (subtract group size)
+    const memberCount = group.numOfMembers || 0;
+    await Department.findByIdAndUpdate(group.ObjectDepartmentID, {
+      $inc: { numOfMembers: -memberCount }
+    });
+    console.log(`📊 Department member count decreased by ${memberCount}.`);
+
+    // 5️⃣ Delete the group
+    const deletedGroup = await Group.findByIdAndDelete(groupObjectId);
+    if (!deletedGroup) {
+      return res.status(500).json({ ok: false, message: "Failed to delete group" });
+    }
+
+    console.log(`🗑️ Deleted group "${deletedGroup.groupName}".`);
+
+    // 6️⃣ Verify cleanup worked
+    const remainingTrainees = await Trainee.find({ ObjectGroupID: groupObjectId });
+    if (remainingTrainees.length > 0) {
+      console.error(`❌ WARNING: ${remainingTrainees.length} trainees still have the deleted group ID!`);
+      console.error('Remaining trainees:', remainingTrainees.map(t => ({
+        id: t._id,
+        email: t.loginEmail,
+        groupID: t.ObjectGroupID
+      })));
+    } else {
+      console.log(`✅ SUCCESS: All trainees successfully unassigned from deleted group.`);
+    }
+
+    res.json({
+      ok: true,
+      message: "Group deleted successfully",
+      details: {
+        groupName: deletedGroup.groupName,
+        traineesUnassigned: totalModified,
+        membersRemoved: memberCount,
+        verificationPassed: remainingTrainees.length === 0
+      }
+    });
+  } catch (err) {
+    console.error("❌ Error deleting group:", err);
+    res.status(500).json({ ok: false, message: "Failed to delete group" });
+  }
+});
+
+/* ============================================================
+   🔍 Check trainees with group IDs (Debug endpoint)
+   ============================================================ */
+router.get("/debug-trainees", requireAdmin, async (req, res) => {
+  try {
+    console.log("🔍 Debugging trainees with group IDs...");
+    
+    // Get all trainees with group IDs
+    const traineesWithGroups = await Trainee.find({ 
+      ObjectGroupID: { $exists: true, $ne: null } 
+    });
+    
+    console.log(`📋 Found ${traineesWithGroups.length} trainees with group IDs`);
+    
+    const traineesData = traineesWithGroups.map(t => ({
+      id: t._id,
+      email: t.loginEmail,
+      groupID: t.ObjectGroupID,
+      groupIDType: typeof t.ObjectGroupID
+    }));
+    
+    console.log(`📊 Trainees with group IDs:`, traineesData);
+    
+    res.json({
+      ok: true,
+      message: "Trainees with group IDs retrieved successfully",
+      details: {
+        totalTraineesWithGroups: traineesWithGroups.length,
+        trainees: traineesData
+      }
+    });
+  } catch (err) {
+    console.error("❌ Error getting trainees:", err);
+    res.status(500).json({ ok: false, message: "Failed to get trainees" });
+  }
+});
+
+/* ============================================================
+   🧹 Clean up orphaned group IDs in trainees (Utility endpoint)
+   ============================================================ */
+router.post("/cleanup-orphaned-trainees", requireAdmin, async (req, res) => {
+  try {
+    console.log("🧹 Starting cleanup of orphaned group IDs in trainees...");
+    
+    // Get all existing group IDs
+    const existingGroups = await Group.find({}, '_id');
+    const existingGroupIds = existingGroups.map(g => g._id.toString());
+    
+    console.log(`📋 Found ${existingGroupIds.length} existing groups:`, existingGroupIds);
+    
+    // Find trainees with group IDs that don't exist
+    const traineesWithInvalidGroups = await Trainee.find({
+      ObjectGroupID: { $exists: true, $nin: existingGroupIds }
+    });
+    
+    console.log(`🔍 Found ${traineesWithInvalidGroups.length} trainees with invalid group IDs`);
+    
+    if (traineesWithInvalidGroups.length > 0) {
+      console.log(`📋 Trainees with invalid group IDs:`, traineesWithInvalidGroups.map(t => ({
+        id: t._id,
+        email: t.loginEmail,
+        invalidGroupID: t.ObjectGroupID
+      })));
+      
+      // Remove invalid group IDs
+      const cleanupResult = await Trainee.updateMany(
+        { ObjectGroupID: { $exists: true, $nin: existingGroupIds } },
+        { $unset: { ObjectGroupID: 1 } }
+      );
+      
+      console.log(`✅ Cleaned up ${cleanupResult.modifiedCount} trainees with invalid group IDs`);
+      
+      res.json({
+        ok: true,
+        message: "Cleanup completed successfully",
+        details: {
+          existingGroups: existingGroupIds.length,
+          traineesWithInvalidGroups: traineesWithInvalidGroups.length,
+          traineesCleanedUp: cleanupResult.modifiedCount
+        }
+      });
+    } else {
+      console.log(`✅ No orphaned group IDs found - all trainees have valid group references`);
+      res.json({
+        ok: true,
+        message: "No cleanup needed - all trainees have valid group references",
+        details: {
+          existingGroups: existingGroupIds.length,
+          traineesWithInvalidGroups: 0,
+          traineesCleanedUp: 0
+        }
+      });
+    }
+  } catch (err) {
+    console.error("❌ Error during cleanup:", err);
+    res.status(500).json({ ok: false, message: "Failed to cleanup orphaned group IDs" });
+  }
+});
+
+/* ============================================================
+   🧹 FORCE CLEANUP: Remove ALL group IDs from ALL trainees (Nuclear option)
+   ============================================================ */
+router.post("/force-cleanup-all-trainees", requireAdmin, async (req, res) => {
+  try {
+    console.log("🧹 FORCE CLEANUP: Removing ALL group IDs from ALL trainees...");
+    
+    // Find all trainees with group IDs
+    const traineesWithGroups = await Trainee.find({ 
+      ObjectGroupID: { $exists: true, $ne: null } 
+    });
+    
+    console.log(`🔍 Found ${traineesWithGroups.length} trainees with group IDs`);
+    
+    if (traineesWithGroups.length > 0) {
+      console.log(`📋 Trainees with group IDs:`, traineesWithGroups.map(t => ({
+        id: t._id,
+        email: t.loginEmail,
+        groupID: t.ObjectGroupID
+      })));
+      
+      // Remove ALL group IDs from ALL trainees
+      const cleanupResult = await Trainee.updateMany(
+        { ObjectGroupID: { $exists: true, $ne: null } },
+        { $unset: { ObjectGroupID: 1 } }
+      );
+      
+      console.log(`✅ FORCE CLEANUP: Removed group IDs from ${cleanupResult.modifiedCount} trainees`);
+      
+      res.json({
+        ok: true,
+        message: "Force cleanup completed - ALL group IDs removed from ALL trainees",
+        details: {
+          totalTraineesWithGroups: traineesWithGroups.length,
+          traineesCleanedUp: cleanupResult.modifiedCount
+        }
+      });
+    } else {
+      console.log(`✅ No trainees with group IDs found`);
+      res.json({
+        ok: true,
+        message: "No cleanup needed - no trainees have group IDs",
+        details: {
+          totalTraineesWithGroups: 0,
+          traineesCleanedUp: 0
+        }
+      });
+    }
+  } catch (err) {
+    console.error("❌ Error during force cleanup:", err);
+    res.status(500).json({ ok: false, message: "Failed to force cleanup trainee group IDs" });
+  }
+});
+
+/* ============================================================
+   🧪 Test Gmail Email Configuration
+   ============================================================ */
+router.post("/test-email", requireAdmin, async (req, res) => {
+  try {
+    console.log("🧪 Testing Gmail email configuration...");
+    
+    const result = await testEmailConfiguration();
+    
+    if (result.success) {
+      res.json({
+        ok: true,
+        message: "Gmail configuration test successful! Check your inbox for the test email.",
+        details: {
+          messageId: result.messageId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      res.status(500).json({
+        ok: false,
+        message: "Gmail configuration test failed",
+        error: result.error
+      });
+    }
+  } catch (err) {
+    console.error("❌ Error testing email configuration:", err);
+    res.status(500).json({ ok: false, message: "Failed to test email configuration" });
+  }
+});
+
+/* ============================================================
+   🚀 Create group with members (Complex group creation)
+   ============================================================ */
 // POST /api/groups/finalize
-router.post("/finalize", async (req, res) => {
+router.post("/finalize", requireAdmin, async (req, res) => {
   try {
     const { groupName, departmentName, adminId, supervisorId, traineeIds } = req.body;
 
@@ -88,12 +421,19 @@ router.post("/finalize", async (req, res) => {
       } else {
         // Create new Supervisor record from Employee with duplicate handling
         try {
+          const supervisorPassword = generateRandomPassword();
+          const bcrypt = await import('bcryptjs');
+          const hashedPassword = await bcrypt.hash(supervisorPassword, 10);
+          
           supervisorRecord = await Supervisor.create({
             loginEmail: employeeSupervisor.email,
-            passwordHash: "temp_password_hash", // TODO: Generate proper password
+            passwordHash: hashedPassword,
             EmpObjectUserID: employeeSupervisor._id
           });
           console.log("Created new Supervisor record for:", employeeSupervisor.fname, employeeSupervisor.lname);
+          
+          // Store password for email sending (we'll send emails at the end)
+          supervisorRecord.plainPassword = supervisorPassword;
         } catch (createError) {
           // Handle duplicate key error - find and use existing record
           if (createError.code === 11000) {
@@ -184,11 +524,20 @@ router.post("/finalize", async (req, res) => {
           } else {
             // Create new Trainee record from Employee with duplicate handling
             try {
+              const traineePassword = generateRandomPassword();
+              const bcrypt = await import('bcryptjs');
+              const hashedPassword = await bcrypt.hash(traineePassword, 10);
+              
               const newTrainee = await Trainee.create({
                 loginEmail: employeeTrainee.email,
-                passwordHash: "temp_password_hash", // TODO: Generate proper password
+                passwordHash: hashedPassword,
                 EmpObjectUserID: employeeTrainee._id
               });
+              
+              // Store password for email sending
+              newTrainee.plainPassword = traineePassword;
+              newTrainee.employeeName = `${employeeTrainee.fname} ${employeeTrainee.lname}`;
+              
               traineeRecords.push(newTrainee);
               addedTraineeIds.add(traineeId.toString());
               console.log("Created new Trainee record for:", employeeTrainee.fname, employeeTrainee.lname);
@@ -240,18 +589,89 @@ router.post("/finalize", async (req, res) => {
       $inc: { numOfMembers: traineeRecords.length + 1 }
     });
 
+    // STEP 6: Send login credentials via email
+    const emailResults = [];
+    
+    try {
+      // Get admin email for notification
+      const Admin = (await import("../models/Admin.js")).default;
+      const admin = await Admin.findById(adminId);
+      const adminEmail = admin?.loginEmail;
+      
+      // Send email to supervisor (if new supervisor was created)
+      if (supervisorRecord.plainPassword) {
+        const employeeSupervisor = await Employee.findById(supervisorRecord.EmpObjectUserID);
+        const supervisorName = `${employeeSupervisor.fname} ${employeeSupervisor.lname}`;
+        
+        const supervisorEmailResult = await sendLoginCredentials(
+          supervisorRecord.loginEmail,
+          supervisorName,
+          supervisorRecord.plainPassword,
+          'Supervisor',
+          groupName,
+          departmentName
+        );
+        emailResults.push({
+          type: 'supervisor',
+          email: supervisorRecord.loginEmail,
+          success: supervisorEmailResult.success
+        });
+      }
+      
+      // Send emails to trainees (if new trainees were created)
+      for (const trainee of traineeRecords) {
+        if (trainee.plainPassword) {
+          const traineeEmailResult = await sendLoginCredentials(
+            trainee.loginEmail,
+            trainee.employeeName,
+            trainee.plainPassword,
+            'Trainee',
+            groupName,
+            departmentName
+          );
+          emailResults.push({
+            type: 'trainee',
+            email: trainee.loginEmail,
+            success: traineeEmailResult.success
+          });
+        }
+      }
+      
+      // Send notification to admin
+      if (adminEmail) {
+        const supervisorEmail = supervisorRecord.loginEmail;
+        const traineeEmails = traineeRecords.map(t => t.loginEmail);
+        
+        await sendGroupCreationNotification(
+          adminEmail,
+          groupName,
+          departmentName,
+          supervisorEmail,
+          traineeEmails
+        );
+      }
+      
+      console.log("📧 Email sending results:", emailResults);
+    } catch (emailError) {
+      console.error("❌ Error sending emails:", emailError);
+      // Don't fail the entire operation if emails fail
+    }
+
     res.json({
       success: true,
       message: "Group created and members assigned successfully",
       groupId: group._id,
       supervisorId: supervisorRecord._id,
       traineeCount: traineeRecords.length,
+      emailResults: emailResults,
       details: {
         groupName,
         departmentName,
         supervisorAssigned: supervisorRecord.loginEmail,
         traineesAssigned: traineeRecords.map(t => t.loginEmail),
-        totalMembers: traineeRecords.length + 1
+        totalMembers: traineeRecords.length + 1,
+        emailsSent: emailResults.filter(r => r.success).length,
+        totalEmails: emailResults.length
       }
     });
   } catch (err) {

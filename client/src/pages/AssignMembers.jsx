@@ -15,6 +15,7 @@ export default function AssignMembers() {
   // From the previous step (CreateGroupButton navigate state)
   const groupName = state?.groupName || "";
   const adminId = state?.adminId || localStorage.getItem("userId");
+  const [departmentId, setDepartmentId] = useState(null);
   
   // Fix for URL parameter issue - if departmentNameParam is :departmentName, extract from URL
   let departmentName = state?.departmentName || departmentNameParam;
@@ -76,6 +77,42 @@ export default function AssignMembers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Fetch department ID from department name
+  useEffect(() => {
+    const fetchDepartmentId = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+        
+        const response = await fetch(`${API_BASE}/api/departments`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ok) {
+            const departments = data.departments;
+            const foundDepartment = departments.find(dept => 
+              dept.departmentName.toLowerCase() === departmentName.toLowerCase()
+            );
+            if (foundDepartment) {
+              setDepartmentId(foundDepartment._id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching department ID:', err);
+      }
+    };
+
+    if (departmentName && departmentName !== ":departmentName") {
+      fetchDepartmentId();
+    }
+  }, [departmentName]);
+
   // selection mode: "supervisor" or "trainees"
   const [mode, setMode] = useState(null);
 
@@ -85,13 +122,23 @@ export default function AssignMembers() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [emailResults, setEmailResults] = useState(null);
+
+  // Handle success popup close
+  const handleSuccessPopupClose = () => {
+    setShowSuccessPopup(false);
+    setEmailResults(null);
+    // Navigate back to department details
+    navigate(`/departments/${encodeURIComponent(departmentName)}/details`);
+  };
 
   // Guard: if user refreshes and there was no state, push them back to Dept page
   useEffect(() => {
     // If required information is missing and there's no way to proceed, redirect back
     // but only when we have an identifier to go back to. Otherwise show an error.
     if ((!groupName || !departmentName || !adminId) && departmentNameParam) {
-      navigate(`/admin/departments/${encodeURIComponent(departmentNameParam)}/details`);
+      navigate(`/departments/${encodeURIComponent(departmentNameParam)}/details`);
     }
   }, [groupName, departmentName, adminId, navigate, departmentNameParam]);
 
@@ -185,17 +232,23 @@ export default function AssignMembers() {
 
       const payload = {
         groupName,
-        departmentName,          // we’re using name (backend will resolve _id)
+        departmentName,          // using department name as required by groups.js
         adminId,
         supervisorId: selectedSupervisor._id,
         traineeIds: selectedTrainees.map(t => t._id),
       };
 
+      console.log("🔍 Sending payload to finalizeGroup:", payload);
       const res = await finalizeGroup(payload);
-      // Success UX
-      alert("Group created successfully!");
-      // Go back to department details
-      navigate(`/admin/departments/${encodeURIComponent(departmentName)}/details`);
+      
+      // Show success popup with email information
+      if (res.emailResults && res.emailResults.length > 0) {
+        setEmailResults(res.emailResults);
+        setShowSuccessPopup(true);
+      } else {
+        setEmailResults([]);
+        setShowSuccessPopup(true);
+      }
     } catch (err) {
       console.error(err);
       setErrorMsg(err?.message || "Failed to create group");
@@ -351,6 +404,65 @@ export default function AssignMembers() {
           </div>
         )}
       </section>
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div className="success-popup-overlay">
+          <div className="success-popup">
+            <div className="success-popup-header">
+              <div className="success-icon">✅</div>
+              <h3>Group Created Successfully!</h3>
+            </div>
+            
+            <div className="success-popup-content">
+              <p>Your group "<strong>{groupName}</strong>" has been created successfully.</p>
+              
+              {emailResults && emailResults.length > 0 ? (
+                <div className="email-status">
+                  <h4>📧 Email Status:</h4>
+                  <div className="email-list">
+                    {emailResults.map((result, index) => (
+                      <div key={index} className={`email-item ${result.success ? 'success' : 'failed'}`}>
+                        <span className="email-type">
+                          {result.type === 'supervisor' ? '👨‍💼 Supervisor' : '👥 Trainee'}
+                        </span>
+                        <span className="email-address">{result.email}</span>
+                        <span className="email-status-icon">
+                          {result.success ? '✅' : '❌'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="email-summary">
+                    <p>
+                      📧 Login credentials sent to <strong>{emailResults.filter(r => r.success).length}</strong> out of <strong>{emailResults.length}</strong> members.
+                    </p>
+                    {emailResults.some(r => !r.success) && (
+                      <p className="warning">
+                        ⚠️ Some emails failed to send. Members can still log in with their assigned credentials.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="email-status">
+                  <p>📧 No new credentials were generated (existing members were assigned).</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="success-popup-actions">
+              <button 
+                onClick={handleSuccessPopupClose}
+                className="success-popup-btn"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -55,7 +55,15 @@ export default function AdminSidebar({ collapsed, setCollapsed }) {
       <nav className="admin-nav">
         <Link 
           to="/admin" 
-          className={`admin-nav__item ${isActive('/admin') ? 'active' : ''}`}
+          className={`admin-nav__item ${isActive('/admin') && !isActive('/admin/profile') ? 'active' : ''}`}
+        >
+          <span className="admin-ico">🏠</span>
+          <span className="admin-nav__text">Home</span>
+        </Link>
+        
+        <Link 
+          to="/admin/profile" 
+          className={`admin-nav__item ${isActive('/admin/profile') ? 'active' : ''}`}
         >
           <span className="admin-ico">🏢</span>
           <span className="admin-nav__text">Company Profile</span>

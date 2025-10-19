@@ -455,3 +455,226 @@
 .assign-container > *:nth-child(3) {
   animation-delay: 0.2s;
 }
+
+/* Success Popup Styles */
+.success-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.success-popup {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e2e8f0;
+  animation: slideInUp 0.4s ease-out;
+}
+
+.success-popup-header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  animation: bounce 0.6s ease-out;
+}
+
+.success-popup h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #059669;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.success-popup-content {
+  margin-bottom: 24px;
+}
+
+.success-popup-content p {
+  font-size: 16px;
+  color: #374151;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.email-status {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.email-status h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.email-list {
+  margin-bottom: 16px;
+}
+
+.email-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.email-item.success {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #d1fae5 0%, #f0fdf4 100%);
+}
+
+.email-item.failed {
+  border-color: #f87171;
+  background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+}
+
+.email-type {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+}
+
+.email-address {
+  color: #6b7280;
+  font-size: 14px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.email-status-icon {
+  font-size: 16px;
+}
+
+.email-summary {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.email-summary p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.email-summary .warning {
+  color: #d97706;
+  font-weight: 500;
+  background: #fef3c7;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #fbbf24;
+}
+
+.success-popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.success-popup-btn {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: #ffffff;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.3);
+}
+
+.success-popup-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(5, 150, 105, 0.4);
+}
+
+.success-popup-btn:active {
+  transform: translateY(0);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Responsive adjustments for popup */
+@media (max-width: 640px) {
+  .success-popup {
+    margin: 20px;
+    padding: 24px;
+    width: calc(100% - 40px);
+  }
+  
+  .success-popup h3 {
+    font-size: 20px;
+  }
+  
+  .email-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .success-popup-btn {
+    width: 100%;
+    padding: 16px;
+  }
+}

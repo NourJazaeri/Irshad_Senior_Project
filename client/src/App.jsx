@@ -6,6 +6,7 @@ import Footer from "./components/Footer.jsx";
 import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
+import AdminHome from "./pages/AdminHome.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
@@ -71,13 +72,14 @@ export default function App() {
         <Route path="/registration" element={<CompanyRegistration />} />
         <Route path="/register" element={<CompanyRegistration />} />
 
-        {/* Redirect old department routes to admin routes */}
-        <Route path="/departments/:departmentName/details" element={<AdminLayout><DepartmentDetails /></AdminLayout>} />
-        <Route path="/departments/:departmentName/assign-members" element={<AdminLayout><AssignMembers /></AdminLayout>} />
+        {/* Department routes - standalone for testing */}
+        <Route path="/departments/:departmentName/details" element={<DepartmentDetails />} />
+        <Route path="/departments/:departmentName/assign-members" element={<AssignMembers />} />
 
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<CompanyProfile />} />
+          <Route index element={<AdminHome />} />
+          <Route path="profile" element={<CompanyProfile />} />
           <Route path="departments/:departmentName/details" element={<DepartmentDetails />} />
           <Route path="departments/:departmentName/assign-members" element={<AssignMembers />} />
         </Route>

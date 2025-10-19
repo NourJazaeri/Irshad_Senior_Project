@@ -18,7 +18,7 @@ function CreateGroupButton({ departmentName, adminId }) {
     setShowModal(false); // ✅ close the popup
 
     // ✅ Navigate to Assign Members page
-    navigate(`/admin/departments/${encodeURIComponent(departmentName)}/assign-members`, {
+    navigate(`/departments/${encodeURIComponent(departmentName)}/assign-members`, {
       state: { groupName, departmentName, adminId },
     });
   };
