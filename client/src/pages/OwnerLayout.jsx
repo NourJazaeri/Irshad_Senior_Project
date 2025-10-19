@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import Sidebar from "../components/WebOwnerSidebar.jsx";
-import Topbar from "../components/WebOwnerTopbar.jsx";
+import { UnifiedSidebar } from "../components/UnifiedSidebar.jsx";
+import { UnifiedTopbar } from "../components/UnifiedTopbar.jsx";
 import WelcomeSection from "../components/WebOwnerWelcomeSection.jsx";
 import "../styles/owner-components.css";
 
@@ -14,11 +14,13 @@ export default function OwnerLayout() {
     pathname === "/owner" || pathname === "/webowner" || pathname === "/owner/";
 
   return (
-    <div className="wo-shell">
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+    <div className="wo-shell h-screen">
+      <UnifiedSidebar userType="webOwner" collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       <main className="wo-main">
-        <Topbar />
+        <UnifiedTopbar 
+          userType="webOwner"
+        />
 
         <div className="wo-content">
           {showWelcome && <WelcomeSection />}

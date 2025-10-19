@@ -1,0 +1,39 @@
+/* Override ContentViewer styles for fullscreen mode */
+.fullscreen-content-viewer .content-viewer {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  height: 100% !important;
+  box-shadow: none !important;
+}
+
+.fullscreen-content-viewer .content-viewer-header {
+  display: none !important;
+}
+
+.fullscreen-content-viewer .document-content {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.fullscreen-content-viewer .document-viewer {
+  height: 100% !important;
+  flex: 1 !important;
+}
+
+.fullscreen-content-viewer iframe {
+  height: 100% !important;
+  width: 100% !important;
+  border: none !important;
+}
+
+.fullscreen-content-viewer .youtube-content {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.fullscreen-content-viewer .youtube-content iframe {
+  height: 100% !important;
+  flex: 1 !important;
+}

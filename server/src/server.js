@@ -11,6 +11,7 @@ import webownerRequestManagement from './routes/webownerRequestManagement.js';
 import dashboardCounts from './routes/dashboardCounts.js';
 import displayingCompanies from './routes/displayingCompanies.js';
 import companyProfile from './routes/companyProfile.js';
+import content from './routes/content.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +24,7 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
 // CORS MIDDLEWARE - MUST BE FIRST, BEFORE ANY ROUTES
 app.use(cors({ 
-  origin: [CLIENT_ORIGIN, "*"], 
+  origin: [CLIENT_ORIGIN, "http://localhost:5173", "http://localhost:5174", "*"], 
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -57,6 +58,7 @@ app.use('/api/webowner/request-management', webownerRequestManagement);
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', displayingCompanies);
 app.use('/api/company-profile', companyProfile);
+app.use('/api/content', content);
 
 // Serve frontend build if exists
 const clientDist = path.join(__dirname, '../client/dist');

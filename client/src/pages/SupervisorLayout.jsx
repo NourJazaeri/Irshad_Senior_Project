@@ -4,17 +4,17 @@ import { UnifiedSidebar } from "../components/UnifiedSidebar.jsx";
 import { UnifiedTopbar } from "../components/UnifiedTopbar.jsx";
 import "../styles/admin-components.css";
 
-export default function AdminLayout() {
+export default function SupervisorLayout() {
   const { pathname } = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="admin-shell h-screen">
-      <UnifiedSidebar userType="admin" collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <UnifiedSidebar userType="supervisor" collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
       <main className="admin-main">
         <UnifiedTopbar 
-          userType="admin"
+          userType="supervisor"
         />
 
         <div className="admin-content">

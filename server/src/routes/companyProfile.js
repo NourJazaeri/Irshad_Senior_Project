@@ -83,8 +83,39 @@ router.get("/me", requireAdmin, async (req, res) => {
       });
     }
 
+    // Get admin data from Admin table
+    const admin = await Admin.findById(adminId).lean();
+    console.log("🔍 Admin found:", admin);
+
+    // Get employee data for firstName and lastName
+    let employee = null;
+    if (admin && admin.EmpObjectUserID) {
+      employee = await mongoose.connection.db.collection('Employee').findOne({
+        _id: admin.EmpObjectUserID
+      });
+      console.log("🔍 Employee found:", employee);
+    }
+
     console.log("✅ Company found for admin:", company.name);
-    res.json({ ok: true, company });
+    
+    // Always include admin data, even if admin is null
+    const adminData = admin ? {
+      firstName: employee?.fname || admin.firstName || 'Admin',
+      lastName: employee?.lname || admin.lastName || 'User',
+      email: admin.loginEmail || admin.email || 'admin@company.com'
+    } : {
+      firstName: 'Admin',
+      lastName: 'User', 
+      email: 'admin@company.com'
+    };
+    
+    console.log("📤 Sending admin data:", adminData);
+    
+    res.json({ 
+      ok: true, 
+      company,
+      admin: adminData
+    });
   } catch (e) {
     console.error("company-profile/me error:", e);
     res.status(500).json({ message: "Server error", error: e.message });

@@ -14,6 +14,10 @@ import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
 // Import Admin layout
 import AdminLayout from "./pages/AdminLayout.jsx";
 
+// Import Supervisor layout
+import SupervisorLayout from "./pages/SupervisorLayout.jsx";
+import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
+
 // Import WebOwner layout and pages
 import OwnerLayout from "./pages/OwnerLayout.jsx";
 import CompaniesPage from "./pages/Companies.jsx";
@@ -26,6 +30,11 @@ import Reports from "./pages/Reports.jsx";
 import ActivityLog from "./pages/ActivityLog.jsx";
 import ReportCompanyDetails from "./pages/ReportCompanyDetails.jsx";
 
+// Import Content Management
+import ContentManagement from "./pages/ContentManagement.jsx";
+import ContentDetails from "./pages/ContentDetails.jsx";
+import ContentView from "./pages/ContentView.jsx";
+
 import "./App.css";
 import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
@@ -36,17 +45,19 @@ export default function App() {
   
   // Define routes that should NOT have Navbar and Footer
   const loginRoutes = ['/', '/login', '/auth'];
-  const dashboardRoutes = ['/supervisor', '/trainee', '/webowner'];
+  const dashboardRoutes = ['/trainee', '/webowner'];
   const adminRoutes = ['/admin'];
+  const supervisorRoutes = ['/supervisor'];
   const ownerRoutes = ['/owner'];
   const isLoginRoute = loginRoutes.includes(location.pathname);
   const isDashboardRoute = dashboardRoutes.includes(location.pathname);
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isSupervisorRoute = location.pathname.startsWith('/supervisor');
   const isOwnerRoute = location.pathname.startsWith('/owner');
 
   return (
     <>
-      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
+      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isSupervisorRoute && !isOwnerRoute && <Navbar />}
       <Routes>
         {/* Login Routes - Set as default page */}
         <Route path="/" element={<LoginPage />} />
@@ -60,10 +71,21 @@ export default function App() {
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<CompanyProfile />} />
+          <Route path="content" element={<ContentManagement />} />
+          <Route path="content/:id" element={<ContentDetails />} />
+          <Route path="content/:id/view" element={<ContentView />} />
+          <Route path="profile" element={<CompanyProfile />} />
+        </Route>
+
+        {/* Supervisor Layout Routes */}
+        <Route path="/supervisor" element={<SupervisorLayout />}>
+          <Route index element={<SupervisorDashboard />} />
+          <Route path="content" element={<SupervisorContentManagement />} />
+          <Route path="content/:id" element={<ContentDetails />} />
+          <Route path="content/:id/view" element={<ContentView />} />
         </Route>
 
         {/* Dashboard Routes */}
-        <Route path="/supervisor" element={<SupervisorDashboard />} />
         <Route path="/trainee" element={<TraineeDashboard />} />
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
 
