@@ -389,3 +389,28 @@
     justify-content: center;
   }
 }
+
+/* Completed task styles */
+.task-card.completed {
+  opacity: 0.7;
+  background: #f9fafb;
+}
+
+.task-card.completed .task-title {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.task-card.completed .task-description {
+  text-decoration: line-through;
+  color: #d1d5db;
+}
+
+.task-card.completed .priority-badge {
+  opacity: 0.6;
+}
+
+.task-card.completed .date-input {
+  text-decoration: line-through;
+  color: #9ca3af;
+}

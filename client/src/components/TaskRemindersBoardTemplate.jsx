@@ -22,7 +22,8 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
         description: 'Prepare presentation and gather team feedback',
         priority: 'HIGH',
         date: '11/01/2025',
-        priorityColor: '#FF6B6B'
+        priorityColor: '#FF6B6B',
+        completed: false
       },
       {
         id: 2,
@@ -30,7 +31,8 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
         description: 'Review and revise onboarding documentation',
         priority: 'MEDIUM',
         date: '11/05/2025',
-        priorityColor: '#FFD93D'
+        priorityColor: '#FFD93D',
+        completed: false
       },
       {
         id: 3,
@@ -38,7 +40,8 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
         description: 'Organize monthly team activity and send invites',
         priority: 'LOW',
         date: '11/10/2025',
-        priorityColor: '#6BCF7F'
+        priorityColor: '#6BCF7F',
+        completed: false
       },
       {
         id: 4,
@@ -46,7 +49,8 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
         description: 'Analyze Q3 spending and plan Q4 budget',
         priority: 'URGENT',
         date: '10/25/2025',
-        priorityColor: '#FF4757'
+        priorityColor: '#FF4757',
+        completed: false
       }
     ]
   });
@@ -105,6 +109,15 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
     }));
   };
 
+  const handleTaskComplete = (taskId) => {
+    setTemplateData(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(task =>
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      )
+    }));
+  };
+
   const handleAddTask = () => {
     const newTaskId = Math.max(...templateData.tasks.map(t => t.id)) + 1;
     const newTask = {
@@ -113,7 +126,8 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
       description: 'Enter task description',
       priority: 'MEDIUM',
       date: new Date().toISOString().split('T')[0],
-      priorityColor: '#FFD93D'
+      priorityColor: '#FFD93D',
+      completed: false
     };
 
     setTemplateData(prev => ({
@@ -210,7 +224,7 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
         <div className="tasks-section">
           <div className="tasks-grid">
             {templateData.tasks.map((task) => (
-              <div key={task.id} className="task-card">
+              <div key={task.id} className={`task-card ${task.completed ? 'completed' : ''}`}>
                 <div className="task-card-header">
                   <div 
                     className="priority-badge"
@@ -220,7 +234,12 @@ const TaskRemindersBoardTemplate = ({ onClose }) => {
                   </div>
                   <div className="task-actions">
                     <div className="task-checkbox">
-                      <input type="checkbox" id={`task-${task.id}`} />
+                      <input 
+                        type="checkbox" 
+                        id={`task-${task.id}`}
+                        checked={task.completed || false}
+                        onChange={() => handleTaskComplete(task.id)}
+                      />
                     </div>
                     <button 
                       className="remove-task-btn"

@@ -1,5 +1,5 @@
 import React from 'react';
-import './TemplateDetails.css';
+import '../styles/TemplateDetails.css';
 
 const TemplateDetails = ({ template, onClose, onUseTemplate }) => {
   if (!template) return null;
