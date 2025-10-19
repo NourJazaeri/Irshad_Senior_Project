@@ -15,7 +15,12 @@ function LoginPage() {
       document.body.classList.remove('login-page');
     };
   }, []);
-
+  useEffect(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('role_lc');
+  }, []);
+  
   const handleLogin = (data) => {
     setUser(data.user); // save user info in state
     console.log("User logged in:", data.user);

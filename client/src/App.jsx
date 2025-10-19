@@ -10,10 +10,11 @@ import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
-
+import SupervisorGroupDetails from './pages/SupervisorGroupDetails.jsx';
 // Import Admin layout
 import AdminLayout from "./pages/AdminLayout.jsx";
-
+import AdminDepartments from "./pages/AdminDepartments.jsx";
+import AdminDepartmentGroups from "./pages/AdminDepartmentGroups.jsx";
 // Import WebOwner layout and pages
 import OwnerLayout from "./pages/OwnerLayout.jsx";
 import CompaniesPage from "./pages/Companies.jsx";
@@ -21,7 +22,7 @@ import CompanyDetails from "./pages/CompanyDetails.jsx";
 import Dashboard from "./pages/WebOwnerDashboard.jsx";
 import Registrations from "./pages/Registrations.jsx";
 import Reports from "./pages/Reports.jsx";
-
+import AdminGroupDetails from "./pages/AdminGroupDetails.jsx";
 // Import UsageReport pages
 import ActivityLog from "./pages/ActivityLog.jsx";
 import ReportCompanyDetails from "./pages/ReportCompanyDetails.jsx";
@@ -30,6 +31,7 @@ import "./App.css";
 import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
 import "./styles/owner-components.css";
+import './styles/supervisor.css';
 
 export default function App() {
   const location = useLocation();
@@ -66,7 +68,9 @@ export default function App() {
         <Route path="/supervisor" element={<SupervisorDashboard />} />
         <Route path="/trainee" element={<TraineeDashboard />} />
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
-
+        <Route path="/admin/groups/:id" element={<AdminGroupDetails />} />
+        <Route path="/admin/departments" element={<AdminDepartments />} />
+<Route path="/admin/departments/:id" element={<AdminDepartmentGroups />} />
         {/* WebOwner Layout Routes (from ActiveCompaniesFeature) */}
         <Route path="/owner" element={<OwnerLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
@@ -80,7 +84,8 @@ export default function App() {
         {/* UsageReport Routes */}
         <Route path="/activity-log" element={<ActivityLog />} />
         <Route path="/company-details/:companyId" element={<ReportCompanyDetails />} />
-
+        <Route path="/supervisor" element={<SupervisorDashboard />} />
+        <Route path="/supervisor/groups/:id" element={<SupervisorGroupDetails />} />
         {/* Additional Dashboard Routes */}
         <Route path="/companies" element={<div style={{padding: '20px'}}><h2>Companies Management</h2><p>This page will show all registered companies.</p></div>} />
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />

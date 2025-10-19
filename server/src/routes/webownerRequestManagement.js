@@ -123,7 +123,7 @@ const approveRequest = async (req, res) => {
       taxNo: c.taxNo || "",
       linkedin: c.linkedIn || "",
       size: c.size,
-      logoUrl: c.logoUrl || "",
+      logoUrl: c.logoFilename || c.logoUrl || "",
       ObjectRegReqID: rr._id,
       AdminUserObjectID: adminUser._id,  // Only this field for admin reference
       createdAt: new Date(),

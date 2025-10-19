@@ -115,7 +115,7 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
     // Validate required fields from React frontend
     const requiredFields = [
       'companyName', 'commercialRegistrationNumber', 'industry', 'companySize',
-      'adminEmail', 'adminPassword'
+      'adminFirstName', 'adminLastName', 'adminEmail', 'adminPhone', 'adminPosition', 'adminPassword'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -140,11 +140,15 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
           industry: req.body.industry,
           size: req.body.companySize,
           linkedIn: req.body.linkedinProfileUrl || null,
-          logoUrl: req.file ? req.file.filename : null
+          logoFilename: req.file ? req.file.filename : null
         },
         admin: {
           LoginEmail: req.body.adminEmail.toLowerCase(),
-          passwordHash: await bcrypt.hash(req.body.adminPassword, 10)
+          passwordHash: await bcrypt.hash(req.body.adminPassword, 10),
+          firstName: req.body.adminFirstName,
+          lastName: req.body.adminLastName,
+          phone: req.body.adminPhone,
+          position: req.body.adminPosition,
         }
       }
     });
@@ -230,8 +234,8 @@ router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
       taxNo: c.taxNo || "",
       linkedin: c.linkedIn || "",
       size: c.size,
-      logoUrl: c.logoUrl ? `/uploads/${c.logoUrl}` : "",
-      ObjectRegReqID: rr._id,
+      logoUrl: c.logoFilename ? `/uploads/${c.logoFilename}` : "",
+      reg_reqID: rr._id,
       AdminObjectUserID: adminUser._id,
     });
 

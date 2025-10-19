@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 export default function CompanyRegistration() {
-  const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5000';
+  const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5002';
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Company Information
@@ -74,13 +74,9 @@ export default function CompanyRegistration() {
     }
     if (!formData.commercialRegistrationNumber.trim()) {
       newErrors.commercialRegistrationNumber = 'Commercial registration number is required';
-    } else if (!/^\d{10}$/.test(formData.commercialRegistrationNumber.trim())) {
-      newErrors.commercialRegistrationNumber = 'CRN must be exactly 10 digits';
     }
     if (!formData.taxNumber.trim()) {
       newErrors.taxNumber = 'Tax number is required';
-    } else if (!/^\d{15}$/.test(formData.taxNumber.trim())) {
-      newErrors.taxNumber = 'Tax number must be exactly 15 digits';
     }
     if (!formData.industry) {
       newErrors.industry = 'Industry is required';
@@ -298,7 +294,6 @@ export default function CompanyRegistration() {
                     onChange={handleInputChange}
                     className={errors.commercialRegistrationNumber ? 'error' : ''}
                     placeholder="1010123456 (10-digit number)"
-                    maxLength="10"
                     required
                   />
                   {errors.commercialRegistrationNumber && <span className="error-message">{errors.commercialRegistrationNumber}</span>}
@@ -316,7 +311,6 @@ export default function CompanyRegistration() {
                     onChange={handleInputChange}
                     className={errors.taxNumber ? 'error' : ''}
                     placeholder="300123456789003 (15-digit VAT number)"
-                    maxLength="15"
                     required
                   />
                   {errors.taxNumber && <span className="error-message">{errors.taxNumber}</span>}

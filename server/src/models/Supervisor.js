@@ -14,7 +14,7 @@ const SupervisorSchema = new Schema(
       match: [/^\S+@\S+\.\S+$/, "Invalid email"],
     },
     passwordHash: { type: String, required: true },
-    EmpObjectUserID: { type: Types.ObjectId, ref: "Employees", required: true, unique: true },
+    EmpObjectUserID: { type: Types.ObjectId, ref: "Employee", required: true, unique: true },
   },
   { collection: "Supervisor", timestamps: true }
 );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/owner-components.css';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5002';
 
 export default function ActivityLog() {
   const [companies, setCompanies] = useState([]);
@@ -11,8 +12,14 @@ export default function ActivityLog() {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        console.log('Fetching companies from API...');
-        const response = await fetch('/api/company-registration-forms');
+        const token = localStorage.getItem('token'); // or however you store it
+
+        const response = await fetch(`${API_BASE}/api/company-registration-forms`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
         console.log('Response status:', response.status);
         
         if (!response.ok) {

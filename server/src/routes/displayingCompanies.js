@@ -67,6 +67,8 @@ router.get('/:id', async (req, res, next) => {
           linkedIn: 1,
           size: 1, 
           logoUrl: 1,
+          logo: 1, // Try different logo field names
+          logoFilename: 1,
           createdAt: 1
         }
       }

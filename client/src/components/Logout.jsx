@@ -8,7 +8,8 @@ function LogoutButton({ sessionId }) {
   const handleLogout = async () => {
     try {
       // Call backend to update session
-      await axios.post("http://localhost:5000/api/auth/logout", { sessionId });
+      const API_BASE = import.meta.env.VITE_API_BASE;
+      await axios.post(`${API_BASE}/api/auth/logout`, { sessionId });
 
       // Clear JWT from localStorage (stateless logout)
       localStorage.removeItem("token");

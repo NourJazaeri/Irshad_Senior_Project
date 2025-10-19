@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import '../styles/owner-components.css';
 
-const API = import.meta.env.VITE_API || 'http://localhost:5000';
+const API = import.meta.env.VITE_API || 'http://localhost:5002';
 
 export default function PendingCompanyRegistrations() {
   const [items, setItems] = useState([]);

@@ -33,19 +33,19 @@ export default function QuickLinks() {
         <div className="card-icon"><FiDatabase /></div>
         <div className="card-title">Active Companies</div>
         <p className="card-text">Manage all registered companies and their details.</p>
-        <button className="btn" onClick={handleViewCompanies} data-testid="active-companies-btn">View Details</button>
+        <button className="btn" onClick={handleViewCompanies}>View Details</button>
       </div>
       <div className="card">
         <div className="card-icon"><FiUserCheck /></div>
         <div className="card-title">Pending Registrations</div>
         <p className="card-text">Review and approve new user and company registrations.</p>
-        <button className="btn" onClick={handleViewRegistrations} data-testid="pending-registrations-btn">View Details</button>
+        <button className="btn" onClick={handleViewRegistrations}>View Details</button>
       </div>
       <div className="card">
         <div className="card-icon"><FiTrendingUp /></div>
         <div className="card-title">Reports & Activity Log</div>
         <p className="card-text">View detailed activity logs and company registration history.</p>
-        <button className="btn" onClick={handleViewActivityLog} data-testid="activity-log-btn">View Details</button>
+        <button className="btn" onClick={handleViewActivityLog}>View Details</button>
       </div>
     </section>
   );

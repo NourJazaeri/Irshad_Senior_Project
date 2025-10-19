@@ -1,6 +1,26 @@
+// client/src/pages/CompanyProfile.jsx
 import React, { useState, useEffect } from "react";
+// Import Link from react-router-dom
+import { Link } from 'react-router-dom';
 import "../styles/admin-components.css";
 import "../styles/company-profile.css";
+import api from '../services/api'; // centralized API helper
+
+const API_BASE = api.API_BASE;
+
+
+/* ✅ define before use */
+const btnStyle = {
+  background: '#2563eb',
+  color: '#fff',
+  border: 'none',
+  padding: '10px 20px',
+  borderRadius: '8px',
+  fontWeight: '600',
+  cursor: 'pointer',
+  display: 'inline-block',
+  textDecoration: 'none'
+};
 
 function CompanyProfile() {
   const [company, setCompany] = useState(null);
@@ -17,27 +37,25 @@ function CompanyProfile() {
     const fetchCompanyData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
-        const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-        
         const response = await fetch(`${API_BASE}/api/company-profile/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          headers: api.getAuthHeaders()
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          // Extract message if provided
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(errBody?.message || `HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
         console.log('Admin company data:', data);
-        
+
+        // FIX: Ensure data.company is defined before setting it
         if (data.ok && data.company) {
           setCompany(data.company);
         } else {
-          setError(data.message || 'No company found');
+          // If response is OK but 'company' is missing (which shouldn't happen based on logs)
+          setError(data.message || 'No company profile found for this admin.');
         }
       } catch (err) {
         console.error('Error fetching company:', err);
@@ -66,25 +84,28 @@ function CompanyProfile() {
   // Save field changes
   const saveField = async (fieldName) => {
     try {
+      // Prevent saving an empty value for required fields (simple client-side check)
+      if (!fieldValue && (fieldName === 'name' || fieldName === 'CRN' || fieldName === 'industry')) {
+        setFieldStatus(prev => ({ ...prev, [fieldName]: 'error' }));
+        setTimeout(() => setFieldStatus(prev => ({ ...prev, [fieldName]: null })), 3000);
+        return;
+      }
+      
       setSavingField(fieldName);
       setFieldStatus(prev => ({ ...prev, [fieldName]: 'saving' }));
 
-      const token = localStorage.getItem('token');
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-      
       const updateData = { [fieldName]: fieldValue };
-      
+
       const response = await fetch(`${API_BASE}/api/company-profile/me`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        // api.getAuthHeaders() must return { 'Authorization': 'Bearer ...', 'Content-Type': 'application/json' }
+        headers: api.getAuthHeaders(), 
         body: JSON.stringify(updateData)
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody?.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -93,7 +114,7 @@ function CompanyProfile() {
         setEditingField(null);
         setFieldValue('');
         setFieldStatus(prev => ({ ...prev, [fieldName]: 'saved' }));
-        
+
         // Clear status after 2 seconds
         setTimeout(() => {
           setFieldStatus(prev => ({ ...prev, [fieldName]: null }));
@@ -104,7 +125,7 @@ function CompanyProfile() {
     } catch (err) {
       console.error('Error updating field:', err);
       setFieldStatus(prev => ({ ...prev, [fieldName]: 'error' }));
-      
+
       // Clear error status after 3 seconds
       setTimeout(() => {
         setFieldStatus(prev => ({ ...prev, [fieldName]: null }));
@@ -124,13 +145,11 @@ function CompanyProfile() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
 
-    // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
       alert('File size must be less than 5MB');
       return;
@@ -143,54 +162,57 @@ function CompanyProfile() {
       const formData = new FormData();
       formData.append('companyLogo', file);
 
-      const token = localStorage.getItem('token');
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-      
+      // FIX: Ensure only the Authorization header is sent for FormData.
+      // Assuming api.getAuthHeaders(false) or similar returns ONLY { 'Authorization': 'Bearer ...' }
+      // If api.getAuthHeaders() returns Content-Type, you MUST remove it here.
+      const headers = api.getAuthHeaders();
+      delete headers['Content-Type']; // Crucial for letting browser set multipart/form-data
+
       const response = await fetch(`${API_BASE}/api/company-profile/upload`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers, // includes Authorization and Accept but no Content-Type
         body: formData
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+        const text = await response.text().catch(() => "");
+        throw new Error(text || `Upload failed: ${response.status}`);
       }
 
       const uploadResult = await response.json();
-      
+
       if (uploadResult.success && uploadResult.logoUrl) {
         // Update the company with the new logo URL
         const updateResponse = await fetch(`${API_BASE}/api/company-profile/me`, {
           method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+          // Use default headers (including Content-Type: application/json) for the PUT update
+          headers: api.getAuthHeaders(), 
           body: JSON.stringify({ logoUrl: uploadResult.logoUrl })
         });
 
-        if (updateResponse.ok) {
-          const updateData = await updateResponse.json();
-          if (updateData.ok && updateData.company) {
-            setCompany(updateData.company);
-            setFieldStatus(prev => ({ ...prev, logoUrl: 'saved' }));
-            
-            // Clear status after 2 seconds
-            setTimeout(() => {
-              setFieldStatus(prev => ({ ...prev, logoUrl: null }));
-            }, 2000);
-          }
+        if (!updateResponse.ok) {
+          const errBody = await updateResponse.json().catch(() => ({}));
+          throw new Error(errBody?.message || `Update after upload failed: ${updateResponse.status}`);
+        }
+
+        const updateData = await updateResponse.json();
+        if (updateData.ok && updateData.company) {
+          setCompany(updateData.company);
+          setFieldStatus(prev => ({ ...prev, logoUrl: 'saved' }));
+
+          // Clear status after 2 seconds
+          setTimeout(() => {
+            setFieldStatus(prev => ({ ...prev, logoUrl: null }));
+          }, 2000);
         }
       } else {
         throw new Error(uploadResult.message || 'Upload failed');
       }
     } catch (err) {
       console.error('Error uploading logo:', err);
-      alert('Failed to upload logo: ' + err.message);
+      alert('Failed to upload logo: ' + (err.message || err));
       setFieldStatus(prev => ({ ...prev, logoUrl: 'error' }));
-      
+
       // Clear error status after 3 seconds
       setTimeout(() => {
         setFieldStatus(prev => ({ ...prev, logoUrl: null }));
@@ -204,9 +226,16 @@ function CompanyProfile() {
 
   // Handle Enter key to save
   const handleKeyPress = (e, fieldName) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && fieldName !== 'description' && fieldName !== 'branches') {
+      // Prevent default form submission behavior and save field for input/select
+      e.preventDefault(); 
       saveField(fieldName);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Enter' && (fieldName === 'description' || fieldName === 'branches') && e.ctrlKey) {
+       // Allow Ctrl+Enter to save for textarea fields
+       e.preventDefault(); 
+       saveField(fieldName);
+    }
+    else if (e.key === 'Escape') {
       cancelEditing();
     }
   };
@@ -215,9 +244,9 @@ function CompanyProfile() {
   const renderFieldValue = (fieldName, value) => {
     if (editingField === fieldName) {
       const isTextarea = fieldName === 'description' || fieldName === 'branches';
-      
+
       return (
-        <div className="form-group">
+        <div className="form-group-editing"> {/* Added a specific class for editing state */}
           {isTextarea ? (
             <textarea
               value={fieldValue}
@@ -226,6 +255,7 @@ function CompanyProfile() {
               className="form-textarea"
               rows="4"
               autoFocus
+              placeholder={`Enter company ${fieldName}...`}
             />
           ) : fieldName === 'industry' ? (
             <select
@@ -262,15 +292,17 @@ function CompanyProfile() {
             </select>
           ) : (
             <input
-              type={fieldName === 'linkedin' || fieldName === 'logoUrl' ? 'url' : 'text'}
+              // Use 'text' for all remaining, including linkedin, since we just want the URL string
+              type={'text'} 
               value={fieldValue}
               onChange={handleInputChange}
               onKeyDown={(e) => handleKeyPress(e, fieldName)}
               className="form-input"
               autoFocus
+              placeholder={`Enter company ${fieldName}...`}
             />
           )}
-          
+
           <div className="inline-actions show">
             <button
               onClick={() => saveField(fieldName)}
@@ -287,22 +319,35 @@ function CompanyProfile() {
               Cancel
             </button>
           </div>
+          {isTextarea && (
+             <p className="edit-hint">Press Enter for new line, Ctrl+Enter to Save</p>
+          )}
         </div>
       );
     }
 
+    const isRequiredAndEmpty = (fieldName) => {
+        const requiredFields = ['name', 'CRN', 'industry'];
+        return requiredFields.includes(fieldName) && !value;
+    };
+
     return (
-      <div 
-        className={`form-display ${editingField === fieldName ? 'editing' : ''}`}
+      <div
+        className={`form-display ${editingField === fieldName ? 'editing' : ''} ${isRequiredAndEmpty(fieldName) ? 'missing-required' : ''}`}
         onClick={() => startEditing(fieldName, value)}
       >
-        {value || 'Click to edit'}
+        <span className="display-value">
+            {value || 'Click to edit'}
+        </span>
+        <span className="edit-icon">✏️</span>
         <div className={`field-status ${fieldStatus[fieldName] || ''}`}></div>
         {fieldStatus[fieldName] === 'saved' && (
           <div className="field-message success">Field saved successfully!</div>
         )}
         {fieldStatus[fieldName] === 'error' && (
-          <div className="field-message error">Failed to save field</div>
+          <div className="field-message error">
+            {isRequiredAndEmpty(fieldName) ? 'Required field cannot be empty' : 'Failed to save field'}
+          </div>
         )}
       </div>
     );
@@ -336,16 +381,26 @@ function CompanyProfile() {
 
   return (
     <div className="admin-page">
-      <div className="admin-company-profile">
-        <div className="admin-company-profile-header">
-          <div className="header-content">
-            <h1 className="admin-company-profile-title">
-              <span className="admin-company-profile-icon">🏢</span>
-              Company Profile
-            </h1>
-            <p className="admin-company-profile-subtitle">Click on any field to edit your company information</p>
-          </div>
+
+    {/* Example placement near your page header */}
+    <div style={{ marginBottom: 16 }}>
+      <Link to="/admin/departments" style={btnStyle}>
+        Browse Departments
+      </Link>
+    </div>
+
+    <div className="admin-company-profile">
+      <div className="admin-company-profile-header">
+        <div className="header-content">
+          <h1 className="admin-company-profile-title">
+            <span className="admin-company-profile-icon">🏢</span>
+            Company Profile
+          </h1>
+          <p className="admin-company-profile-subtitle">
+            Click on any field to edit your company information
+          </p>
         </div>
+      </div>
 
         <div className="company-profile-content">
           <div className="profile-section">
@@ -353,7 +408,7 @@ function CompanyProfile() {
               <span className="section-icon">📋</span>
               Basic Information
             </h3>
-            
+
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">
@@ -383,7 +438,7 @@ function CompanyProfile() {
               <span className="section-icon">🏭</span>
               Business Details
             </h3>
-            
+
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">
@@ -420,21 +475,24 @@ function CompanyProfile() {
               <span className="section-icon">🌐</span>
               Online Presence
             </h3>
-            
+
             <div className="form-grid">
               <div className="form-group full-width">
                 <label className="form-label">
                   LinkedIn Profile
                 </label>
-                {company?.linkedin ? (
-                  <div>
-                    {renderFieldValue('linkedin', company.linkedin)}
-                    <a href={company.linkedin} target="_blank" rel="noopener noreferrer" className="profile-link">
-                      View LinkedIn Profile →
-                    </a>
-                  </div>
-                ) : (
-                  renderFieldValue('linkedin', company?.linkedin)
+                {/* Cleaned up LinkedIn rendering block */}
+                {renderFieldValue('linkedin', company?.linkedin)}
+                {company?.linkedin && (
+                  <a 
+                    href={company.linkedin.startsWith('http') ? company.linkedin : `https://${company.linkedin}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="profile-link"
+                    style={{ marginTop: '5px', display: 'block' }}
+                  >
+                    View LinkedIn Profile →
+                  </a>
                 )}
               </div>
 
@@ -445,17 +503,18 @@ function CompanyProfile() {
                 <div className="logo-upload-section">
                   {company?.logoUrl && (
                     <div className="current-logo">
-                      <img 
-                        src={company.logoUrl} 
+                      <img
+                        src={company.logoUrl}
                         alt={`${company.name} logo`}
                         className="logo-preview-img"
                         onError={(e) => {
+                          // Fallback on error (e.g., if logoUrl is broken)
                           e.target.style.display = 'none';
                         }}
                       />
                     </div>
                   )}
-                  
+
                   <div className="upload-controls">
                     <input
                       type="file"
@@ -478,7 +537,7 @@ function CompanyProfile() {
                         </>
                       )}
                     </label>
-                    
+
                     {fieldStatus.logoUrl === 'saved' && (
                       <span className="upload-success">✅ Logo updated successfully!</span>
                     )}
