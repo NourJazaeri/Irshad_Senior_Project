@@ -1,0 +1,357 @@
+/* Recognition Template Styles */
+.recognition-container {
+  max-width: 1100px;
+  width: 95vw;
+  margin: 20px auto;
+  padding: 30px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #fee2e2;
+  border: none;
+  font-size: 18px;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #fecaca;
+  transform: scale(1.1);
+}
+
+.recognition-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.recognition-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.recognition-header p {
+  color: #6b7280;
+  font-size: 15px;
+  margin: 0;
+}
+
+.award-banner {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 20px;
+  border: 1px solid #f59e0b;
+}
+
+.trophy-icon {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.award-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #92400e;
+  background: none;
+  border: none;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.award-title:focus {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.award-date {
+  background: none;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: #92400e;
+}
+
+.employee-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  flex: 1;
+}
+
+.employee-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.employee-avatar {
+  width: 56px;
+  height: 56px;
+  background: #e0e7ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.avatar-icon {
+  font-size: 24px;
+  color: #6366f1;
+}
+
+.employee-details {
+  flex: 1;
+}
+
+.employee-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  background: none;
+  border: none;
+  margin-bottom: 4px;
+  width: 100%;
+}
+
+.employee-name:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.employee-role {
+  display: block;
+  font-size: 14px;
+  color: #6b7280;
+  background: none;
+  border: none;
+  width: 100%;
+}
+
+.employee-role:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.achievement-section {
+  margin-top: 16px;
+  background: #fff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.achievement-section:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 10px 24px rgba(11, 91, 211, 0.35);
+  transform: translateY(-2px);
+}
+
+.achievement-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  background: none;
+  border: none;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.achievement-title:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.achievement-description {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #374151;
+  resize: none;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.key-accomplishments {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #374151;
+  resize: none;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.congratulations-message {
+  width: 100%;
+  background: #fef3c7;
+  border: 2px solid #fde68a;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #92400e;
+  resize: none;
+  overflow: hidden;
+  margin-bottom: 12px;
+  font-style: italic;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.congratulations-message:hover {
+  border-color: #fbbf24;
+  box-shadow: 0 10px 24px rgba(217, 119, 6, 0.35);
+  transform: translateY(-2px);
+}
+
+.achievement-description:focus,
+.key-accomplishments:focus,
+.congratulations-message:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #f0f9ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.achievement-description:hover,
+.key-accomplishments:hover,
+.congratulations-message:hover {
+  border-color: #3b82f6;
+}
+
+.signature {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.signature-team {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.signature-team:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px 0;
+  flex-shrink: 0;
+}
+
+.btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  transform: scale(1.02);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-message {
+  margin-top: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.save-message.success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.save-message.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .recognition-container {
+    margin: 10px;
+    padding: 20px;
+  }
+  
+  .employee-info {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .employee-avatar {
+    margin-right: 0;
+    margin-bottom: 12px;
+  }
+}

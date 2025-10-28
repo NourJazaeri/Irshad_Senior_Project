@@ -78,6 +78,14 @@ export default function AdminSidebar({ collapsed, setCollapsed }) {
         </Link>
         
         <Link 
+          to="/admin/content" 
+          className={`admin-nav__item ${isActive('/admin/content') ? 'active' : ''}`}
+        >
+          <span className="admin-ico">📚</span>
+          <span className="admin-nav__text">Content Library</span>
+        </Link>
+        
+        <Link 
           to="/admin/reports" 
           className={`admin-nav__item ${isActive('/admin/reports') ? 'active' : ''}`}
         >

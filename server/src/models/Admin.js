@@ -14,7 +14,8 @@ const AdminSchema = new Schema(
       match: [/^\S+@\S+\.\S+$/, "Invalid email"],
     },
     passwordHash: { type: String, required: true },
-    EmpObjectUserID: { type: Types.ObjectId, ref: "Employees", required: true, unique: true },
+    // IMPORTANT: The referenced model name must match the actual Mongoose model export (Employee)
+    EmpObjectUserID: { type: Types.ObjectId, ref: "Employee", required: true, unique: true },
     // EmpObjectUserID: { type: Types.ObjectId, ref: "Employees" }
   },
   

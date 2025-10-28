@@ -1,0 +1,78 @@
+image.pngimage.png/* Add these new utilities to your existing CSS file */
+
+/* Helper classes for the new cards */
+.sv-flex-col{display:flex;flex-direction:column;}
+.sv-flex-row{display:flex;flex-direction:row;}
+.sv-justify-between{justify-content:space-between;}
+.sv-align-center{align-items:center;}
+.sv-spacing-top{margin-top:20px;}
+.sv-ml{margin-left:8px;}
+.sv-mt{margin-top:12px;}
+.sv-mb{margin-bottom:12px;}
+.sv-border-bottom{border-bottom:1px solid var(--border-strong);padding-bottom:8px;}
+.sv-text-right{text-align:right;}
+.sv-text-muted{color:#6b7280;}
+
+/* Card KPIs */
+.sv-kpi-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.sv-kpi-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:12px;}
+.sv-kpi-label{font-size:16px;color:var(--text-600);}
+.sv-kpi-number.sv-blue{color:var(--brand-blue-900);}
+.sv-kpi-number.sv-green{color:#047857;}
+
+/* Supervisor details (Casing adjustment) */
+.sv-user-name.sv-large{font-size:20px;margin-bottom:6px;}
+.sv-emp-id{font-weight:600;margin-left:4px;color:var(--text-900);}
+.sv-group-details{display:flex;flex-direction:column;}
+
+/* Buttons and icons */
+.sv-button-remove{
+  display:inline-flex;align-items:center;gap:4px;
+  color:#ef4444;font-size:14px;font-weight:600;
+  border:none;background:none;cursor:pointer;
+}
+.sv-button-remove-inline{
+  display:inline-flex;align-items:center;gap:4px;
+  color:#4b5563;font-size:14px;font-weight:500;
+  border:none;background:none;cursor:pointer;
+  transition:color .15s ease;
+}
+.sv-button-remove-inline:hover{color:#ef4444;}
+.sv-button-primary{
+  background:var(--accent-blue);color:#fff;
+  padding:8px 16px;border-radius:8px;font-weight:600;
+  border:none;cursor:pointer;transition:background .15s ease;
+}
+.sv-button-primary:hover{background:#1d4ed8;}
+.sv-button-icon{display:inline-flex;align-items:center;gap:6px;}
+
+/* Table Header/Empty State */
+.sv-table-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;
+}
+.sv-table-caption{color:var(--text-600);font-size:14px;}
+.sv-table-empty{padding:40px 20px;text-align:center;color:var(--text-700);font-size:16px;}
+
+/* ADD THIS NEW CLASS TO YOUR CSS FILE */
+.sv-kpi-footer.sv-centered-kpi {
+    /* Forces the label and number to stack vertically */
+    flex-direction: column; 
+    /* Centers them horizontally */
+    align-items: center;    
+  }
+  
+  /* Also ensure this style is present if you didn't include it previously: */
+  .sv-kpi-number{
+    font-size:44px;
+    font-weight:800;
+    line-height:1;
+    margin-top:6px; /* Added margin for separation */
+    text-align: center; /* Ensures the text inside the element is centered */
+  }
+  
+  /* Update the total members number styling to be bigger and blue */
+  .sv-kpi-number.sv-blue{
+    color:var(--brand-blue-900);
+    font-size: 56px; /* Making it much larger for emphasis */
+  }

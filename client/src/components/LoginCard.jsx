@@ -29,7 +29,7 @@ function LoginCard({ onLogin }) {
         } else {
           // Fallback redirects
           const redirectMap = {
-            'Admin': '/admin',
+            'Admin': '/admin/dashboard',
             'Supervisor': '/supervisor', 
             'Trainee': '/trainee',
             'WebOwner': '/webowner'
@@ -52,55 +52,68 @@ function LoginCard({ onLogin }) {
       <h2 id="signin-title">Welcome to Irshad</h2>
       <div className="subtitle">Sign in to your account to continue</div>
 
-      {errorMsg && (
-        <div className="error-message" style={{color: "red", marginBottom: "1rem", fontWeight: "bold", textAlign: "center"}}>
-          {errorMsg}
-        </div>
-      )}
+      {errorMsg && <div className="error-message">{errorMsg}</div>}
 
       <form onSubmit={handleSubmit}>
         <div className="form-row">
           <label className="label" htmlFor="role">Role</label>
-          <select id="role" className="select" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="Admin">Admin</option>
-            <option value="Supervisor">Supervisor</option>
-            <option value="Trainee">Trainee</option>
-            <option value="WebOwner">Web Owner</option>
-          </select>
+          <div className="select-wrapper">
+            <select id="role" className="select" value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="Admin">Admin</option>
+              <option value="Supervisor">Supervisor</option>
+              <option value="Trainee">Trainee</option>
+              <option value="WebOwner">Web Owner</option>
+            </select>
+            <svg className="select-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
         </div>
 
         <div className="form-row">
           <label className="label" htmlFor="email">Email</label>
-          <input
-            id="email"
-            className="input"
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <div className="input-wrapper">
+            <svg className="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <input
+              id="email"
+              className="input"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
         </div>
 
         <div className="form-row password-field">
           <label className="label" htmlFor="pwd">Password</label>
-          <input
-            id="pwd"
-            className="input"
-            type={show ? "text" : "password"}
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button type="button" className="toggle" onClick={() => setShow((s) => !s)}>
-            {show ? "Hide" : "Show"}
-          </button>
+          <div className="input-wrapper">
+            <svg className="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <input
+              id="pwd"
+              className="input"
+              type={show ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button type="button" className="toggle" onClick={() => setShow((s) => !s)}>
+              {show ? "Hide" : "Show"}
+            </button>
+          </div>
         </div>
 
         <div className="form-row">
-          <button className="button-primary" type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+          <button className="button-primary" type="submit">
+            Sign In
           </button>
         </div>
       </form>

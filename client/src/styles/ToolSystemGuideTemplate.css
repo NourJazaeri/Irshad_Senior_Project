@@ -1,0 +1,384 @@
+/* Tool/System Guide Template Styles */
+.tool-guide-container {
+  max-width: 1100px;
+  width: 95vw;
+  margin: 20px auto;
+  padding: 30px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  overflow: visible;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #fee2e2;
+  border: none;
+  font-size: 18px;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #fecaca;
+  transform: scale(1.1);
+}
+
+.tool-guide-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.tool-guide-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.tool-guide-header p {
+  color: #6b7280;
+  font-size: 15px;
+  margin: 0;
+}
+
+.guide-content {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.guide-title-section {
+  margin-bottom: 24px;
+}
+
+.guide-main-title {
+  width: 100%;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  background: none;
+  border: none;
+  margin-bottom: 12px;
+  padding: 4px 0;
+}
+
+.guide-main-title:focus {
+  outline: 1px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.guide-subtitle {
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #6b7280;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  padding: 0;
+}
+
+.guide-subtitle:focus {
+  outline: 1px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.steps-section {
+  margin-bottom: 32px;
+}
+
+.step-item {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.step-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 10px 24px rgba(11, 91, 211, 0.35);
+  transform: scale(1.01);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.step-title {
+  flex: 0 0 auto; /* don't stretch, size to content */
+  background: none;
+  border: none;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.step-title:focus {
+  outline: 1px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.step-description {
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4b5563;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.step-description:focus {
+  outline: 1px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.step-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #6366f1;
+}
+
+.step-checkbox label {
+  font-size: 14px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.help-section {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.help-title {
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.help-title:focus {
+  outline: 1px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.help-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.help-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.help-text {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #3b82f6;
+  text-decoration: underline;
+  flex: 1;
+}
+
+.help-text:focus {
+  outline: 1px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn {
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #0A2C5C;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #082347;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-message {
+  margin-top: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.save-message.success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.save-message.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .tool-guide-container {
+    margin: 10px;
+    padding: 20px;
+  }
+  
+  .step-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .step-number {
+    align-self: flex-start;
+  }
+}
+
+/* Add/Remove Step Buttons */
+.remove-step-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+  z-index: 10;
+}
+
+.remove-step-btn:hover {
+  background: #fecaca;
+  transform: scale(1.1);
+}
+
+.add-step-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.add-step-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-step-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #475569;
+}
+
+.plus-icon {
+  font-size: 18px;
+  font-weight: bold;
+}

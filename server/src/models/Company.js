@@ -13,6 +13,7 @@ const CompanySchema = new Schema({
   size: { type: Number },                         // numeric employees
   logoUrl: String,                                // store full URL if you have one
   ObjectRegReqID: { type: Types.ObjectId, ref: 'RegistrationRequest' }, // match Atlas DB
+  adminUserID: { type: Types.ObjectId, ref: 'Admin' },
   AdminObjectUserID: { type: Types.ObjectId, ref: 'Admin' } // Database field name
 }, { collection: 'Company', timestamps: true });
 

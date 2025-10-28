@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar.jsx';
+import { UnifiedSidebar } from '../components/UnifiedSidebar.jsx';
 import Topbar from '../components/Topbar.jsx';
 import '../styles/owner-components.css';
 
@@ -97,8 +97,8 @@ export default function CompanyDetails() {
   }
 
   return (
-    <div className={`dashboard-root${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+    <div className={`dashboard-root h-screen${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <UnifiedSidebar userType="usageReport" collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <main className="main">
         <Topbar />
         

@@ -78,41 +78,29 @@
 
 /* Header Section - Centered card */
 .company-profile-header {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 16px;
+  padding: 24px 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  justify-content: center;
+  align-items: center;
   width: 100%;
 }
 
 .header-content {
   flex: 1;
-}
-
-.profile-title {
-  color: #0f172a;
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.profile-icon {
-  font-size: 1.5rem;
-  color: #0A2C5C;
+  text-align: center;
 }
 
 .profile-subtitle {
-  color: #6b7280;
-  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 1.4rem;
+  font-weight: 500;
   margin: 0;
+  letter-spacing: 0.025em;
 }
 
 .header-actions {
@@ -197,34 +185,49 @@
 .profile-section {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   width: 100%;
+  transition: all 0.3s ease;
+}
+
+.profile-section:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
 .section-title {
   color: #0f172a;
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 20px 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 28px 0;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  letter-spacing: 0.025em;
 }
 
 .section-icon {
-  font-size: 1.2rem;
-  color: #0A2C5C;
+  font-size: 1.5rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 /* Inline Editable Fields Grid - Wider cards */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 28px;
 }
 
 .form-group {
@@ -239,77 +242,181 @@
 
 /* Field Labels */
 .form-label {
-  color: #374151;
-  font-weight: 600;
-  margin-bottom: 8px;
-  font-size: 14px;
+  color: #1f2937;
+  font-weight: 700;
+  margin-bottom: 12px;
+  font-size: 18px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  letter-spacing: 0.025em;
 }
 
 .required {
   color: #dc2626;
+  font-weight: 800;
 }
 
 /* Inline Editable Input Fields */
 .form-input,
 .form-select,
 .form-textarea {
-  padding: 12px 16px;
+  padding: 18px 24px;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #fff;
-  color: #0f172a;
-  font-size: 14px;
-  transition: all 0.2s ease;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 500;
+  transition: all 0.3s ease;
   width: 100%;
   box-sizing: border-box;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: #0A2C5C;
-  box-shadow: 0 0 0 3px rgba(10, 44, 92, 0.1);
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Editing state */
+.form-input.editing,
+.form-select.editing,
+.form-textarea.editing {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+  background: #f8fafc;
 }
 
 .form-input::placeholder,
 .form-textarea::placeholder {
   color: #9ca3af;
+  font-weight: 400;
 }
 
 .form-textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px;
 }
 
-/* Display Mode - Clickable to Edit */
+/* Form Display Fields */
 .form-display {
-  padding: 12px 16px;
-  background: #f8fafc;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  color: #0f172a;
-  font-size: 14px;
-  min-height: 48px;
+  padding: 18px 24px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  min-height: 60px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.form-display.hoverable:hover {
+  border-color: #667eea;
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.form-display.editing {
+  border-color: #667eea;
+  background: #f8fafc;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+.form-display.has-changes {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.field-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #667eea;
+  border-radius: 50%;
+  color: white;
+}
+
+/* LinkedIn URL styling */
+.linkedin-url {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+  white-space: normal;
+  max-width: 100%;
+}
+
+/* Action Buttons */
+.profile-actions {
+  margin-top: 40px;
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.actions-container {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  padding: 16px 32px;
+  border: none;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
+  transition: all 0.3s ease;
+  min-width: 200px;
+  justify-content: center;
 }
 
-.form-display:hover {
+.action-btn-save {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn-save:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.action-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-btn-cancel {
+  background: #f8fafc;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.action-btn-cancel:hover {
   background: #f1f5f9;
-  border-color: #e2e8f0;
-}
-
-.form-display:empty::before {
-  content: "Click to edit";
-  color: #9ca3af;
-  font-style: italic;
+  border-color: #d1d5db;
+  color: #374151;
+  transform: translateY(-2px);
 }
 
 .form-display:not(:empty)::after {

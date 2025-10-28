@@ -19,7 +19,7 @@ const roleModels = {
 
 // Redirect mapping for different roles
 const redirectMap = {
-  Admin: "/admin",
+  Admin: "/admin/dashboard",
   Supervisor: "/supervisor",
   Trainee: "/trainee",
   WebOwner: "/webowner"

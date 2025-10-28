@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { FileText, Building2, Building, Globe, ExternalLink, Check, X, Save, Edit3 } from "lucide-react";
 import "../styles/admin-components.css";
 import "../styles/company-profile.css";
 
@@ -11,6 +12,8 @@ function CompanyProfile() {
   const [savingField, setSavingField] = useState(null);
   const [fieldStatus, setFieldStatus] = useState({});
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [editedFields, setEditedFields] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Fetch admin's company data
   useEffect(() => {
@@ -50,6 +53,21 @@ function CompanyProfile() {
     fetchCompanyData();
   }, []);
 
+  // Deselect editing when clicking anywhere outside the active field
+  useEffect(() => {
+    const handleGlobalMouseDown = (e) => {
+      if (!editingField) return;
+      // If click is inside any editing form group, ignore
+      const isInsideEditingGroup = e.target.closest('.form-group');
+      if (isInsideEditingGroup) return;
+      // Otherwise, cancel editing
+      cancelEditing();
+    };
+
+    document.addEventListener('mousedown', handleGlobalMouseDown);
+    return () => document.removeEventListener('mousedown', handleGlobalMouseDown);
+  }, [editingField]);
+
   // Start editing a field
   const startEditing = (fieldName, currentValue) => {
     setEditingField(fieldName);
@@ -58,6 +76,66 @@ function CompanyProfile() {
 
   // Cancel editing
   const cancelEditing = () => {
+    setEditingField(null);
+    setFieldValue('');
+    setFieldStatus({});
+  };
+
+  // Handle field value change
+  const handleFieldChange = (fieldName, value) => {
+    setFieldValue(value);
+    setEditedFields(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  // Save all changes
+  const saveAllChanges = async () => {
+    try {
+      setSavingField('all');
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      
+      // Backend route is PUT /api/company-profile/me and returns { ok, company }
+      const response = await fetch(`${API_BASE}/api/company-profile/me`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editedFields)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.ok && data.company) {
+        setCompany(data.company);
+        setEditedFields({});
+        setHasUnsavedChanges(false);
+        setEditingField(null);
+        setFieldValue('');
+        setFieldStatus({});
+        alert('All changes saved successfully!');
+      } else {
+        throw new Error(data.message || 'Failed to save changes');
+      }
+    } catch (err) {
+      console.error('Error saving changes:', err);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setSavingField(null);
+    }
+  };
+
+  // Cancel all changes
+  const cancelAllChanges = () => {
+    setEditedFields({});
+    setHasUnsavedChanges(false);
     setEditingField(null);
     setFieldValue('');
     setFieldStatus({});
@@ -213,6 +291,10 @@ function CompanyProfile() {
 
   // Render field value
   const renderFieldValue = (fieldName, value) => {
+    const pendingValue = editedFields[fieldName];
+    const displayValue = typeof pendingValue !== 'undefined' && pendingValue !== null && String(pendingValue).length > 0
+      ? pendingValue
+      : value;
     if (editingField === fieldName) {
       const isTextarea = fieldName === 'description' || fieldName === 'branches';
       
@@ -221,17 +303,17 @@ function CompanyProfile() {
           {isTextarea ? (
             <textarea
               value={fieldValue}
-              onChange={handleInputChange}
+              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
               onKeyDown={(e) => handleKeyPress(e, fieldName)}
-              className="form-textarea"
+              className="form-textarea editing"
               rows="4"
               autoFocus
             />
           ) : fieldName === 'industry' ? (
             <select
               value={fieldValue}
-              onChange={handleInputChange}
-              className="form-select"
+              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              className="form-select editing"
               autoFocus
             >
               <option value="">Select industry</option>
@@ -248,8 +330,8 @@ function CompanyProfile() {
           ) : fieldName === 'size' ? (
             <select
               value={fieldValue}
-              onChange={handleInputChange}
-              className="form-select"
+              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              className="form-select editing"
               autoFocus
             >
               <option value="">Select size</option>
@@ -264,45 +346,48 @@ function CompanyProfile() {
             <input
               type={fieldName === 'linkedin' || fieldName === 'logoUrl' ? 'url' : 'text'}
               value={fieldValue}
-              onChange={handleInputChange}
+              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
               onKeyDown={(e) => handleKeyPress(e, fieldName)}
-              className="form-input"
+              className="form-input editing"
               autoFocus
             />
           )}
-          
-          <div className="inline-actions show">
-            <button
-              onClick={() => saveField(fieldName)}
-              disabled={savingField === fieldName}
-              className="inline-btn inline-btn-save"
-            >
-              {savingField === fieldName ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              onClick={cancelEditing}
-              disabled={savingField === fieldName}
-              className="inline-btn inline-btn-cancel"
-            >
-              Cancel
-            </button>
-          </div>
+        </div>
+      );
+    }
+
+    // Special display for LinkedIn: show clickable URL in the box (including unsaved edits)
+    if (fieldName === 'linkedin' && displayValue) {
+      const href = /^https?:\/\//i.test(displayValue) ? displayValue : `https://${displayValue}`;
+      return (
+        <div 
+          className={`form-display hoverable ${editedFields[fieldName] ? 'has-changes' : ''}`}
+          onClick={() => startEditing(fieldName, displayValue)}
+        >
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="linkedin-url"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayValue}
+          </a>
+          <ExternalLink className="w-5 h-5 text-primary" />
         </div>
       );
     }
 
     return (
       <div 
-        className={`form-display ${editingField === fieldName ? 'editing' : ''}`}
-        onClick={() => startEditing(fieldName, value)}
+        className={`form-display hoverable ${editingField === fieldName ? 'editing' : ''} ${editedFields[fieldName] ? 'has-changes' : ''}`}
+        onClick={() => startEditing(fieldName, displayValue)}
       >
-        {value || 'Click to edit'}
-        <div className={`field-status ${fieldStatus[fieldName] || ''}`}></div>
-        {fieldStatus[fieldName] === 'saved' && (
-          <div className="field-message success">Field saved successfully!</div>
-        )}
-        {fieldStatus[fieldName] === 'error' && (
-          <div className="field-message error">Failed to save field</div>
+        {displayValue || 'Click to edit'}
+        {editedFields[fieldName] && (
+          <div className="field-indicator">
+            <Edit3 size={16} className="text-primary" />
+          </div>
         )}
       </div>
     );
@@ -339,10 +424,6 @@ function CompanyProfile() {
       <div className="admin-company-profile">
         <div className="admin-company-profile-header">
           <div className="header-content">
-            <h1 className="admin-company-profile-title">
-              <span className="admin-company-profile-icon">🏢</span>
-              Company Profile
-            </h1>
             <p className="admin-company-profile-subtitle">Click on any field to edit your company information</p>
           </div>
         </div>
@@ -350,7 +431,7 @@ function CompanyProfile() {
         <div className="company-profile-content">
           <div className="profile-section">
             <h3 className="section-title">
-              <span className="section-icon">📋</span>
+              <FileText className="w-6 h-6 text-primary" />
               Basic Information
             </h3>
             
@@ -380,7 +461,7 @@ function CompanyProfile() {
 
           <div className="profile-section">
             <h3 className="section-title">
-              <span className="section-icon">🏭</span>
+              <Building2 className="w-6 h-6 text-primary" />
               Business Details
             </h3>
             
@@ -417,7 +498,7 @@ function CompanyProfile() {
 
           <div className="profile-section">
             <h3 className="section-title">
-              <span className="section-icon">🌐</span>
+              <Globe className="w-6 h-6 text-primary" />
               Online Presence
             </h3>
             
@@ -490,6 +571,29 @@ function CompanyProfile() {
               </div>
             </div>
           </div>
+
+          {/* Save/Cancel Actions */}
+          {hasUnsavedChanges && (
+            <div className="profile-actions">
+              <div className="actions-container">
+                <button
+                  onClick={cancelAllChanges}
+                  className="action-btn action-btn-cancel"
+                >
+                  <X size={20} className="mr-2" />
+                  Cancel All Changes
+                </button>
+                <button
+                  onClick={saveAllChanges}
+                  disabled={savingField === 'all'}
+                  className="action-btn action-btn-save"
+                >
+                  <Save size={20} className="mr-2" />
+                  {savingField === 'all' ? 'Saving...' : 'Save All Changes'}
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
