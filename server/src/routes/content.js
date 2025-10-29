@@ -13,6 +13,8 @@ import Admin from '../models/Admin.js';
 import Supervisor from '../models/Supervisor.js';
 import Employee from '../models/Employees.js';
 import { requireAdmin, requireAdminOrSupervisor } from '../middleware/authMiddleware.js';
+// Optional Gemini service integration - commented out until implementation is ready
+// import { analyzeContentAndGenerateQuiz, generateQuizFromText } from '../services/geminiService.js';
 
 const { Types } = mongoose;
 const { ObjectId } = Types;
@@ -20,6 +22,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Helper: normalize a single ObjectId value which may arrive as array or JSON string
+function normalizeIdField(value) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0];
+  if (typeof value === 'string') {
+    try {
+      if (value.startsWith('[')) {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed[0] : parsed;
+      }
+      return value;
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
 
 /**
  * GET /api/content/test
@@ -411,6 +431,12 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       }
     }
     
+    const normGroupId = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId = normalizeIdField(assignedTo_traineeID);
+    console.log('🧭 Normalized IDs:', { normGroupId, normTraineeId, rawGroup: assignedTo_GroupID, rawTrainee: assignedTo_traineeID });
+
+    const normGroupId2 = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId2 = normalizeIdField(assignedTo_traineeID);
     const content = new Content({
       title: title || req.file.originalname,
       description: description || '',
@@ -419,9 +445,9 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normGroupId,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: normTraineeId,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
@@ -485,9 +511,9 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: videoId,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: normalizeIdField(assignedTo_traineeID),
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
@@ -556,6 +582,8 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       console.log('🎥 Extracted video ID:', youtubeVideoId);
     }
 
+    const normGroupId3 = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId3 = normalizeIdField(assignedTo_traineeID);
     const content = new Content({
       title: title || 'External Link',
       description: description || '',
@@ -565,9 +593,9 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: youtubeVideoId, // Add YouTube video ID if it's a YouTube URL
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normGroupId3,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: normTraineeId3,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
@@ -1318,5 +1346,119 @@ router.delete('/:id', requireAdminOrSupervisor, async (req, res) => {
   }
 });
 
+
+// API endpoint to analyze content and generate quiz questions
+// Optional multipart: accepts either JSON with filePath, or multipart with 'file'
+// REMOVE THE DUPLICATE /upload ROUTE (line ~500) and keep only the one near the top
+
+// REPLACE the /analyze-content route with this fixed version:
+
+/**
+ * POST /api/content/analyze-content
+ * Analyze content and generate quiz questions using AI
+ */
+router.post('/analyze-content', requireAdminOrSupervisor, upload.single('file'), async (req, res) => {
+  let uploadedFilePath = null;
+  
+  try {
+    console.log('📝 Analyzing content for AI quiz generation...');
+    console.log('📝 Request body:', req.body);
+    console.log('📝 Uploaded file:', req.file ? req.file.filename : 'No file');
+
+    const { title, description, category, contentType, url, numQuestions } = req.body;
+
+    // Check if GEMINI_API_KEY is configured
+    if (!process.env.GEMINI_API_KEY) {
+      if (req.file && req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Gemini API key not configured. Please add GEMINI_API_KEY to your environment variables.'
+      });
+    }
+
+    // Validate that we have some content to analyze
+    if (!title && !description && !url && !req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content information is required (title, description, url, or file)'
+      });
+    }
+
+    // Prepare content data for analysis
+    const contentData = {
+      title: title || '',
+      description: description || '',
+      category: category || 'General',
+      contentType: contentType || 'text',
+      url: url || null,
+    };
+
+    // Handle uploaded file
+    if (req.file) {
+      uploadedFilePath = req.file.path;
+      contentData.filePath = uploadedFilePath;
+      contentData.fileName = req.file.originalname;
+      contentData.fileType = req.file.mimetype;
+      
+      console.log('📄 File uploaded for analysis:', {
+        path: uploadedFilePath,
+        name: req.file.originalname,
+        type: req.file.mimetype,
+        size: req.file.size
+      });
+    }
+
+    // AI content analysis is not yet implemented
+    console.log('ℹ️ Skipping AI content analysis - feature not yet implemented');
+    const result = {
+      success: true,
+      quiz: {
+        questions: []
+      },
+      analysis: {
+        topics: [],
+        keyPoints: [],
+        summary: "Content analysis not yet available"
+      }
+    };
+
+    // Clean up uploaded file after processing
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+      fs.unlinkSync(uploadedFilePath);
+      console.log('🗑️ Cleaned up temporary file');
+    }
+
+    res.json({
+      success: true,
+      summary: result.summary,
+      questions: result.questions,
+      sourceType: result.sourceType,
+      contentAnalyzed: result.contentAnalyzed
+    });
+
+  } catch (error) {
+    console.error('❌ Content analysis error:', error);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Clean up uploaded file on error
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+      try {
+        fs.unlinkSync(uploadedFilePath);
+        console.log('🗑️ Cleaned up temporary file after error');
+      } catch (cleanupError) {
+        console.error('⚠️ Error cleaning up file:', cleanupError);
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to analyze content and generate quiz'
+    });
+  }
+});
+
+// KEEP the /generate-quiz-from-text route as is
 
 export default router;

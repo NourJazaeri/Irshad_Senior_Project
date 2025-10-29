@@ -7,8 +7,7 @@ import {
   FileText, 
   Building2, 
   User, 
-  ChevronLeft,
-  ChevronRight,
+  Menu,
   LogOut,
   Settings,
   BarChart3,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
+import { getCurrentUser } from '../utils/auth.js';
 
 // Navigation configurations for different user types
 const navigationConfigs = {
@@ -63,6 +63,15 @@ const navigationConfigs = {
       // Templates entry removed per requirements
     ]
   }
+  ,
+  // Trainee user type: only show dashboard
+  trainee: {
+    brand: { name: 'Irshad', subtitle: 'Trainee' },
+    user: { name: 'Trainee', role: 'trainee@company.com', avatar: 'T' },
+    items: [
+      { name: 'Dashboard', href: '/trainee', icon: Home }
+    ]
+  }
 };
 
 export const UnifiedSidebar = ({ 
@@ -82,37 +91,148 @@ export const UnifiedSidebar = ({
   
   const config = navigationConfigs[userType] || navigationConfigs.admin;
   
-  // Fetch admin data for admin user type
+  // Fetch user data for admin and trainee user types
   useEffect(() => {
+    // Helper function to format display names consistently across all user types
+    const formatDisplayName = (email) => {
+      if (!email) return userType;
+      return email.split('@')[0]
+        .split('.')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+    };
+
+    const fetchAdminData = async () => {
+      try {
+        // First try localStorage for immediate display
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          try {
+            const userData = JSON.parse(storedUser);
+            setAdminData({
+              firstName: formatDisplayName(userData.email),
+              lastName: '',
+              email: userData.email || 'admin@company.com'
+            });
+          } catch (e) {
+            console.error('Error parsing stored admin user:', e);
+          }
+        }
+
+        // Then fetch from API for complete data
+        const token = localStorage.getItem('token');
+        const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+
+        const response = await fetch(`${API_BASE}/api/company-profile/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ok && data.admin) {
+            // Use firstName from API if available, otherwise format from email
+            const displayName = data.admin.firstName || formatDisplayName(data.admin.email);
+            setAdminData({
+              firstName: displayName,
+              lastName: data.admin.lastName || '',
+              email: data.admin.email || 'admin@company.com'
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching admin data:', error);
+      }
+    };
+
     if (userType === 'admin') {
-      const fetchAdminData = async () => {
+      fetchAdminData();
+    }
+
+    // For trainee, supervisor, or webOwner, first check localStorage then try API
+    if (['trainee', 'supervisor', 'webOwner'].includes(userType)) {
+      const fetchUserData = async () => {
         try {
+          // First try to get user from localStorage
+          const storedUser = localStorage.getItem('user');
+          let userData = null;
+          
+          // Helper function to format display names
+          const formatDisplayName = (email) => {
+            if (!email) return userType;
+            return email.split('@')[0]
+              .split('.')
+              .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(' ');
+          };
+
+          if (storedUser) {
+            try {
+              userData = JSON.parse(storedUser);
+              console.log('📦 Parsed user data:', userData);
+              
+              // Set initial state from localStorage with formatted name
+              setAdminData({
+                firstName: formatDisplayName(userData.email),
+                lastName: '',
+                email: userData.email || `${userType.toLowerCase()}@company.com`
+              });
+            } catch (e) {
+              console.error('Error parsing stored user:', e);
+            }
+          }
+
+          // Then try to get richer profile data from API
           const token = localStorage.getItem('token');
           const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-          
-          const response = await fetch(`${API_BASE}/api/company-profile/me`, {
+          // Select the appropriate endpoint based on user type
+          const endpoints = {
+            'trainee': '/api/trainee/me',
+            'supervisor': '/api/supervisor/me',
+            'webOwner': '/api/webowner/me'
+          };
+          const endpoint = endpoints[userType];
+
+          const resp = await fetch(`${API_BASE}${endpoint}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           });
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.ok && data.admin) {
-              setAdminData({
-                firstName: data.admin.firstName || 'Admin',
-                lastName: data.admin.lastName || 'User',
-                email: data.admin.email || 'admin@company.com'
-              });
-            }
+          if (!resp.ok) {
+            console.warn('Failed to fetch trainee profile from API');
+            return; // Keep the localStorage data
+          }
+
+          const data = await resp.json();
+          // Get the correct profile data based on user type
+          const profileMap = {
+            'trainee': data.trainee,
+            'supervisor': data.supervisor,
+            'webOwner': data.webOwner
+          };
+          const profile = profileMap[userType];
+          
+          if (data && data.ok && profile) {
+            // Use formatted display name if no firstName provided in profile
+            const displayName = profile.firstName || formatDisplayName(profile.email || userData?.email);
+            
+            setAdminData({
+              firstName: displayName,
+              lastName: profile.lastName || '',
+              email: profile.email || userData?.email || `${userType.toLowerCase()}@company.com`
+            });
           }
         } catch (error) {
-          console.error('Error fetching admin data:', error);
+          console.error('Error fetching trainee data:', error);
+          // Keep existing state from localStorage if available
         }
       };
 
-      fetchAdminData();
+      fetchUserData();
     }
   }, [userType]);
   
@@ -191,17 +311,18 @@ export const UnifiedSidebar = ({
               <span className="text-lg font-bold tracking-wide text-[#e6eef5]">Irshad</span>
             )}
           </div>
-          {/* Desktop Collapse Toggle - Small Arrow */}
+          {/* Desktop Collapse Toggle - Three Dashes */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex items-center justify-center w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#e6eef5] transition-colors"
+            className="hidden lg:block p-0 border-0 bg-transparent text-[#e6eef5] hover:text-white transition-colors"
+            style={{ background: 'none' }}
             title={collapsed ? 'Expand' : 'Collapse'}
           >
-            {collapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
-            )}
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" style={{ background: 'transparent' }}>
+              <line x1="4" y1="8" x2="20" y2="8"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="16" x2="20" y2="16"></line>
+            </svg>
           </button>
         </div>
         
@@ -243,16 +364,18 @@ export const UnifiedSidebar = ({
               className="w-12 h-12 rounded-full bg-[#e6eef5] text-[#0A2C5C] flex items-center justify-center font-bold text-lg flex-shrink-0 relative group"
               title={collapsed ? (userType === 'admin' ? `${adminData.firstName} ${adminData.lastName} - ${adminData.email}` : `${config.user.name} - ${config.user.role}`) : undefined}
             >
-              {userType === 'admin' ? adminData.firstName.charAt(0).toUpperCase() : config.user.avatar}
+              {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) 
+                ? String(adminData.firstName || '').split(' ')[0].charAt(0).toUpperCase()
+                : config.user.avatar}
               
               {/* Tooltip for collapsed state */}
               {collapsed && (
                 <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                   <div className="font-semibold">
-                    {userType === 'admin' ? `${adminData.firstName} ${adminData.lastName}` : config.user.name}
+                    {['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType) ? `${adminData.firstName} ${adminData.lastName}` : config.user.name}
                   </div>
                   <div className="text-xs text-gray-300">
-                    {userType === 'admin' ? adminData.email : config.user.role}
+                    {['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType) ? adminData.email : config.user.role}
                   </div>
                   {/* Arrow pointing to avatar */}
                   <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
@@ -262,10 +385,10 @@ export const UnifiedSidebar = ({
             {!collapsed && (
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="text-base font-semibold truncate text-[#e6eef5]">
-                  {userType === 'admin' ? `${adminData.firstName} ${adminData.lastName}` : config.user.name}
+                  {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? `${adminData.firstName} ${adminData.lastName}` : config.user.name}
                 </p>
-                <p className="text-sm font-medium text-[#e6eef5]/75 truncate" title={userType === 'admin' ? adminData.email : config.user.role}>
-                  {userType === 'admin' ? adminData.email : config.user.role}
+                <p className="text-sm font-medium text-[#e6eef5]/75 truncate" title={(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? adminData.email : config.user.role}>
+                  {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? adminData.email : config.user.role}
                 </p>
               </div>
             )}

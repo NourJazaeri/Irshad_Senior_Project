@@ -14,6 +14,7 @@ import webownerRequestManagement from './routes/webownerRequestManagement.js';
 import dashboardCounts from './routes/dashboardCounts.js';
 import displayingCompanies from './routes/displayingCompanies.js';
 import companyProfile from './routes/companyProfile.js';
+import traineeProfile from './routes/traineeProfile.js';
 import adminUserManagement from './routes/adminUserManagement.js';
 import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groups.js";
@@ -83,10 +84,15 @@ app.use('/api/webowner/request-management', webownerRequestManagement);
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', displayingCompanies);
 app.use('/api/company-profile', companyProfile);
+app.use('/api/trainee', traineeProfile);
 app.use('/api/admin/users', adminUserManagement);
 app.use('/api/admin/groups', adminGroupsRouter);
 
-// NEW: Supervisor routes (overview + my-groups, etc.)
+// User profiles (supervisor, web owner)
+import supervisorProfile from './routes/supervisorProfile.js';
+import webOwnerProfile from './routes/webOwnerProfile.js';
+app.use('/api/supervisor', supervisorProfile);
+app.use('/api/webowner', webOwnerProfile);
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
 
 app.use("/api/departments", departmentRoutes);

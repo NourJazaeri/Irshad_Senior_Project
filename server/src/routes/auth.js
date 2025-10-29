@@ -67,9 +67,11 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Incorrect email or password. Try again." });
     }
 
-    // JWT Token
-    console.log("Creating JWT token...");
-    const token = jwt.sign({ id: user._id, role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  // JWT Token
+  // Include email in payload so client-side token decoding can display user email
+  // (useful when API profile endpoints are temporarily unreachable)
+  console.log("Creating JWT token...");
+  const token = jwt.sign({ id: user._id, role, email: user.loginEmail }, process.env.JWT_SECRET, { expiresIn: "1h" });
     console.log("Token created successfully");
 
     // Create session - ADD ERROR HANDLING HERE

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { loginUser } from "../services/api.js";
 
 function LoginCard({ onLogin }) {
@@ -8,6 +8,19 @@ function LoginCard({ onLogin }) {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    // Clear any stored credentials on component mount
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("sessionId");
+    
+    // Clear form data
+    const loginForm = document.getElementById("loginForm");
+    if (loginForm) {
+      loginForm.reset();
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +36,8 @@ function LoginCard({ onLogin }) {
         onLogin?.(res.user);
         localStorage.setItem("token", res.token);
         localStorage.setItem("sessionId", res.sessionId);
+        // Store full user data for profile info
+        localStorage.setItem("user", JSON.stringify(res.user));
         // Use the redirect URL from backend or fallback
         if (res.redirectTo) {
           window.location.href = res.redirectTo;
@@ -54,11 +69,12 @@ function LoginCard({ onLogin }) {
 
       {errorMsg && <div className="error-message">{errorMsg}</div>}
 
-      <form onSubmit={handleSubmit}>
+      <form id="loginForm" onSubmit={handleSubmit} autoComplete="off">
         <div className="form-row">
           <label className="label" htmlFor="role">Role</label>
           <div className="select-wrapper">
-            <select id="role" className="select" value={role} onChange={(e) => setRole(e.target.value)}>
+            <select id="role" className="select" value={role} onChange={(e) => setRole(e.target.value)} required>
+              <option value="">Select a role</option>
               <option value="Admin">Admin</option>
               <option value="Supervisor">Supervisor</option>
               <option value="Trainee">Trainee</option>
@@ -84,6 +100,8 @@ function LoginCard({ onLogin }) {
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="new-email"
+              name={"email" + Math.random()}
               required
             />
           </div>
@@ -103,6 +121,7 @@ function LoginCard({ onLogin }) {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="off"
               required
             />
             <button type="button" className="toggle" onClick={() => setShow((s) => !s)}>

@@ -6,12 +6,9 @@ import "../styles/admin-components.css";
 
 export default function AdminLayout() {
   const { pathname } = useLocation();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // false = expanded by default
   
-  // Reset sidebar to collapsed on mount and whenever path changes
-  useEffect(() => {
-    setSidebarCollapsed(true);
-  }, [pathname]);
+  // Removed the auto-collapse effect to keep sidebar expanded by default
 
   // Handle browser back/forward navigation
   useEffect(() => {

@@ -7,7 +7,7 @@ import "../styles/owner-components.css";
 
 export default function OwnerLayout() {
   const { pathname } = useLocation();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // false = expanded by default
 
   // Show the welcome section on the layout's index route (tweak paths as needed)
   const showWelcome =

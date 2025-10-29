@@ -5,12 +5,7 @@ import { UnifiedTopbar } from '../components/UnifiedTopbar.jsx';
 
 const SupervisorLayout = () => {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(true);
-  
-  // Reset sidebar to collapsed on mount and whenever path changes
-  useEffect(() => {
-    setCollapsed(true);
-  }, [location.pathname]);
+  const [collapsed, setCollapsed] = useState(false); // false = expanded by default
 
   // Handle browser back/forward navigation
   useEffect(() => {
