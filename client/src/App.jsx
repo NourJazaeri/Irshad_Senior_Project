@@ -56,6 +56,8 @@ import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
 import "./styles/owner-components.css";
 import './styles/supervisor.css';
+import TodoList from "./pages/TodoList-tobedeleted.jsx";
+
 
 export default function App() {
   const location = useLocation();
@@ -70,10 +72,14 @@ export default function App() {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isOwnerRoute = location.pathname.startsWith('/owner');
 
+// …
+
+
   return (
     <>
       {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
+      <Route path="/trainee/todo" element={<TodoList />} />
 
 
         {/* Login Routes - Set as default page */}

@@ -1,0 +1,215 @@
+/* todo.css */
+
+:root {
+  --ink: #0b2f55;
+  --muted: #6b7280;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --ring: #e2e8f0;
+  --brand: #2563eb;
+  --brand-ink: #fff;
+  --light-blue: #e0f2fe;
+  --danger: #ef4444;
+  --gray: #9ca3af;
+}
+
+.todo-wrap {
+  padding: 32px;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.todo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.todo-header h1 {
+  font-size: 24px;
+  color: var(--ink);
+  font-weight: 700;
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  padding: 8px 14px;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: 0.2s ease;
+}
+.tab.active {
+  color: var(--brand);
+  border-bottom: 2px solid var(--brand);
+}
+
+/* --- WEEKLY BOARD --- */
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--ring); /* thin border between cards */
+  border: 1px solid var(--ring);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+  .board {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 800px) {
+  .board {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
+}
+
+.col {
+  background: var(--card);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.col-head {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.add-input {
+  flex: 1;
+  border: 1px solid var(--ring);
+  border-radius: 8px;
+  background: var(--light-blue);
+  color: var(--ink);
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.add-input:focus {
+  border-color: var(--brand);
+}
+
+.btn.add {
+  background: var(--brand);
+  color: var(--brand-ink);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.btn.add:hover {
+  background: #1d4ed8;
+}
+
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task {
+  border: 1px solid var(--ring);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.task label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.task input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.task .trash-btn {
+  background: transparent;
+  border: none;
+  color: var(--gray);
+  cursor: pointer;
+  font-size: 16px;
+  transition: color 0.2s ease;
+}
+.task .trash-btn:hover {
+  color: var(--danger);
+}
+
+.muted {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* --- COMPLETED SECTION --- */
+.completed {
+  background: var(--card);
+  border: 1px solid var(--ring);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.completed-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.completed-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.completed-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--ring);
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.completed-item .title {
+  color: var(--ink);
+}
