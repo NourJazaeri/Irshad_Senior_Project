@@ -56,7 +56,7 @@ import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
 import "./styles/owner-components.css";
 import './styles/supervisor.css';
-import TodoList from "./pages/TodoList-tobedeleted.jsx";
+import TodoList from "./pages/TodoList.jsx";
 
 
 export default function App() {

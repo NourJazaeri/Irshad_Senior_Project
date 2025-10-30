@@ -5,8 +5,9 @@ import {
   addTodo,
   completeTodo,
   deleteTodo,
+  deleteAllCompletedTodos, // <-- add this import
 } from "../services/api.js";
-import "./todo.css";
+import "../styles/todo.css";
 
 const DAYS = [
   "Sunday",
@@ -90,6 +91,17 @@ export default function TodoList() {
     }
   };
 
+  // Handler for deleting all completed todos
+  const handleDeleteAllCompleted = async () => {
+    try {
+      await deleteAllCompletedTodos(traineeId);
+      setTodos((prev) => prev.filter((t) => !t.isCompleted));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete all completed tasks");
+    }
+  };
+
   if (loading) return <div className="loading">Loading tasks…</div>;
 
   return (
@@ -159,8 +171,13 @@ export default function TodoList() {
         </section>
       ) : (
         <section className="completed">
-          <div className="completed-top">
+          <div className="completed-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3>Completed Tasks ({completed.length})</h3>
+            {completed.length > 0 && (
+              <button className="btn danger" onClick={handleDeleteAllCompleted} style={{ minWidth: '120px', marginLeft: 'auto' }}>
+                Delete All
+              </button>
+            )}
           </div>
           <ul className="completed-list">
             {completed.length === 0 ? (

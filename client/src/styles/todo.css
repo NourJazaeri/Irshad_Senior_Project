@@ -155,9 +155,29 @@
 }
 
 .task input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  accent-color: var(--brand);
+  border: 1px solid var(--ring);
+  border-radius: 4px;
+  background: #fff; /* white checkbox */
+  position: relative;
+}
+.task input[type="checkbox"]:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+.task input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .task .trash-btn {
@@ -212,4 +232,17 @@
 
 .completed-item .title {
   color: var(--ink);
+}
+
+/* Light blue delete button in Completed */
+.completed-item .trash-btn {
+  background: var(--light-blue);
+  color: #0ea5e9; /* blue-500 */
+  border: 1px solid #bae6fd; /* light border */
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.completed-item .trash-btn:hover {
+  background: #bae6fd;
+  color: #0284c7; /* darker blue */
 }

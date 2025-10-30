@@ -21,6 +21,7 @@ import supervisorGroupsRouter from './routes/supervisorGroups.js';
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import employeesRouter from './routes/employees.js';
 import content from './routes/content.js';
+import todoRouter from './routes/todo.js';
 
 console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
 
@@ -93,6 +94,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/groups", groupRoutes);
 app.use('/api/employees', employeesRouter);
 app.use('/api/content', content);
+app.use('/api/todos', todoRouter);
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Frontend static (if built)

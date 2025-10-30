@@ -731,3 +731,87 @@ export async function getContent(params = {}) {
     };
   }
 }
+
+export async function deleteAllCompletedTodos(traineeId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(
+    `${API_BASE}/api/todos/completed/${traineeId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete all completed todos');
+  }
+  return res.json();
+}
+
+// --------------------------- Todo API ---------------------------
+export async function fetchTodos(traineeId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${traineeId}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to fetch todos');
+  }
+  return res.json();
+}
+
+export async function addTodo({ traineeId, day, title }) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ traineeId, day, title }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to add todo');
+  }
+  return res.json();
+}
+
+export async function completeTodo(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}/complete`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to complete todo');
+  }
+  return res.json();
+}
+
+export async function deleteTodo(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete todo');
+  }
+  return res.json().catch(() => ({}));
+}
