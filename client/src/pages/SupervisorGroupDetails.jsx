@@ -2,15 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar.jsx';
 import Topbar from '../components/Topbar.jsx';
-import { getSupervisorGroupDetails } from '../services/api';
+import { getSupervisorGroupDetails, getSupervisorUnreadCount } from '../services/api';
 import { FiMail, FiArrowLeft, FiUser, FiMessageCircle } from 'react-icons/fi';
 import '../styles/supervisor.css';
+import '../styles/chat.css';
 
 export default function SupervisorGroupDetails() {
   const { id } = useParams();
   const [meta, setMeta] = useState({ groupName: '', departmentName: '', membersCount: 0 });
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCounts, setUnreadCounts] = useState({});
+
+  const fetchUnreadCounts = async (traineeList) => {
+    const counts = {};
+    await Promise.all(
+      traineeList.map(async (member) => {
+        if (member.traineeId) {
+          try {
+            const count = await getSupervisorUnreadCount(member.traineeId);
+            counts[member.traineeId] = count;
+          } catch (err) {
+            console.error('Failed to fetch unread count for trainee:', member.traineeId, err);
+            counts[member.traineeId] = 0;
+          }
+        }
+      })
+    );
+    setUnreadCounts(counts);
+  };
 
   useEffect(() => {
     (async () => {
@@ -18,12 +38,26 @@ export default function SupervisorGroupDetails() {
         const data = await getSupervisorGroupDetails(id);
         setMeta(data.group);
         setMembers(data.members || []);
+
+        // Fetch unread counts for all trainees
+        if (data.members && data.members.length > 0) {
+          fetchUnreadCounts(data.members);
+        }
       } catch (e) {
         console.error('Load group details failed:', e);
       } finally {
         setLoading(false);
       }
     })();
+
+    // Poll for unread counts every 10 seconds
+    const interval = setInterval(() => {
+      if (members.length > 0) {
+        fetchUnreadCounts(members);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [id]);
 
   return (
@@ -120,14 +154,18 @@ export default function SupervisorGroupDetails() {
                         {/* EMPLOYEE ID */}
                         <td className="sv-col-id">{m.empId || '—'}</td>
 
-                        {/* ACTIONS - Chat Icon */}
+                        {/* ACTIONS - Chat Icon with Notification Badge */}
                         <td className="sv-col-actions">
                           <Link
                             to={`/supervisor/chat/${m.traineeId}`}
-                            className="sv-action-btn"
+                            className="sv-action-btn sv-chat-icon-wrapper"
                             title="Chat with trainee"
+                            style={{ position: 'relative' }}
                           >
                             <FiMessageCircle />
+                            {unreadCounts[m.traineeId] > 0 && (
+                              <span className="sv-chat-badge">{unreadCounts[m.traineeId]}</span>
+                            )}
                           </Link>
                         </td>
                       </tr>

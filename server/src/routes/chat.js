@@ -19,8 +19,8 @@ router.get('/conversation/:traineeId', requireSupervisor, async (req, res) => {
     const { traineeId } = req.params;
 
     console.log('🔍 [chat.js] GET /conversation/:traineeId called');
-    console.log('👤 supervisorId:', supervisorId);
-    console.log('📋 traineeId:', traineeId);
+    console.log('👤 supervisorId:', supervisorId, 'Type:', typeof supervisorId);
+    console.log('📋 traineeId:', traineeId, 'Type:', typeof traineeId);
 
     // Validate trainee exists
     const trainee = await Trainee.findById(traineeId);
@@ -31,16 +31,36 @@ router.get('/conversation/:traineeId', requireSupervisor, async (req, res) => {
 
     console.log('✅ Trainee found:', trainee._id);
 
-    // Get all messages between this supervisor and trainee, sorted by timestamp
-    const messages = await Chat.find({
+    // Query to find messages
+    const query = {
       supervisorID: supervisorId,
       traineeID: traineeId
-    })
+    };
+    console.log('🔎 Query:', JSON.stringify(query, null, 2));
+
+    // Get all messages between this supervisor and trainee, sorted by timestamp
+    const messages = await Chat.find(query)
       .sort({ timestamp: 1 }) // Oldest first
       .lean();
 
     console.log('💬 Messages found:', messages.length);
-    console.log('📦 Messages:', JSON.stringify(messages, null, 2));
+    if (messages.length > 0) {
+      console.log('📦 First message:', JSON.stringify(messages[0], null, 2));
+      console.log('📦 Last message:', JSON.stringify(messages[messages.length - 1], null, 2));
+    } else {
+      // Let's see ALL messages in the collection to debug
+      const allMessages = await Chat.find({}).limit(5).lean();
+      console.log('🗂️ Sample of all messages in DB (up to 5):');
+      allMessages.forEach((msg, idx) => {
+        console.log(`  Message ${idx + 1}:`, {
+          _id: msg._id,
+          supervisorID: msg.supervisorID,
+          traineeID: msg.traineeID,
+          senderRole: msg.senderRole,
+          text: msg.messagesText?.substring(0, 50)
+        });
+      });
+    }
 
     // Get trainee employee details for display
     const traineeEmployee = await Employees.findById(trainee.EmpObjectUserID);
@@ -124,6 +144,33 @@ router.patch('/:messageId/read', requireSupervisor, async (req, res) => {
     res.json({ ok: true, message });
   } catch (error) {
     console.error('❌ Error marking message as read:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
+// GET /api/chat/unread-count/:traineeId
+// Get unread count for a specific trainee (for supervisor)
+// ───────────────────────────────────────────────────────────────────────────────
+router.get('/unread-count/:traineeId', requireSupervisor, async (req, res) => {
+  try {
+    const supervisorId = req.user._id;
+    const { traineeId } = req.params;
+
+    // Count unread messages from trainee to supervisor (only trainee's messages)
+    const unreadCount = await Chat.countDocuments({
+      supervisorID: supervisorId,
+      traineeID: traineeId,
+      isRead: false,
+      senderRole: 'trainee' // Only count messages sent by trainee
+    });
+
+    res.json({
+      ok: true,
+      unreadCount
+    });
+  } catch (error) {
+    console.error('❌ Error fetching unread count:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -218,7 +265,8 @@ router.get('/trainee/my-supervisor', requireTrainee, async (req, res) => {
     const unreadCount = await Chat.countDocuments({
       supervisorID: supervisorId,
       traineeID: traineeId,
-      isRead: false
+      isRead: false,
+      senderRole: 'supervisor' // Only count messages sent by supervisor
     });
 
     res.json({
@@ -355,11 +403,12 @@ router.get('/trainee/unread-count', requireTrainee, async (req, res) => {
 
     const supervisorId = group.SupervisorObjectUserID;
 
-    // Count unread messages from supervisor to trainee
+    // Count unread messages from supervisor to trainee (only supervisor's messages)
     const unreadCount = await Chat.countDocuments({
       supervisorID: supervisorId,
       traineeID: traineeId,
-      isRead: false
+      isRead: false,
+      senderRole: 'supervisor' // Only count messages sent by supervisor
     });
 
     res.json({

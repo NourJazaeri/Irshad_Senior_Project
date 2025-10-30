@@ -138,7 +138,7 @@ export default function SupervisorChat() {
   };
 
   // Handle Enter key
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
@@ -167,7 +167,7 @@ export default function SupervisorChat() {
           {/* Chat Header */}
           <div className="chat-header">
             <h1 className="sv-title">
-              Chat with {traineeInfo ? `${traineeInfo.fname} ${traineeInfo.lname}` : 'Trainee'}
+              {traineeInfo ? `${traineeInfo.fname} ${traineeInfo.lname}` : 'Trainee'}
             </h1>
             {traineeInfo?.email && (
               <p className="chat-header-email">{traineeInfo.email}</p>
@@ -190,7 +190,7 @@ export default function SupervisorChat() {
                     <ChatMessage
                       key={msg._id || idx}
                       message={msg}
-                      isSupervisor={msg.senderRole === 'supervisor' || !msg.senderRole}
+                      isSentByMe={msg.senderRole === 'supervisor' || !msg.senderRole}
                     />
                   ))}
                   <div ref={messagesEndRef} />
@@ -206,7 +206,7 @@ export default function SupervisorChat() {
                 placeholder="Type your message..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 disabled={sending || loading}
               />
               <button

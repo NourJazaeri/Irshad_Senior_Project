@@ -126,6 +126,7 @@ export const requireSupervisor = async (req, res, next) => {
 
     req.user = {
       id: supervisor._id,
+      _id: supervisor._id,
       email: supervisor.loginEmail,
       role: decoded.role
     };

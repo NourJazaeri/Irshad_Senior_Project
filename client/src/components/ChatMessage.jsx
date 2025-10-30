@@ -2,7 +2,7 @@
 import React from 'react';
 import '../styles/chat.css';
 
-const ChatMessage = ({ message, isSupervisor }) => {
+const ChatMessage = ({ message, isSentByMe }) => {
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -25,7 +25,7 @@ const ChatMessage = ({ message, isSupervisor }) => {
   };
 
   return (
-    <div className={`chat-message ${isSupervisor ? 'sent' : 'received'}`}>
+    <div className={`chat-message ${isSentByMe ? 'sent' : 'received'}`}>
       <div className="message-bubble">
         <p className="message-text">{message.messagesText}</p>
         <span className="message-time">{formatTime(message.timestamp)}</span>

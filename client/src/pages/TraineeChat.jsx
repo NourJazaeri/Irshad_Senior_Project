@@ -130,7 +130,7 @@ export default function TraineeChat() {
   };
 
   // Handle Enter key
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
@@ -176,7 +176,7 @@ export default function TraineeChat() {
           </button>
           <div className="chat-header-info">
             <h1 className="chat-page-title">
-              Chat with {supervisorInfo ? `${supervisorInfo.fname} ${supervisorInfo.lname}` : 'Supervisor'}
+              {supervisorInfo ? `${supervisorInfo.fname} ${supervisorInfo.lname}` : 'Supervisor'}
             </h1>
             {supervisorInfo?.email && (
               <p className="chat-header-email">{supervisorInfo.email}</p>
@@ -200,7 +200,7 @@ export default function TraineeChat() {
                   <ChatMessage
                     key={msg._id || idx}
                     message={msg}
-                    isSupervisor={msg.senderRole === 'supervisor' || !msg.senderRole}
+                    isSentByMe={msg.senderRole === 'trainee'}
                   />
                 ))}
                 <div ref={messagesEndRef} />
@@ -216,7 +216,7 @@ export default function TraineeChat() {
               placeholder="Type your message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               disabled={sending || loading}
               maxLength={1000}
             />

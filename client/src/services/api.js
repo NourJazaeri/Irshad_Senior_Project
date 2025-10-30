@@ -234,6 +234,13 @@ export async function markMessageAsRead(messageId) {
   return res.json();
 }
 
+/** Get unread count for a specific trainee (supervisor) */
+export async function getSupervisorUnreadCount(traineeId) {
+  const data = await httpGet(`/api/chat/unread-count/${traineeId}`);
+  if (!data?.ok) return 0;
+  return data.unreadCount || 0;
+}
+
 /* ------------------------ Trainee Chat Endpoints -------------------------- */
 /** Get trainee's supervisor information */
 export async function getTraineeSupervisor() {
