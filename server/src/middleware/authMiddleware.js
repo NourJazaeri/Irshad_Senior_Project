@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
 import WebOwner from '../models/WebOwner.js';
 import Supervisor from '../models/Supervisor.js';
+import Trainee from '../models/Trainee.js';
 
 // Helper to read "Authorization: Bearer <token>"
 const readBearer = (req) => req.header('Authorization')?.replace('Bearer ', '');
@@ -132,6 +133,53 @@ export const requireSupervisor = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Authentication error (Supervisor):', error.name, error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
+    });
+  }
+};
+
+// ===================== TRAINEE =====================
+export const requireTrainee = async (req, res, next) => {
+  try {
+    const token = readBearer(req);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'Trainee') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Trainee role required.'
+      });
+    }
+
+    const trainee = await Trainee.findById(decoded.id);
+    if (!trainee) {
+      return res.status(401).json({
+        success: false,
+        message: 'Trainee not found.'
+      });
+    }
+
+    req.user = {
+      id: trainee._id,
+      _id: trainee._id,
+      email: trainee.loginEmail,
+      role: decoded.role,
+      ObjectGroupID: trainee.ObjectGroupID,
+      EmpObjectUserID: trainee.EmpObjectUserID
+    };
+
+    next();
+  } catch (error) {
+    console.error('Authentication error (Trainee):', error.name, error.message);
     return res.status(401).json({
       success: false,
       message: 'Invalid token.'

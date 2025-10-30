@@ -6,6 +6,8 @@ import fs from 'fs';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import adminGroupsRouter from './routes/adminGroups.js';
 import connectDB from './config/db.js';
 
@@ -18,14 +20,17 @@ import displayingCompanies from './routes/displayingCompanies.js';
 import companyProfile from './routes/companyProfile.js';
 import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groupRoutes.js";
- import supervisorGroupsRouter from './routes/supervisorGroups.js'; // ← NEW (ESM import)
- import { requireSupervisor } from './middleware/authMiddleware.js';
- console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
+import supervisorGroupsRouter from './routes/supervisorGroups.js'; // ← NEW (ESM import)
+import chatRoutes from './routes/chat.js'; // ← Chat routes
+import { requireSupervisor } from './middleware/authMiddleware.js';
+import Chat from './models/Chat.js'; // For Socket.io chat handling
+console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const httpServer = createServer(app); // Create HTTP server for Socket.io
 const PORT = process.env.PORT || 5000;
 
 // Allow setting multiple origins via comma-separated env var, fallback to localhost
@@ -37,6 +42,82 @@ const buildAllowedOrigins = (raw) =>
     .filter(Boolean);
 
 const allowedOrigins = buildAllowedOrigins(CLIENT_ORIGIN);
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Socket.io Setup
+// ───────────────────────────────────────────────────────────────────────────────
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('✅ User connected:', socket.id);
+
+  // Join a room for a specific conversation (supervisorId-traineeId)
+  socket.on('join-chat', ({ supervisorId, traineeId }) => {
+    const roomId = `${supervisorId}-${traineeId}`;
+    socket.join(roomId);
+    console.log(`👥 User ${socket.id} joined room: ${roomId}`);
+  });
+
+  // Handle sending a message
+  socket.on('send-message', async (data) => {
+    try {
+      const { supervisorId, traineeId, message, senderRole } = data;
+
+      console.log('💾 [Socket.io] Saving message to database:');
+      console.log('  supervisorId:', supervisorId);
+      console.log('  traineeId:', traineeId);
+      console.log('  message:', message);
+      console.log('  senderRole:', senderRole);
+
+      // Save message to database
+      const newMessage = await Chat.create({
+        messagesText: message,
+        supervisorID: supervisorId,
+        traineeID: traineeId,
+        senderRole: senderRole || 'supervisor',
+        timestamp: new Date(),
+        isRead: false
+      });
+
+      console.log('✅ [Socket.io] Message saved with ID:', newMessage._id);
+      console.log('📋 [Socket.io] Saved document:', JSON.stringify(newMessage, null, 2));
+
+      const roomId = `${supervisorId}-${traineeId}`;
+
+      // Emit to everyone in the room (including sender)
+      io.to(roomId).emit('receive-message', {
+        _id: newMessage._id,
+        messagesText: newMessage.messagesText,
+        timestamp: newMessage.timestamp,
+        supervisorID: supervisorId,
+        traineeID: traineeId,
+        senderRole
+      });
+
+      console.log(`💬 Message sent in room ${roomId}`);
+    } catch (error) {
+      console.error('❌ Error saving message:', error);
+      socket.emit('message-error', { error: error.message });
+    }
+  });
+
+  // Handle typing indicator
+  socket.on('typing', ({ supervisorId, traineeId, isTyping }) => {
+    const roomId = `${supervisorId}-${traineeId}`;
+    socket.to(roomId).emit('user-typing', { isTyping });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ User disconnected:', socket.id);
+  });
+});
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Middleware
@@ -51,7 +132,7 @@ app.use(cors({
     return callback(new Error(`CORS policy: origin ${origin} is not allowed`), false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -86,6 +167,9 @@ app.use('/api/admin/groups', adminGroupsRouter);
 
 // NEW: Supervisor routes (overview + my-groups, etc.)
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
+
+// Chat routes
+app.use('/api/chat', chatRoutes);
 
 app.use("/api/departments", departmentRoutes);
 app.use("/api/groups", groupRoutes);
@@ -173,10 +257,11 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not fo
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);
       console.log(`🌐 CORS allowed origins: ${allowedOrigins.join(', ') || '(none)'}`);
       console.log(`📁 Uploads directory: ${uploadsDir}`);
+      console.log(`💬 Socket.io enabled for real-time chat`);
       console.log(fs.existsSync(clientDist)
         ? '🎨 Serving frontend from client/dist'
         : '🔧 Dev mode - Run frontend with: cd client && npm run dev');
@@ -198,6 +283,8 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not fo
       console.log('   POST /api/webowner/request-management/:id/reject');
       console.log('   GET  /api/supervisor/overview');
       console.log('   GET  /api/supervisor/my-groups');
+      console.log('   GET  /api/chat/conversation/:traineeId');
+      console.log('   POST /api/chat/send');
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

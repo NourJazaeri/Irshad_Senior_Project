@@ -11,6 +11,8 @@ import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
 import SupervisorGroupDetails from './pages/SupervisorGroupDetails.jsx';
+import SupervisorChat from './pages/SupervisorChat.jsx';
+import TraineeChat from './pages/TraineeChat.jsx';
 // Import Admin layout
 import AdminLayout from "./pages/AdminLayout.jsx";
 import AdminDepartments from "./pages/AdminDepartments.jsx";
@@ -86,6 +88,11 @@ export default function App() {
         <Route path="/company-details/:companyId" element={<ReportCompanyDetails />} />
         <Route path="/supervisor" element={<SupervisorDashboard />} />
         <Route path="/supervisor/groups/:id" element={<SupervisorGroupDetails />} />
+        <Route path="/supervisor/chat/:traineeId" element={<SupervisorChat />} />
+
+        {/* Trainee Chat Route */}
+        <Route path="/trainee/chat" element={<TraineeChat />} />
+
         {/* Additional Dashboard Routes */}
         <Route path="/companies" element={<div style={{padding: '20px'}}><h2>Companies Management</h2><p>This page will show all registered companies.</p></div>} />
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />

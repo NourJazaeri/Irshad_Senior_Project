@@ -22,6 +22,7 @@ export function clearAuth() {
   localStorage.removeItem('token');
   localStorage.removeItem('role');
   localStorage.removeItem('role_lc');
+  localStorage.removeItem('userId');
 }
 
 /* --------------------------------- Auth ---------------------------------- */
@@ -56,6 +57,7 @@ export async function loginUser({ email, password, role }) {
 
     if (data?.token) localStorage.setItem('token', data.token);
     if (data?.role || role) localStorage.setItem('role', data.role || role);
+    if (data?.user?.id) localStorage.setItem('userId', data.user.id);
 
     const roleNorm = (data?.role || role || '').toString();
     localStorage.setItem('role_lc', roleNorm.toLowerCase());
@@ -181,6 +183,105 @@ export async function adminRemoveTrainee(groupId, traineeId) {
   return res.json();
 }
 
+/* ---------------------------- Chat Endpoints ------------------------------ */
+/** Get chat conversation between supervisor and trainee */
+export async function getChatConversation(traineeId) {
+  console.log('🌐 [api.js] getChatConversation called with traineeId:', traineeId);
+  const path = `/api/chat/conversation/${traineeId}`;
+  console.log('🌐 [api.js] Fetching from:', `${API_BASE}${path}`);
+
+  const data = await httpGet(path);
+
+  console.log('✅ [api.js] Response received:', data);
+  console.log('✅ [api.js] data.ok:', data?.ok);
+  console.log('✅ [api.js] messages length:', data?.messages?.length);
+
+  if (!data?.ok) throw new Error(data?.error || 'Failed to fetch conversation');
+  return data;
+}
+
+/** Send a chat message */
+export async function sendChatMessage(traineeId, message) {
+  const res = await fetch(`${API_BASE}/api/chat/send`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ traineeId, message }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to send message');
+  }
+  return res.json();
+}
+
+/** Get all conversations */
+export async function getChatConversations() {
+  const data = await httpGet('/api/chat/conversations');
+  if (!data?.ok) throw new Error(data?.error || 'Failed to fetch conversations');
+  return data.conversations || [];
+}
+
+/** Mark message as read */
+export async function markMessageAsRead(messageId) {
+  const res = await fetch(`${API_BASE}/api/chat/${messageId}/read`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(null),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to mark message as read');
+  }
+  return res.json();
+}
+
+/* ------------------------ Trainee Chat Endpoints -------------------------- */
+/** Get trainee's supervisor information */
+export async function getTraineeSupervisor() {
+  const data = await httpGet('/api/chat/trainee/my-supervisor');
+  if (!data?.ok) throw new Error(data?.error || 'Failed to fetch supervisor');
+  return data;
+}
+
+/** Get trainee's conversation with supervisor */
+export async function getTraineeConversation() {
+  const data = await httpGet('/api/chat/trainee/conversation');
+  if (!data?.ok) throw new Error(data?.error || 'Failed to fetch conversation');
+  return data;
+}
+
+/** Send a message from trainee to supervisor */
+export async function sendTraineeMessage(message) {
+  const res = await fetch(`${API_BASE}/api/chat/trainee/send`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ message }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to send message');
+  }
+  return res.json();
+}
+
+/** Get unread message count for trainee */
+export async function getTraineeUnreadCount() {
+  const data = await httpGet('/api/chat/trainee/unread-count');
+  if (!data?.ok) throw new Error(data?.error || 'Failed to fetch unread count');
+  return data.unreadCount || 0;
+}
+
+/** Mark all messages as read for trainee */
+export async function markTraineeMessagesRead() {
+  const res = await fetch(`${API_BASE}/api/chat/trainee/mark-read`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(null),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to mark messages as read');
+  }
+  return res.json();
+}
 
 /* --------------------------------- Export --------------------------------- */
 export default {
@@ -202,4 +303,15 @@ export default {
   adminGetGroupDetails,
   adminRemoveSupervisor,
   adminRemoveTrainee,
+  // chat
+  getChatConversation,
+  sendChatMessage,
+  getChatConversations,
+  markMessageAsRead,
+  // trainee chat
+  getTraineeSupervisor,
+  getTraineeConversation,
+  sendTraineeMessage,
+  getTraineeUnreadCount,
+  markTraineeMessagesRead,
 };

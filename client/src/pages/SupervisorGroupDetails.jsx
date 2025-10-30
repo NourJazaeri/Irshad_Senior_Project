@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar.jsx';
 import Topbar from '../components/Topbar.jsx';
 import { getSupervisorGroupDetails } from '../services/api';
-import { FiMail, FiArrowLeft, FiUser } from 'react-icons/fi';
+import { FiMail, FiArrowLeft, FiUser, FiMessageCircle } from 'react-icons/fi';
 import '../styles/supervisor.css';
 
 export default function SupervisorGroupDetails() {
@@ -69,19 +69,20 @@ export default function SupervisorGroupDetails() {
                     <th className="sv-col-name">Name</th>
                     <th className="sv-col-email">Email</th>
                     <th className="sv-col-id">Employee ID</th>
+                    <th className="sv-col-actions">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={3} style={{ padding: 18, color: '#6b7280' }}>
+                      <td colSpan={4} style={{ padding: 18, color: '#6b7280' }}>
                         Loading…
                       </td>
                     </tr>
                   ) : members.length === 0 ? (
                     <tr>
-                      <td colSpan={3} style={{ padding: 18, color: '#6b7280' }}>
+                      <td colSpan={4} style={{ padding: 18, color: '#6b7280' }}>
                         No trainees in this group.
                       </td>
                     </tr>
@@ -118,6 +119,17 @@ export default function SupervisorGroupDetails() {
 
                         {/* EMPLOYEE ID */}
                         <td className="sv-col-id">{m.empId || '—'}</td>
+
+                        {/* ACTIONS - Chat Icon */}
+                        <td className="sv-col-actions">
+                          <Link
+                            to={`/supervisor/chat/${m.traineeId}`}
+                            className="sv-action-btn"
+                            title="Chat with trainee"
+                          >
+                            <FiMessageCircle />
+                          </Link>
+                        </td>
                       </tr>
                     ))
                   )}
