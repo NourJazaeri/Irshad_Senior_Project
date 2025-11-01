@@ -29,19 +29,20 @@ export default function TodoList() {
   );
 
   // Fetch tasks from DB
+  const loadTodos = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchTodos(traineeId);
+      setTodos(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchTodos(traineeId);
-        setTodos(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadTodos();
   }, [traineeId]);
 
   // Derived
@@ -73,12 +74,22 @@ export default function TodoList() {
 
   const handleComplete = async (id) => {
     try {
-      await completeTodo(id);
+      // Update state immediately for instant UI feedback
       setTodos((prev) =>
         prev.map((t) => (t._id === id ? { ...t, isCompleted: true } : t))
       );
+      // Update on the server
+      await completeTodo(id);
+      // Refetch to ensure everything is in sync with the server
+      const data = await fetchTodos(traineeId);
+      setTodos(data);
     } catch (err) {
-      console.error(err);
+      console.error("Error completing todo:", err);
+      // Revert the optimistic update on error
+      setTodos((prev) =>
+        prev.map((t) => (t._id === id ? { ...t, isCompleted: false } : t))
+      );
+      alert("Failed to complete task. Please try again.");
     }
   };
 
