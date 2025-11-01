@@ -15,7 +15,7 @@ const ProgressSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["not started", "in progress", "completed"],
+      enum: ["not started", "in progress", "completed", "overdue", "due soon"],
       default: "not started",
       index: true,
     },
@@ -47,6 +47,13 @@ const ProgressSchema = new Schema(
       type: Types.ObjectId,
       ref: "Quiz",
       default: null,
+    },
+
+    // Store individual task completion statuses for template content
+    taskCompletions: {
+      type: Map,
+      of: Boolean,
+      default: new Map(),
     },
   },
   {

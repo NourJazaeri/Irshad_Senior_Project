@@ -1,41 +1,100 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, CheckCircle, Eye, Calendar, FileText, Tag, HelpCircle, Lightbulb, BarChart3, Zap, Target, TrendingUp, Wrench, Trophy, Flame, Users, Award, MapPin, MessageCircle, Link, Clock, AlertCircle } from 'lucide-react';
+
 import KnowledgeCardsTemplate from '../components/KnowledgeCardsTemplate.jsx';
 import RecognitionTemplate from '../components/RecognitionTemplate.jsx';
 import EventAnnouncementTemplate from '../components/EventAnnouncementTemplate.jsx';
-import ToolSystemGuideTemplate from '../components/ToolSystemGuideTemplate.jsx';
 import TaskRemindersBoardTemplate from '../components/TaskRemindersBoardTemplate.jsx';
 import WelcomeIntroTemplate from '../components/WelcomeIntroTemplate.jsx';
 
-const ContentView = () => {
+const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // Use contentId prop if provided (inline mode), otherwise use URL param
+  const actualContentId = contentId || id;
+  
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [userProgress, setUserProgress] = useState(null);
+  const [taskUpdateLoading, setTaskUpdateLoading] = useState(false);
   
-  // Detect if we're in supervisor context
+  // Detect user context
   const isSupervisor = window.location.pathname.includes('/supervisor');
+  const isTrainee = window.location.pathname.includes('/trainee');
 
   // Fetch content details
   useEffect(() => {
     const fetchContent = async () => {
+      if (!actualContentId) return;
+      
       try {
         const token = localStorage.getItem('token');
         const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
         
-        const response = await fetch(`${API_BASE}/api/content/${id}`, {
+        // Use different endpoint for trainees vs admins/supervisors
+        const endpoint = isTrainee 
+          ? `${API_BASE}/api/content/trainee/view/${actualContentId}`
+          : `${API_BASE}/api/content/${actualContentId}`;
+        
+        console.log('🔍 ContentView Debug:', {
+          isTrainee,
+          contentId: actualContentId,
+          endpoint,
+          pathname: window.location.pathname,
+          inlineMode
+        });
+        
+        const response = await fetch(endpoint, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
 
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Content data received:', data);
           setContent(data && data.content ? data.content : data);
+          
+          // For trainees, also fetch progress data and mark as viewed
+          if (isTrainee && data) {
+            const progressData = data.progress || data.content?.progress;
+            setUserProgress(progressData);
+            
+            // Mark content as viewed (sets status to "in progress" if not started)
+            try {
+              const viewResponse = await fetch(`${API_BASE}/api/content/trainee/view/${actualContentId}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (viewResponse.ok) {
+                const viewData = await viewResponse.json();
+                console.log('✅ Content marked as viewed, updated progress:', viewData.progress);
+                setUserProgress(viewData.progress);
+                
+                // Notify parent component to refresh data
+                if (onProgressUpdate) {
+                  onProgressUpdate();
+                }
+              }
+            } catch (viewError) {
+              console.error('Error marking content as viewed:', viewError);
+            }
+          }
         } else {
-          console.error('Failed to fetch content');
+          const errorData = await response.text();
+          console.error('❌ Failed to fetch content:', response.status, errorData);
         }
       } catch (error) {
         console.error('Error fetching content:', error);
@@ -44,10 +103,169 @@ const ContentView = () => {
       }
     };
 
-    if (id) {
+    if (actualContentId) {
       fetchContent();
     }
-  }, [id]);
+  }, [actualContentId]);
+
+  // Progress tracking functions for trainees
+  const handleAcknowledge = async () => {
+    if (!isTrainee) {
+      console.log('Not a trainee, cannot acknowledge');
+      return;
+    }
+
+    if (!content?.ackRequired) {
+      console.log('Acknowledgment not required for this content');
+      return;
+    }
+    
+    console.log('Acknowledging content with ID:', actualContentId);
+    setProgressLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      
+      console.log('Making acknowledge request to:', `${API_BASE}/api/content/trainee/progress/${actualContentId}`);
+      
+      const response = await fetch(`${API_BASE}/api/content/trainee/progress/${actualContentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          acknowledged: true
+        })
+      });
+
+      console.log('Acknowledge response status:', response.status);
+      console.log('Acknowledge response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Acknowledge response data:', data);
+        setUserProgress(data.progress);
+        console.log('Content acknowledged successfully:', data);
+        
+        // Notify parent component to refresh data
+        if (onProgressUpdate) {
+          onProgressUpdate();
+        }
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to acknowledge content:', response.status, errorData);
+        console.error('Response headers:', Object.fromEntries(response.headers.entries()));
+      }
+    } catch (error) {
+      console.error('Error acknowledging content:', error);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!isTrainee) {
+      console.log('Not a trainee, cannot complete');
+      return;
+    }
+
+    // Check if content has quiz questions (placeholder for future implementation)
+    const hasQuiz = content?.templateData?.quiz || content?.quiz; // Check if content has a quiz
+    const hasQuizQuestions = content?.quizQuestions && content?.quizQuestions.length > 0; // Check if content has quiz questions
+    const quizCompleted = userProgress?.quizCompleted || false; // Check if quiz is completed
+    
+    // Only block completion if there IS a quiz OR quiz questions AND it's NOT completed
+    if ((hasQuiz || hasQuizQuestions) && !quizCompleted) {
+      alert('You cannot mark this content as complete before taking the quiz. Please complete the quiz first.');
+      return;
+    }
+    
+    console.log('Completing content with ID:', actualContentId);
+    setProgressLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      
+      console.log('Making complete request to:', `${API_BASE}/api/content/trainee/progress/${actualContentId}`);
+      
+      const response = await fetch(`${API_BASE}/api/content/trainee/progress/${actualContentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'completed'
+        })
+      });
+
+      console.log('Complete response status:', response.status);
+      console.log('Complete response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Complete response data:', data);
+        console.log('🔵 Setting userProgress to:', data.progress);
+        setUserProgress(data.progress);
+        
+        console.log('Content completed successfully! Progress:', data.progress);
+        
+        // Notify parent component to refresh data
+        if (onProgressUpdate) {
+          onProgressUpdate();
+        }
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to complete content:', response.status, errorData);
+        console.error('Response headers:', Object.fromEntries(response.headers.entries()));
+      }
+    } catch (error) {
+      console.error('Error completing content:', error);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  // Handle taking quiz
+  const handleTakeQuiz = () => {
+    if (!isTrainee) {
+      console.log('Not a trainee, cannot take quiz');
+      return;
+    }
+    
+    console.log('Taking quiz for content ID:', actualContentId);
+    // TODO: Implement quiz functionality
+    // For now, just show an alert
+    alert('Quiz functionality will be implemented soon!');
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No deadline';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+
+  // Get status for deadline
+  const getDeadlineStatus = () => {
+    if (!content?.deadline) return null;
+    
+    const dueDate = new Date(content.deadline);
+    const currentDate = new Date();
+    const daysDiff = Math.ceil((dueDate - currentDate) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff < 0) {
+      return { text: 'Overdue', color: 'text-red-600' };
+    } else if (daysDiff <= 3) {
+      return { text: 'Due Soon', color: 'text-yellow-600' };
+    }
+    return null;
+  };
 
   // Normalize a possibly relative URL to an absolute one pointing to API_BASE
   const toAbsoluteUrl = (url) => {
@@ -63,67 +281,728 @@ const ContentView = () => {
     }
   };
 
+  // Handle task/step completion toggle
+  const handleTaskCompletion = async (itemId, newCompletionStatus, itemType = 'tasks') => {
+    if (!content || taskUpdateLoading) return;
+
+    setTaskUpdateLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+
+      let updatedTemplateData;
+
+      if (itemType === 'tasks') {
+        // Handle tasks for Task Reminders Board
+        const currentTask = content.templateData.tasks?.find(task => task.id === itemId);
+        if (!currentTask) return;
+
+        const completionStatus = newCompletionStatus !== undefined ? newCompletionStatus : !currentTask.completed;
+
+        const updatedTasks = content.templateData.tasks.map(task => {
+          if (task.id === itemId) {
+            return { ...task, completed: completionStatus };
+          }
+          return task;
+        });
+
+        updatedTemplateData = {
+          ...content.templateData,
+          tasks: updatedTasks
+        };
+      } else if (itemType === 'steps') {
+        // Handle steps for Tool/System Guide
+        const updatedSteps = content.templateData.steps?.map((step, stepIndex) => {
+          // Use step.id if available, otherwise use index comparison
+          const stepIdentifier = step.id !== undefined ? step.id : stepIndex;
+          
+          if (stepIdentifier === itemId) {
+            return { ...step, completed: newCompletionStatus };
+          }
+          return step;
+        });
+
+        updatedTemplateData = {
+          ...content.templateData,
+          steps: updatedSteps
+        };
+      }
+
+      // Update the actual Content document using the existing progress endpoint
+      const response = await fetch(`${API_BASE}/api/content/trainee/progress/${actualContentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          templateData: updatedTemplateData
+        })
+      });
+
+      if (response.ok) {
+        // Update local content state for immediate UI feedback
+        setContent(prev => ({
+          ...prev,
+          templateData: updatedTemplateData
+        }));
+
+        console.log(`✅ ${itemType === 'tasks' ? 'Task' : 'Step'} completion status updated successfully in Content database`);
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ Failed to update ${itemType === 'tasks' ? 'task' : 'step'} completion status:`, errorData);
+      }
+    } catch (error) {
+      console.error(`Error updating ${itemType === 'tasks' ? 'task' : 'step'} completion:`, error);
+    } finally {
+      setTaskUpdateLoading(false);
+    }
+  };
+
+  // Helper functions for Knowledge Cards icons
+  const getIconComponent = (iconName) => {
+    const iconMap = {
+      'Lightbulb': Lightbulb,
+      'BarChart3': BarChart3,
+      'Zap': Zap,
+      'Target': Target,
+      'TrendingUp': TrendingUp,
+      'Wrench': Wrench
+    };
+    
+    const IconComponent = iconMap[iconName] || Lightbulb;
+    return <IconComponent size={24} />;
+  };
+
+  const getIconBgColor = (iconName) => {
+    const colorMap = {
+      'Lightbulb': '#fef3c7',
+      'BarChart3': '#dbeafe',
+      'Zap': '#fef3c7',
+      'Target': '#fce7f3',
+      'TrendingUp': '#d1fae5',
+      'Wrench': '#e0e7ff'
+    };
+    return colorMap[iconName] || '#fef3c7';
+  };
+
+  const getIconColor = (iconName) => {
+    const colorMap = {
+      'Lightbulb': '#d97706',
+      'BarChart3': '#2563eb',
+      'Zap': '#f59e0b',
+      'Target': '#ec4899',
+      'TrendingUp': '#059669',
+      'Wrench': '#6366f1'
+    };
+    return colorMap[iconName] || '#d97706';
+  };
+
+  // Helper functions for Event Announcement icons
+  const getEventIconComponent = (iconName) => {
+    const iconMap = {
+      'Flame': Flame,
+      'Target': Target,
+      'Users': Users,
+      'Award': Award
+    };
+    
+    const IconComponent = iconMap[iconName] || Flame;
+    return <IconComponent size={20} />;
+  };
+
+  const getEventIconBgColor = (iconName) => {
+    const colorMap = {
+      'Flame': '#fef3c7',
+      'Target': '#fce7f3',
+      'Users': '#dbeafe',
+      'Award': '#d1fae5'
+    };
+    return colorMap[iconName] || '#f3f4f6';
+  };
+
+  const getEventIconColor = (iconName) => {
+    const colorMap = {
+      'Flame': '#f59e0b',
+      'Target': '#ec4899',
+      'Users': '#2563eb',
+      'Award': '#059669'
+    };
+    return colorMap[iconName] || '#6b7280';
+  };
+
   // Render template content using the actual template components
   const renderTemplateContent = (templateData) => {
     if (!templateData) return <p className="text-muted-foreground">No template data available</p>;
 
-    const templateType = templateData.type;
+    console.log('🎯 Template Debug:', {
+      templateData,
+      keys: Object.keys(templateData),
+      type: templateData.type,
+      title: templateData.title,
+      templateType: templateData.templateType,
+      contentType: content?.type
+    });
+
+    // First check explicit template type
+    let templateType = templateData.type;
+    
+    // If no explicit type, try to infer from content.type or templateData structure
+    if (!templateType) {
+      templateType = content?.type;
+    }
+    
+    // Handle various naming conventions
+    if (templateType === 'Knowledge Cards/Quick Facts' || 
+        (templateData.facts && Array.isArray(templateData.facts))) {
+      templateType = 'knowledge-cards';
+    } else if (templateType === 'Recognition' || 
+               templateType === 'Recognition & Achievement Highlights' ||
+               templateData.awardType || 
+               templateData.employeeName || 
+               templateData.achievementTitle) {
+      templateType = 'recognition';
+    } else if (templateType === 'Event Announcement' || 
+               templateType === 'Event/Announcement Post' ||
+               templateData.eventTitle || 
+               templateData.eventDate || 
+               templateData.eventLocation ||
+               (templateData.highlights && Array.isArray(templateData.highlights))) {
+      templateType = 'event-announcement';
+    } else if (templateType === 'Tool/System Guide' || 
+               templateType === 'Tool & System Guide' ||
+               templateData.toolName || 
+               templateData.guideTitle ||
+               (templateData.steps && Array.isArray(templateData.steps))) {
+      templateType = 'tool-system-guide';
+    } else if (templateType === 'Task Reminders Board' || 
+               templateType === 'Weekly Task Reminders' ||
+               templateData.boardTitle || 
+               (templateData.tasks && Array.isArray(templateData.tasks))) {
+      templateType = 'task-reminders-board';
+    } else if (templateType === 'Welcome/Intro' || 
+               templateType === 'Welcome & Introduction Message' ||
+               templateData.welcomeHeader || 
+               templateData.greeting || 
+               templateData.mainMessage ||
+               (templateData.highlightItems && Array.isArray(templateData.highlightItems))) {
+      templateType = 'welcome-intro';
+    }
+
+    console.log('🎯 Final template type:', templateType);
 
     // Use the actual template components with read-only mode and the saved data
     switch(templateType) {
       case 'knowledge-cards':
         return (
-          <KnowledgeCardsTemplate
-            onClose={() => {}}
-            onTemplateSaved={() => {}}
-            isReadOnly={true}
-            templateData={templateData}
-          />
+          <div className="inline-template-content">
+            <div className="knowledge-cards-inline p-6">
+              <div className="header-section mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {templateData.title || 'Knowledge Cards/Quick Facts'}
+                </h2>
+                <p className="text-gray-600">
+                  {templateData.description || 'Create quick reference cards with essential information'}
+                </p>
+              </div>
+
+              <div className="facts-section">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {(templateData.facts || []).map(fact => (
+                    <div key={fact.id} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-center w-16 h-16 rounded-lg mb-4 mx-auto" 
+                           style={{ 
+                             backgroundColor: getIconBgColor(fact.iconName),
+                             color: getIconColor(fact.iconName)
+                           }}>
+                        {getIconComponent(fact.iconName)}
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 text-center mb-3">
+                        {fact.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm text-center leading-relaxed">
+                        {fact.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         );
 
       case 'recognition':
         return (
-          <RecognitionTemplate
-            onClose={() => {}}
-            onTemplateSaved={() => {}}
-            formData={templateData}
-          />
+          <div className="inline-template-content">
+            <div className="recognition-inline p-6">
+              <div className="recognition-header mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {templateData.title || 'Recognition & Achievement Highlights'}
+                </h2>
+                <p className="text-gray-600">
+                  {templateData.description || 'Celebrate team achievements and recognize outstanding contributions'}
+                </p>
+              </div>
+
+              <div className="award-banner bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-6 mb-6 border border-yellow-200">
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <div className="p-3 bg-yellow-100 rounded-full">
+                    <Trophy size={32} className="text-yellow-600" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {templateData.awardType || 'Employee of the Month'}
+                    </h3>
+                    <p className="text-gray-600">
+                      {templateData.awardDate ? new Date(templateData.awardDate + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'October 2025'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="employee-card bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <div className="employee-info flex items-start gap-4 mb-6">
+                  <div className="employee-avatar">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
+                      👤
+                    </div>
+                  </div>
+                  <div className="employee-details flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">
+                      {templateData.employeeName || 'Sarah Johnson'}
+                    </h3>
+                    <p className="text-gray-600">
+                      {templateData.employeeRole || 'Senior Software Engineer'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="achievement-section space-y-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      {templateData.achievementTitle || 'Outstanding Achievement'}
+                    </h4>
+                    <p className="text-gray-700 leading-relaxed">
+                      {templateData.achievementDescription || 
+                        `Sarah has consistently delivered exceptional work, leading the successful launch of three major features this quarter. Her dedication, innovative problem-solving, and collaborative spirit have been instrumental to our team's success.`}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h5 className="font-semibold text-gray-900 mb-2">Key Accomplishments:</h5>
+                    <div className="text-gray-700 whitespace-pre-line">
+                      {templateData.keyAccomplishments || 
+                        `Key accomplishments:
+• Led migration to new architecture
+• Improved system performance by 40%
+• Mentored junior developers`}
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-400">
+                    <p className="text-gray-700 italic">
+                      {templateData.congratulationsMessage || 
+                        `Congratulations, Sarah! Your hard work and dedication inspire us all. Thank you for your outstanding contributions to our team! 🎉`}
+                    </p>
+                    <div className="mt-3 text-right">
+                      <span className="text-gray-600 font-medium">
+                        — {templateData.signatureTeam || 'The Leadership Team'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         );
 
       case 'event-announcement':
         return (
-          <EventAnnouncementTemplate
-            onClose={() => {}}
-            onTemplateSaved={() => {}}
-            formData={templateData}
-          />
-        );
+          <div className="inline-template-content">
+            <div className="event-announcement-inline p-6">
+              <div className="event-card bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                <div className="event-card-inner">
+                  <h3 className="text-3xl font-bold text-gray-900 mb-6">
+                    {templateData.eventTitle || 'Annual Company Conference 2025'}
+                  </h3>
+                  
+                  <div className="event-meta flex gap-8 mb-6">
+                    <div className="meta-item flex items-center gap-3">
+                      <div className="meta-icon p-2 bg-indigo-100 rounded-lg">
+                        <Calendar size={20} className="text-indigo-600" />
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500 font-medium">Date</span>
+                        <div className="font-semibold text-gray-900 text-lg">
+                          {templateData.eventDate ? 
+                            new Date(templateData.eventDate).toLocaleDateString('en-US', { 
+                              month: 'numeric', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            }) : 
+                            '11/15/2025'
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="meta-item flex items-center gap-3">
+                      <div className="meta-icon p-2 bg-pink-100 rounded-lg">
+                        <MapPin size={20} className="text-pink-600" />
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500 font-medium">Location</span>
+                        <div className="font-semibold text-gray-900 text-lg">
+                          {templateData.eventLocation || 'Grand Convention Center'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-      case 'tool-system-guide':
-        return (
-          <ToolSystemGuideTemplate
-            onClose={() => {}}
-            onTemplateSaved={() => {}}
-            templateData={templateData}
-          />
+                  <div className="event-details-section">
+                    <h4 className="text-sm font-bold text-gray-600 mb-4 tracking-widest uppercase">
+                      EVENT DETAILS
+                    </h4>
+                    
+                    <p className="text-gray-700 leading-relaxed mb-8 text-base">
+                      {templateData.eventDescription || 
+                        'Join us for our biggest event of the year! Network with industry leaders, attend inspiring workshops, and celebrate our collective achievements.'}
+                    </p>
+
+                    <div className="event-highlights space-y-4 mb-8">
+                      {(templateData.highlights || [
+                        { iconName: 'Flame', text: 'Keynote speakers' },
+                        { iconName: 'Target', text: 'Interactive workshops' },
+                        { iconName: 'Users', text: 'Networking sessions' },
+                        { iconName: 'Award', text: 'Awards ceremony' }
+                      ]).map((highlight, index) => (
+                        <div key={index} className="highlight-item flex items-center gap-4">
+                          <div className="highlight-icon flex items-center justify-center w-10 h-10 rounded-lg"
+                               style={{ 
+                                 backgroundColor: getEventIconBgColor(highlight.iconName),
+                                 color: getEventIconColor(highlight.iconName)
+                               }}>
+                            {getEventIconComponent(highlight.iconName)}
+                          </div>
+                          <span className="highlight-text text-gray-700 text-base">
+                            {highlight.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="audience-section flex items-center gap-4">
+                      <div className="audience-icon p-2 bg-indigo-100 rounded-lg">
+                        <Users size={24} className="text-indigo-600" />
+                      </div>
+                      <span className="text-gray-700 text-base">
+                        {templateData.audienceInfo || 'Open to all employees'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         );
 
       case 'task-reminders-board':
         return (
-          <TaskRemindersBoardTemplate
-            onClose={() => {}}
-            onTemplateSaved={() => {}}
-            templateData={templateData}
-          />
+          <div className="inline-template-content">
+            <div className="task-reminders-inline p-6">
+              <div className="task-board-content bg-white border-2 border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="board-header p-6 bg-gray-50 border-b border-gray-200">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {templateData.title || 'Weekly Task Reminders'}
+                  </h2>
+                  <p className="text-gray-600">
+                    {templateData.subtitle || 'Click on any card to edit description'}
+                  </p>
+                </div>
+
+                <div className="tasks-section p-6">
+                  <div className="tasks-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(templateData.tasks || [
+                      {
+                        id: 1,
+                        title: 'Complete quarterly review',
+                        description: 'Prepare presentation and gather team feedback',
+                        priority: 'HIGH',
+                        date: '2025-11-01',
+                        priorityColor: '#FF6B6B',
+                        completed: false
+                      },
+                      {
+                        id: 2,
+                        title: 'Update training materials',
+                        description: 'Review and revise onboarding documentation',
+                        priority: 'MEDIUM',
+                        date: '2025-11-05',
+                        priorityColor: '#FFD93D',
+                        completed: false
+                      },
+                      {
+                        id: 3,
+                        title: 'Team building event planning',
+                        description: 'Organize monthly team activity and send invites',
+                        priority: 'LOW',
+                        date: '2025-11-10',
+                        priorityColor: '#6BCF7F',
+                        completed: false
+                      }
+                    ]).map((task) => {
+                      // Use completion status directly from template data
+                      const isCompleted = task.completed || false;
+                      
+                      return (
+                      <div key={task.id} className={`task-card bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full ${isCompleted ? 'opacity-60' : ''}`}>
+                        <div className="task-card-header flex justify-between items-start mb-3">
+                          <div 
+                            className="priority-badge px-2 py-1 rounded text-xs font-bold text-white"
+                            style={{ backgroundColor: task.priorityColor }}
+                          >
+                            {task.priority}
+                          </div>
+                          <div className="task-checkbox">
+                            <input 
+                              type="checkbox" 
+                              checked={isCompleted}
+                              onChange={(e) => handleTaskCompletion(task.id, e.target.checked, 'tasks')}
+                              disabled={taskUpdateLoading}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded cursor-pointer hover:bg-blue-50 transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="task-content mb-4 flex-grow">
+                          <h3 className={`task-title font-semibold text-gray-900 mb-2 ${isCompleted ? 'line-through text-gray-500' : ''}`}>
+                            {task.title}
+                          </h3>
+                          
+                          <p className={`task-description text-sm text-gray-600 leading-relaxed ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+                            {task.description}
+                          </p>
+                        </div>
+
+                        <div className="task-footer mt-auto">
+                          <div className={`task-date flex items-center gap-2 text-sm text-gray-500 ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+                            <Calendar size={16} className="text-indigo-600" />
+                            <span>
+                              {task.date ? 
+                                new Date(task.date).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                }) : 
+                                'No date'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         );
 
       case 'welcome-intro':
         return (
-          <WelcomeIntroTemplate
-            onClose={() => {}}
-            onTemplateSaved={() => {}}
-            templateData={templateData}
-          />
+          <div className="inline-template-content">
+            <div className="welcome-intro-inline p-6">
+              <div className="welcome-card bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                <div className="welcome-card-header text-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    {templateData.welcomeHeader || 'Welcome to Our Team!'}
+                  </h2>
+                  <div className="w-16 h-1 bg-purple-500 rounded-full mx-auto"></div>
+                </div>
+
+                <div className="welcome-content space-y-4">
+                  <div className="greeting text-base text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                    {templateData.greeting || 'Dear Team,'}
+                  </div>
+
+                  <div className="main-message text-gray-700 leading-relaxed bg-gray-50 p-4 rounded border border-gray-200 whitespace-pre-line">
+                    {templateData.mainMessage || 
+                      `We're thrilled to have you join us! This is the beginning of an exciting journey together, and we can't wait to see all the amazing things we'll accomplish as a team.
+
+Your unique skills and perspective will be invaluable as we work towards our shared goals. We believe in fostering a collaborative`}
+                  </div>
+
+                  <div className="highlight-section bg-blue-50 p-4 rounded border border-blue-200 space-y-3">
+                    {(templateData.highlightItems || [
+                      { id: 1, icon: 'calendar', text: 'First team meeting: Monday at 10 AM' },
+                      { id: 2, icon: 'chat', text: 'Questions? Email us at team@company.com' },
+                      { id: 3, icon: 'link', text: 'Access your onboarding portal: company.com/onboard' }
+                    ]).map(item => (
+                      <div key={item.id} className="highlight-item flex items-center gap-3">
+                        <div className="highlight-icon">
+                          {item.icon === 'calendar' ? (
+                            <Calendar size={18} className="text-indigo-600" />
+                          ) : item.icon === 'chat' ? (
+                            <MessageCircle size={18} className="text-indigo-600" />
+                          ) : (
+                            <Link size={18} className="text-gray-600" />
+                          )}
+                        </div>
+                        <span className="highlight-text text-gray-700 text-sm">
+                          {item.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="closing-message text-gray-700 leading-relaxed bg-gray-50 p-3 rounded border border-gray-200">
+                    {templateData.closingMessage || 'Welcome aboard! We\'re excited to have you as part of our team.'}
+                  </div>
+
+                  <div className="signature-section bg-white p-4 rounded border border-gray-200">
+                    <div className="signature text-gray-700 mb-2">
+                      {templateData.signature || 'Best regards,'}
+                    </div>
+                    
+                    <div className="signature-details flex justify-between items-center">
+                      <div className="signature-name font-semibold text-gray-900">
+                        {templateData.signatureName || 'The Leadership Team'}
+                      </div>
+                      <div className="signature-date text-gray-500 text-sm flex items-center gap-2">
+                        <span>
+                          {templateData.date ? 
+                            templateData.date.replace(/-/g, '/').replace(/(\d{4})\/(\d{2})\/(\d{2})/, '$2/$3/$1') :
+                            'mm/dd/yyyy'
+                          }
+                        </span>
+                        <Calendar size={16} className="text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'tool-system-guide':
+        return (
+          <div className="inline-template-content">
+            <div className="tool-guide-container max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="tool-guide-header text-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">{templateData.guideTitle || 'Tool/System Guide'}</h1>
+                <p className="text-gray-600">Create step-by-step guides for tools and systems</p>
+              </div>
+
+              <div className="guide-content">
+                <div className="guide-title-section mb-8">
+                  <div className="guide-main-title-display text-2xl font-bold text-gray-900 mb-4">
+                    {templateData.guideTitle || 'Project Management Tool Guide'}
+                  </div>
+                  <div className="guide-subtitle-display text-gray-600 leading-relaxed">
+                    {templateData.guideSubtitle || 'Learn how to use our project management system to track tasks, collaborate with your team, and deliver projects on time.'}
+                  </div>
+                </div>
+
+                <div className="steps-section space-y-4 mb-8">
+                  {(templateData.steps || []).map((step, index) => {
+                    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                    const stepNumber = index + 1;
+                    const stepIdentifier = step.id !== undefined ? step.id : index;
+                    
+                    return (
+                      <div key={step.id || index} className={`step-item bg-white border border-gray-200 rounded-lg p-4 shadow-sm ${step.completed ? 'opacity-75' : ''}`}>
+                        <div className="step-header flex items-center gap-4 mb-3">
+                          <div 
+                            className="step-number w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                            style={{ background: colors[index % colors.length] }}
+                          >
+                            {stepNumber}
+                          </div>
+                          <div className={`step-title-display text-lg font-semibold text-gray-900 ${step.completed ? 'line-through text-gray-500' : ''}`}>
+                            {step.title || `Step ${stepNumber}: Getting Started`}
+                          </div>
+                        </div>
+                        
+                        <div className={`step-description-display text-gray-700 leading-relaxed mb-4 ml-12 ${step.completed ? 'line-through text-gray-500' : ''}`}>
+                          {step.description || 'Detailed instructions for this step. Include specific actions, tips, and any important notes.'}
+                        </div>
+                        
+                        <div className="step-checkbox ml-12">
+                          <label className="flex items-center gap-2 cursor-pointer text-gray-600">
+                            <input 
+                              type="checkbox"
+                              id={`step-${stepIdentifier}`}
+                              checked={step.completed || false}
+                              onChange={(e) => {
+                                if (isTrainee) {
+                                  handleTaskCompletion(stepIdentifier, e.target.checked, 'steps');
+                                }
+                              }}
+                              disabled={!isTrainee}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm">Mark as completed</span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {(templateData.steps?.length < 5) && (
+                    <div className="add-step-section text-center">
+                      <button className="add-step-btn inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-500 bg-gray-50 cursor-not-allowed" disabled>
+                        <span className="plus-icon">+</span>
+                        Add Step
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="help-section bg-gray-50 rounded-lg p-6 border border-gray-200">
+                  <div className="help-title-display text-lg font-semibold text-gray-900 mb-4">
+                    {templateData.needHelpTitle || 'Need Help?'}
+                  </div>
+                  
+                  <div className="help-items space-y-3">
+                    <div className="help-item flex items-center gap-3 p-3 bg-white rounded border border-gray-200">
+                      <span className="help-icon flex-shrink-0">
+                        <svg width="20" height="20" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </span>
+                      <div className="help-text-display text-gray-700">
+                        {templateData.helpEmail || 'Email: support@company.com'}
+                      </div>
+                    </div>
+                    
+                    <div className="help-item flex items-center gap-3 p-3 bg-white rounded border border-gray-200">
+                      <span className="help-icon flex-shrink-0">
+                        <svg width="20" height="20" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </span>
+                      <div className="help-text-display text-gray-700">
+                        {templateData.helpSlack || 'Slack: #help-desk'}
+                      </div>
+                    </div>
+                    
+                    <div className="help-item flex items-center gap-3 p-3 bg-white rounded border border-gray-200">
+                      <span className="help-icon flex-shrink-0">
+                        <svg width="20" height="20" fill="none" stroke="#059669" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </span>
+                      <div className="help-text-display text-gray-700">
+                        {templateData.helpDocs || 'Documentation: docs.company.com'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         );
 
       default:
@@ -264,7 +1143,7 @@ const ContentView = () => {
         if (videoId && videoId.length === 11) {
           return (
             <div className="w-full h-full flex flex-col items-center justify-center">
-              <div className="w-full h-full max-w-6xl max-h-[80vh] aspect-video">
+              <div className="w-full h-[600px] aspect-video">
                 <iframe
                   src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&showinfo=0&autoplay=0&controls=1`}
                   title={content.title}
@@ -305,7 +1184,7 @@ const ContentView = () => {
       case 'pdf':
         return (
           <div className="w-full h-full flex flex-col items-center justify-center">
-            <div className="w-full h-full max-w-6xl max-h-[80vh]">
+            <div className="w-full h-[850px]">
               <iframe
                 src={resourceUrl}
                 title={content.title}
@@ -329,7 +1208,7 @@ const ContentView = () => {
         
         return (
           <div className="w-full h-full flex flex-col items-center justify-center">
-            <div className="w-full h-full max-w-6xl max-h-[80vh] flex items-center justify-center">
+            <div className="w-full h-[700px] flex items-center justify-center">
               <div className="relative group">
                 <img
                   src={resourceUrl}
@@ -371,7 +1250,7 @@ const ContentView = () => {
       case 'video':
         return (
           <div className="w-full h-full flex flex-col items-center justify-center">
-            <div className="w-full h-full max-w-6xl max-h-[80vh]">
+            <div className="w-full h-[600px]">
               <video
                 src={resourceUrl}
                 title={content.title}
@@ -425,22 +1304,20 @@ const ContentView = () => {
           }
         }
         
-        // Regular link display - Use iframe to view directly
+        // Regular link display - Use iframe to view directly at reduced height
         return (
-          <div className="w-full h-full flex flex-col items-center justify-center">
-            <div className="w-full h-full max-w-6xl max-h-[80vh] border border-border rounded-lg overflow-hidden shadow-2xl bg-white">
-              <iframe
-                src={resourceUrl}
-                title={content.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                onError={(e) => {
-                  console.error('Link iframe error:', e);
-                }}
-              />
-            </div>
+          <div className="w-full h-[350px]">
+            <iframe
+              src={resourceUrl}
+              title={content.title}
+              className="w-full h-full border-0 rounded-lg"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              onError={(e) => {
+                console.error('Link iframe error:', e);
+              }}
+            />
           </div>
         );
 
@@ -608,7 +1485,7 @@ const ContentView = () => {
   }
 
   if (!content) {
-    const backRoute = isSupervisor ? '/supervisor/content' : '/admin/content';
+    const backRoute = isTrainee ? '/trainee' : isSupervisor ? '/supervisor/content' : '/admin/content';
     
     return (
       <div className="w-full min-h-[60vh] flex items-center justify-center">
@@ -617,52 +1494,317 @@ const ContentView = () => {
           <h2 className="text-2xl font-bold text-foreground mb-2">Content Not Found</h2>
           <p className="text-muted-foreground mb-6">The content you're looking for doesn't exist or has been removed.</p>
           <Button onClick={() => navigate(backRoute)} className="bg-primary hover:bg-primary-hover">
-            Back to Content Library
+            {isTrainee ? 'Back to Dashboard' : 'Back to Content Library'}
           </Button>
         </div>
       </div>
     );
   }
 
+  // Debug logging for button state
+  console.log('ContentView Debug:', {
+    isTrainee,
+    userProgress,
+    acknowledged: userProgress?.acknowledged,
+    status: userProgress?.status,
+    contentId: id,
+    progressLoading,
+    hasToken: !!localStorage.getItem('token'),
+    tokenValue: localStorage.getItem('token')?.substring(0, 20) + '...' // first 20 chars only
+  });
+
   return (
-    <div className="h-screen w-full flex flex-col" style={{ margin: '-1.5rem', padding: 0, overflow: 'hidden' }}>
-      {/* Content Viewer */}
-      <div 
-        className="flex flex-col h-full"
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          height: '100%',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Content Title */}
-        {content && (
-          <div className="w-full px-8 py-6 bg-card border-b border-border flex-shrink-0">
-            <h1 className="text-4xl font-bold text-foreground text-center">
-              {content.title}
-            </h1>
+    <div className="w-full px-6 pb-6">
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading content...</p>
           </div>
-        )}
-        
-        {/* Content Display Area - Takes remaining space */}
-        <div className={`flex-1 w-full ${content?.contentType === 'template' ? 'overflow-y-auto p-8' : 'flex items-center justify-center overflow-hidden'}`} style={{ minHeight: 0 }}>
-          {renderContent() || (
-              <div className="text-center p-8">
-                <div className="text-6xl mb-4">🔍</div>
-                <h3 className="text-2xl font-bold text-foreground mb-4">Debug: Content Data</h3>
-                <div className="bg-gray-100 p-4 rounded-lg text-left max-w-2xl">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {JSON.stringify(content, null, 2)}
-                  </pre>
-                </div>
-                <p className="text-muted-foreground mt-4">
-                  If you see this, the content is loaded but renderContent() returned null.
-                </p>
-              </div>
-            )}
         </div>
-      </div>
+      )}
+      
+      {!loading && !content && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">Content not found</p>
+        </div>
+      )}
+      
+      {!loading && content && isTrainee && (
+        <div>
+          {/* Header */}
+          <div className="bg-white border border-gray-200 px-6 py-4 mb-6 rounded-lg shadow-sm">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => inlineMode && onBack ? onBack() : navigate('/trainee')}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back to My Content
+              </button>
+            </div>
+          </div>
+
+          {/* Content Header */}
+          <div className="bg-white px-6 py-6 min-h-fit">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                {content?.title || 'Loading...'}
+              </h1>
+              <p className="text-gray-600 text-lg leading-relaxed mb-4 break-words">
+                {content?.description || 'Learn best practices for handling sensitive company and customer data'}
+              </p>
+            </div>
+          </div>
+          {/* Content Display */}
+          <div className="px-6 py-4">
+            <div>
+              {/* Info Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* Category & Type */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <h3 className="font-semibold text-gray-900">Category & Type</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm text-gray-500">Category</span>
+                      <div className="mt-1">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {content?.category || content?.contentType || 'Training'}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Content Type</span>
+                      <p className="text-sm text-gray-900 mt-1">
+                        {content?.contentType || content?.type || 'link'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deadline */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <Calendar className="w-5 h-5 text-orange-600 mt-0.5" />
+                    <h3 className="font-semibold text-gray-900">Deadline</h3>
+                  </div>
+                  <div>
+                    <p className="text-lg font-medium text-gray-900">
+                      {formatDate(content?.deadline)}
+                    </p>
+                    {getDeadlineStatus() && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        <span className={`text-sm font-medium ${getDeadlineStatus().color}`}>
+                          {getDeadlineStatus().text}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Display */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className={`${
+                  content?.contentType === 'template' || content?.type === 'template' 
+                    ? 'p-0' // No padding for templates to fit exactly
+                    : 'p-6' // Normal padding for other content
+                }`}>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading content...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`${
+                      content?.contentType === 'link' || content?.type === 'link' 
+                        ? 'min-h-[400px]' 
+                        : (content?.contentType === 'pdf' || content?.type === 'pdf')
+                          ? 'min-h-[900px]'
+                          : (content?.contentType === 'template' || content?.type === 'template')
+                            ? 'min-h-fit' // Let template determine its own height
+                            : 'min-h-[800px]'
+                    }`}>
+                      {renderContent()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 my-8">
+                {/* Acknowledge Card */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1">
+                  <div className="flex flex-col items-center h-full">
+                    <div className="p-3 bg-green-100 rounded-lg mb-3">
+                      <Eye className="w-5 h-5 text-green-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2 text-sm">Acknowledge</h3>
+                    <p className="text-gray-600 text-xs mb-3 flex-grow">
+                      {content?.ackRequired 
+                        ? "Confirm you've reviewed this content"
+                        : "Acknowledgment not required for this content"
+                      }
+                    </p>
+                    <button
+                      onClick={handleAcknowledge}
+                      disabled={progressLoading || userProgress?.acknowledged || !content?.ackRequired}
+                      className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                        !content?.ackRequired
+                          ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
+                          : userProgress?.acknowledged
+                            ? 'bg-green-50 text-green-700 border border-green-200 cursor-not-allowed'
+                            : progressLoading
+                              ? 'bg-green-400 text-white cursor-not-allowed'
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {!content?.ackRequired ? (
+                        'Acknowledgment Not Required'
+                      ) : progressLoading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Processing...
+                        </div>
+                      ) : userProgress?.acknowledged ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <CheckCircle className="w-3 h-3" />
+                          Acknowledged ✓
+                        </div>
+                      ) : (
+                        'Acknowledge Content'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Complete Card */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1">
+                  <div className="flex flex-col items-center h-full">
+                    <div className="p-3 bg-blue-100 rounded-lg mb-3">
+                      <CheckCircle className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2 text-sm">Complete</h3>
+                    <p className="text-gray-600 text-xs mb-3 flex-grow">
+                      {(() => {
+                        const hasQuiz = content?.templateData?.quiz || content?.quiz;
+                        const hasQuizQuestions = content?.quizQuestions && content?.quizQuestions.length > 0;
+                        const quizCompleted = userProgress?.quizCompleted || false;
+                        
+                        if ((hasQuiz || hasQuizQuestions) && !quizCompleted) {
+                          return "Complete the quiz before marking as complete";
+                        }
+                        return "Finish and close this content";
+                      })()}
+                    </p>
+                    <button
+                      onClick={handleComplete}
+                      disabled={(() => {
+                        const hasQuiz = content?.templateData?.quiz || content?.quiz;
+                        const hasQuizQuestions = content?.quizQuestions && content?.quizQuestions.length > 0;
+                        const quizCompleted = userProgress?.quizCompleted || false;
+                        // Only disable if there IS a quiz OR quiz questions AND it's NOT completed
+                        const quizRequiredButNotCompleted = (hasQuiz || hasQuizQuestions) && !quizCompleted;
+                        
+                        return progressLoading || userProgress?.status === 'completed' || quizRequiredButNotCompleted;
+                      })()}
+                      className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                        (() => {
+                          const hasQuiz = content?.templateData?.quiz || content?.quiz;
+                          const hasQuizQuestions = content?.quizQuestions && content?.quizQuestions.length > 0;
+                          const quizCompleted = userProgress?.quizCompleted || false;
+                          const quizRequiredButNotCompleted = (hasQuiz || hasQuizQuestions) && !quizCompleted;
+                          
+                          if (quizRequiredButNotCompleted) {
+                            return 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed';
+                          } else if (userProgress?.status === 'completed') {
+                            return 'bg-blue-50 text-blue-700 border border-blue-200 cursor-not-allowed';
+                          } else if (progressLoading) {
+                            return 'bg-blue-400 text-white cursor-not-allowed';
+                          } else {
+                            return 'bg-blue-600 text-white hover:bg-blue-700';
+                          }
+                        })()
+                      }`}
+                    >
+                      {(() => {
+                        const hasQuiz = content?.templateData?.quiz || content?.quiz;
+                        const hasQuizQuestions = content?.quizQuestions && content?.quizQuestions.length > 0;
+                        const quizCompleted = userProgress?.quizCompleted || false;
+                        const quizRequiredButNotCompleted = (hasQuiz || hasQuizQuestions) && !quizCompleted;
+                        
+                        if (quizRequiredButNotCompleted) {
+                          return 'Quiz Required';
+                        } else if (progressLoading) {
+                          return (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Processing...
+                            </div>
+                          );
+                        } else if (userProgress?.status === 'completed') {
+                          return (
+                            <div className="flex items-center justify-center gap-2">
+                              <CheckCircle className="w-3 h-3" />
+                              Completed ✓
+                            </div>
+                          );
+                        } else {
+                          return 'Mark as Complete';
+                        }
+                      })()}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quiz Card */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1">
+                  <div className="flex flex-col items-center h-full">
+                    <div className="p-3 bg-red-100 rounded-lg mb-3">
+                      <HelpCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2 text-sm">Take the Quiz</h3>
+                    <p className="text-gray-600 text-xs mb-3 flex-grow">
+                      {(() => {
+                        const hasQuiz = content?.templateData?.quiz || content?.quiz;
+                        const hasQuizQuestions = content?.quizQuestions && content?.quizQuestions.length > 0;
+                        
+                        if (hasQuiz || hasQuizQuestions) {
+                          return "Test your knowledge of this content";
+                        }
+                        return "No quiz available for this content";
+                      })()}
+                    </p>
+                    <button
+                      onClick={handleTakeQuiz}
+                      disabled={!content?.templateData?.quiz && !content?.quiz && !(content?.quizQuestions && content?.quizQuestions.length > 0)}
+                      className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                        (!content?.templateData?.quiz && !content?.quiz && !(content?.quizQuestions && content?.quizQuestions.length > 0))
+                          ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
+                          : 'bg-red-500 text-white hover:bg-red-600'
+                      }`}
+                    >
+                      {(!content?.templateData?.quiz && !content?.quiz && !(content?.quizQuestions && content?.quizQuestions.length > 0)) ? 'No Quiz Available' : 'Start Quiz'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {!loading && content && !isTrainee && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">Admin/Supervisor view</p>
+        </div>
+      )}
     </div>
   );
 };

@@ -335,24 +335,45 @@ export const UnifiedSidebar = ({
             const isActive = location.pathname === item.href;
             
             return (
-              <Link
+              <button
                 key={item.name}
-                to={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log(`🔄 Button clicked! Navigating to: ${item.href} (${item.name})`);
+                  console.log('🔍 Current location:', location.pathname);
+                  console.log('🎯 Target href:', item.href);
+                  setIsMobileMenuOpen(false);
+                  
+                  // For trainee dashboard, ensure we go to the correct route
+                  if (item.name === 'Dashboard' && userType === 'trainee') {
+                    console.log('🏠 Navigating to Trainee Dashboard with content cards');
+                    navigate('/trainee', { replace: true });
+                    // Force a page refresh to ensure the dashboard loads properly
+                    window.location.reload();
+                  } else {
+                    navigate(item.href);
+                  }
+                  console.log('✅ Navigation command sent');
+                }}
                 className={cn(
-                  'flex items-center rounded-lg transition-all duration-200 group text-[#e6eef5] no-underline',
+                  'flex items-center rounded-lg transition-all duration-200 group text-[#e6eef5] no-underline border-none bg-transparent cursor-pointer w-full text-left',
                   collapsed ? 'justify-center px-2 py-3 my-1' : 'gap-4 px-5 py-4',
                   isActive
                     ? 'bg-white/15 text-[#e6eef5] shadow-sm'
                     : 'hover:bg-white/8 hover:text-white'
                 )}
                 title={collapsed ? item.name : undefined}
+                style={{ 
+                  pointerEvents: 'auto',
+                  zIndex: 10
+                }}
               >
                 <item.icon className={cn("flex-shrink-0 w-6 h-6")} />
                 {!collapsed && (
                   <span className="font-semibold text-base truncate">{item.name}</span>
                 )}
-              </Link>
+              </button>
             );
           })}
         </nav>

@@ -11,6 +11,7 @@ import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
+import TraineeLayout from "./pages/TraineeLayout.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 
@@ -114,8 +115,11 @@ export default function App() {
           <Route path="groups/:id" element={<SupervisorGroupDetails />} />
         </Route>
 
-        {/* Dashboard Routes */}
-        <Route path="/trainee" element={<TraineeDashboard />} />
+        {/* Trainee Routes */}
+        <Route path="/trainee" element={<TraineeLayout />}>
+          <Route index element={<TraineeDashboard />} />
+          <Route path="content/:id" element={<ContentView />} />
+        </Route>
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
 
         {/* WebOwner Layout Routes (from ActiveCompaniesFeature) */}

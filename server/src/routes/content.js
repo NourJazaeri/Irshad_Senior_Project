@@ -12,7 +12,8 @@ import Trainee from '../models/Trainee.js';
 import Admin from '../models/Admin.js';
 import Supervisor from '../models/Supervisor.js';
 import Employee from '../models/Employees.js';
-import { requireAdmin, requireAdminOrSupervisor } from '../middleware/authMiddleware.js';
+import Progress from '../models/Progress.js';
+import { requireAdmin, requireAdminOrSupervisor, authenticate } from '../middleware/authMiddleware.js';
 // Optional Gemini service integration - commented out until implementation is ready
 // import { analyzeContentAndGenerateQuiz, generateQuizFromText } from '../services/geminiService.js';
 
@@ -164,6 +165,11 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
     const newContent = new Content(contentData);
     const savedContent = await newContent.save();
 
+    console.log('✅ Content saved successfully, now creating progress records...');
+
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(savedContent);
+
     res.status(201).json({
       message: 'Content saved successfully',
       content: savedContent
@@ -177,6 +183,65 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
     });
   }
 });
+
+/**
+ * Helper function to create initial progress records for assigned trainees
+ */
+async function createInitialProgressRecords(content) {
+  try {
+    const traineesToAssign = [];
+
+    // Collect all trainee IDs based on assignment
+    if (content.assignedTo_traineeID) {
+      // Assigned to specific trainee
+      traineesToAssign.push(content.assignedTo_traineeID);
+    } else if (content.assignedTo_GroupID) {
+      // Assigned to group - get all trainees in the group
+      const group = await Group.findById(content.assignedTo_GroupID).populate('traineeObjectUserID');
+      if (group && group.traineeObjectUserID) {
+        const groupTrainees = group.traineeObjectUserID.map(trainee => trainee._id);
+        traineesToAssign.push(...groupTrainees);
+      }
+    } else if (content.assignedTo_depID) {
+      // Assigned to department(s) - get all trainees in the department(s)
+      // assignedTo_depID can be a single ID or an array of IDs
+      const departmentIds = Array.isArray(content.assignedTo_depID) ? content.assignedTo_depID : [content.assignedTo_depID];
+      
+      for (const depId of departmentIds) {
+        const department = await Department.findById(depId);
+        if (department) {
+          const departmentTrainees = await Trainee.find({ departmentID: depId });
+          const traineeIds = departmentTrainees.map(trainee => trainee._id);
+          traineesToAssign.push(...traineeIds);
+        }
+      }
+    }
+
+    // Create progress records for all assigned trainees
+    if (traineesToAssign.length > 0) {
+      const progressRecords = traineesToAssign.map(traineeId => ({
+        _id: new mongoose.Types.ObjectId(),
+        TraineeObjectUserID: traineeId,
+        ObjectContentID: content._id,
+        status: 'not started',
+        acknowledged: false,
+        score: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+
+      const result = await Progress.insertMany(progressRecords);
+      return result;
+    } else {
+      return [];
+    }
+
+  } catch (error) {
+    console.error('❌ Error creating initial progress records:', error);
+    // Don't throw error here - content is already saved, this is just a bonus feature
+    return [];
+  }
+}
 
 /**
  * GET /api/content/departments
@@ -454,6 +519,11 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
 
     await content.save();
     
+    console.log('✅ Content uploaded successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
+    
     res.json({ 
       ok: true, 
       message: 'File uploaded to Supabase successfully',
@@ -519,6 +589,11 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
     });
 
     await content.save();
+    
+    console.log('✅ YouTube content created successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -601,6 +676,11 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
     });
 
     await content.save();
+    
+    console.log('✅ Link content created successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -701,6 +781,11 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
     });
 
     await content.save();
+    
+    console.log('✅ Template content created successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -825,7 +910,97 @@ router.get('/templates', requireAdminOrSupervisor, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/content/trainee/view/:id
+ * Get specific content item for authenticated trainee
+ * Only allows viewing content that is assigned to the trainee
+ */
+router.get('/trainee/view/:id', authenticate, async (req, res) => {
+  try {
+    // Check if user is a trainee
+    if (req.user.role !== 'Trainee') {
+      return res.status(403).json({ success: false, message: 'Trainee access required' });
+    }
 
+    const traineeId = req.user?.id;
+    const contentId = req.params.id;
+
+    if (!traineeId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Get trainee details to check assignments
+    const trainee = await Trainee.findById(traineeId)
+      .populate({
+        path: 'EmpObjectUserID',
+        select: 'ObjectDepartmentID',
+        populate: {
+          path: 'ObjectDepartmentID',
+          select: 'departmentName'
+        }
+      })
+      .lean();
+
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Trainee not found' });
+    }
+
+    const departmentId = trainee.EmpObjectUserID?.ObjectDepartmentID?._id;
+    const groupId = trainee.ObjectGroupID;
+
+    // Find the content and check if it's assigned to this trainee
+    const content = await Content.findById(contentId)
+      .populate('assignedTo_GroupID', 'groupName')
+      .populate('assignedTo_depID', 'departmentName')
+      .lean();
+
+    if (!content) {
+      return res.status(404).json({ success: false, message: 'Content not found' });
+    }
+
+    // Check if content is assigned to this trainee
+    let isAssigned = false;
+
+    // Check individual assignment
+    if (content.assignedTo_traineeID && content.assignedTo_traineeID.toString() === traineeId.toString()) {
+      isAssigned = true;
+    }
+
+    // Check group assignment
+    if (!isAssigned && groupId && content.assignedTo_GroupID && content.assignedTo_GroupID._id.toString() === groupId.toString()) {
+      isAssigned = true;
+    }
+
+    // Check department assignment
+    if (!isAssigned && departmentId && content.assignedTo_depID) {
+      const isDepartmentAssigned = content.assignedTo_depID.some(dep => 
+        dep._id.toString() === departmentId.toString()
+      );
+      if (isDepartmentAssigned) {
+        isAssigned = true;
+      }
+    }
+
+    if (!isAssigned) {
+      return res.status(403).json({ success: false, message: 'Content not assigned to you' });
+    }
+
+    // Return the content with the same structure as the admin/supervisor endpoint
+    res.json({ 
+      ok: true, 
+      content: content,
+      success: true 
+    });
+
+  } catch (error) {
+    console.error('Error fetching trainee content:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch content',
+      error: error.message
+    });
+  }
+});
 
 /**
  * GET /api/content/:id
@@ -1460,5 +1635,515 @@ router.post('/analyze-content', requireAdminOrSupervisor, upload.single('file'),
 });
 
 // KEEP the /generate-quiz-from-text route as is
+
+/**
+ * GET /api/content/test-department/:departmentId
+ * Test endpoint to check department assignment matching
+ */
+router.get('/test-department/:departmentId', async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    
+    if (!departmentId || !ObjectId.isValid(departmentId)) {
+      return res.status(400).json({ success: false, message: 'Valid department ID required' });
+    }
+
+    // Find all content assigned to this department
+    const departmentContent = await Content.find({
+      $or: [
+        { assignedTo_depID: { $elemMatch: { $eq: new ObjectId(departmentId) } } },
+        { assignedTo_depID: new ObjectId(departmentId) },
+        { assignedTo_depID: { $in: [new ObjectId(departmentId)] } }
+      ]
+    })
+    .select('title assignedTo_depID assignedTo_GroupID assignedTo_traineeID')
+    .populate('assignedTo_depID', 'departmentName')
+    .lean();
+
+    // Also get all content for comparison
+    const allContent = await Content.find({})
+      .select('title assignedTo_depID')
+      .populate('assignedTo_depID', 'departmentName')
+      .lean();
+
+    res.json({
+      success: true,
+      departmentId,
+      departmentContent,
+      totalContent: allContent.length,
+      departmentContentCount: departmentContent.length,
+      allContentSample: allContent.slice(0, 5) // First 5 for debugging
+    });
+
+  } catch (error) {
+    console.error('Test department error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/content/trainee/debug
+ * Debug endpoint to check trainee assignment relationships
+ */
+router.get('/trainee/debug', authenticate, async (req, res) => {
+  try {
+    const traineeId = req.user?.id;
+    if (!traineeId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Get trainee details with full population
+    const trainee = await Trainee.findById(traineeId)
+      .populate({
+        path: 'EmpObjectUserID',
+        select: 'fname lname ObjectDepartmentID',
+        populate: {
+          path: 'ObjectDepartmentID',
+          select: 'departmentName'
+        }
+      })
+      .populate('ObjectGroupID', 'groupName')
+      .lean();
+
+    // Get all content in the system for comparison
+    const allContent = await Content.find({})
+      .select('title assignedTo_depID assignedTo_GroupID assignedTo_traineeID')
+      .populate('assignedTo_depID', 'departmentName')
+      .populate('assignedTo_GroupID', 'groupName')
+      .lean();
+
+    res.json({
+      success: true,
+      debug: {
+        trainee,
+        traineeId,
+        allContent,
+        departmentId: trainee?.EmpObjectUserID?.ObjectDepartmentID?._id,
+        groupId: trainee?.ObjectGroupID?._id
+      }
+    });
+
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/content/trainee/assigned
+ * Get all content assigned to the authenticated trainee
+ * Includes content assigned directly, via group, or via department
+ */
+router.get('/trainee/assigned', authenticate, async (req, res) => {
+  try {
+    // Check if user is a trainee
+    if (req.user.role !== 'Trainee') {
+      return res.status(403).json({ success: false, message: 'Trainee access required' });
+    }
+
+    // Get trainee ID from the authenticated user (assumed from middleware)
+    const traineeId = req.user?.id;
+    if (!traineeId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Get trainee details with group and employee info
+    const trainee = await Trainee.findById(traineeId)
+      .populate({
+        path: 'EmpObjectUserID',
+        select: 'fname lname ObjectDepartmentID',
+        populate: {
+          path: 'ObjectDepartmentID',
+          select: 'departmentName'
+        }
+      })
+      .populate('ObjectGroupID', 'groupName')
+      .lean();
+
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Trainee not found' });
+    }
+
+    const employeeInfo = trainee.EmpObjectUserID;
+    const groupId = trainee.ObjectGroupID?._id;
+    const departmentId = employeeInfo?.ObjectDepartmentID?._id;
+
+    console.log('Debug - Trainee Assignment Query:', {
+      traineeId,
+      groupId,
+      departmentId,
+      employeeInfo: {
+        name: `${employeeInfo?.fname} ${employeeInfo?.lname}`,
+        departmentName: employeeInfo?.ObjectDepartmentID?.departmentName
+      }
+    });
+
+    // Build query to find content assigned to this trainee
+    const assignmentQueries = [];
+    
+    // Content assigned directly to this trainee
+    assignmentQueries.push({ assignedTo_traineeID: new ObjectId(traineeId) });
+    
+    // Content assigned to trainee's group (if they have one)
+    if (groupId) {
+      assignmentQueries.push({ assignedTo_GroupID: new ObjectId(groupId) });
+    }
+    
+    // Content assigned to trainee's department (if they have one)
+    if (departmentId) {
+      // Handle both single department ID and array of department IDs
+      assignmentQueries.push({ 
+        assignedTo_depID: { 
+          $elemMatch: { $eq: new ObjectId(departmentId) } 
+        } 
+      });
+      // Also check if department is stored as a single value (fallback)
+      assignmentQueries.push({ 
+        assignedTo_depID: new ObjectId(departmentId)
+      });
+    }
+
+    const assignmentQuery = assignmentQueries.length > 0 ? { $or: assignmentQueries } : {};
+
+    console.log('Debug - Individual Queries:');
+    assignmentQueries.forEach((query, index) => {
+      console.log(`Query ${index + 1}:`, JSON.stringify(query, null, 2));
+    });
+    console.log('Debug - Final Assignment Query:', JSON.stringify(assignmentQuery, null, 2));
+
+    // Get all assigned content
+    const assignedContent = await Content.find(assignmentQuery)
+      .populate('assignedTo_GroupID', 'groupName')
+      .populate('assignedTo_depID', 'departmentName')
+      .populate('assignedBy_adminID', 'fname lname')
+      .populate('assignedBy_supervisorID', 'fname lname')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('Debug - Found content count:', assignedContent.length);
+    console.log('Debug - Found content:', assignedContent.map(c => ({ 
+      title: c.title, 
+      assignedTo_depID: c.assignedTo_depID,
+      assignedTo_GroupID: c.assignedTo_GroupID,
+      assignedTo_traineeID: c.assignedTo_traineeID
+    })));
+
+    // Get progress for each content item
+    const contentWithProgress = await Promise.all(
+      assignedContent.map(async (content) => {
+        // Find progress record for this trainee and content
+        const progress = await Progress.findOne({
+          TraineeObjectUserID: new ObjectId(traineeId),
+          ObjectContentID: content._id
+        }).lean();
+
+        return {
+          ...content,
+          progress: progress || {
+            status: 'not started',
+            score: 0,
+            acknowledged: false,
+            completedAt: null
+          }
+        };
+      })
+    );
+
+    // Calculate metrics
+    const currentDate = new Date();
+    const metrics = {
+      total: contentWithProgress.length,
+      completed: contentWithProgress.filter(item => item.progress.status === 'completed').length,
+      inProgress: contentWithProgress.filter(item => item.progress.status === 'in progress').length,
+      overdue: contentWithProgress.filter(item => {
+        if (item.progress.status === 'completed') return false;
+        return item.deadline && new Date(item.deadline) < currentDate;
+      }).length,
+      dueSoon: contentWithProgress.filter(item => {
+        if (item.progress.status === 'completed') return false;
+        if (!item.deadline) return false;
+        const dueDate = new Date(item.deadline);
+        const daysDiff = Math.ceil((dueDate - currentDate) / (1000 * 60 * 60 * 24));
+        return daysDiff <= 3 && daysDiff >= 0;
+      }).length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        traineeInfo: {
+          id: traineeId,
+          name: `${employeeInfo?.fname || ''} ${employeeInfo?.lname || ''}`.trim(),
+          email: trainee.loginEmail,
+          group: trainee.ObjectGroupID?.groupName || null,
+          department: departmentId || null
+        },
+        content: contentWithProgress,
+        metrics
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching trainee assigned content:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch assigned content',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/content/trainee/progress/:contentId
+ * Update progress for a specific content item
+ */
+router.put('/trainee/progress/:contentId', authenticate, async (req, res) => {
+  try {
+    console.log('=== PROGRESS UPDATE REQUEST ===');
+    console.log('User:', req.user);
+    console.log('Content ID:', req.params.contentId);
+    console.log('Request body:', req.body);
+    
+    // Check if user is a trainee
+    if (req.user.role !== 'Trainee') {
+      console.log('❌ Access denied - not a trainee, role:', req.user.role);
+      return res.status(403).json({ success: false, message: 'Trainee access required' });
+    }
+
+    const traineeId = req.user?.id;
+    const { contentId } = req.params;
+    const { status, acknowledged, taskCompletions, templateData } = req.body;
+
+    console.log('Trainee ID:', traineeId);
+    console.log('Status to set:', status);
+    console.log('Acknowledged to set:', acknowledged);
+    console.log('Task completions to set:', taskCompletions);
+    console.log('Template data to update:', templateData);
+
+    if (!traineeId) {
+      console.log('❌ No trainee ID found');
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Validate status
+    const validStatuses = ['not started', 'in progress', 'completed', 'overdue', 'due soon'];
+    if (status && !validStatuses.includes(status)) {
+      console.log('❌ Invalid status:', status);
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    // Find or create progress record
+    const updateData = {};
+    
+    // Handle status updates with intelligent progression
+    if (status) {
+      updateData.status = status;
+      if (status === 'completed') {
+        updateData.completedAt = new Date();
+        updateData.acknowledged = true; // Auto-acknowledge when completing
+        updateData.score = null; // Reset score to null - scores are only for quizzes
+        console.log('🔄 Setting score to null for content completion');
+      }
+    }
+    
+    // Always ensure score is null for any content-related updates (not quiz updates)
+    updateData.score = null;
+    console.log('🔄 Explicitly setting score to null for content update');
+    
+    // Handle acknowledgment with status progression
+    if (typeof acknowledged === 'boolean') {
+      updateData.acknowledged = acknowledged;
+      
+      // If acknowledging content, just set acknowledged flag
+      // Status should already be "in progress" from viewing the content
+      if (acknowledged === true) {
+        console.log('✅ Setting acknowledged flag - status should already be "in progress" from viewing');
+      }
+    }
+
+    // Handle task completions for template content
+    if (taskCompletions && typeof taskCompletions === 'object') {
+      updateData.taskCompletions = taskCompletions;
+      console.log('📋 Updating task completions:', taskCompletions);
+    }
+
+    // Handle template data updates (for task completion in content)
+    if (templateData && typeof templateData === 'object') {
+      try {
+        // Update the actual content document with new template data
+        await Content.findByIdAndUpdate(
+          contentId,
+          { 
+            templateData: templateData,
+            updatedAt: new Date()
+          }
+        );
+        console.log('✅ Content templateData updated successfully');
+      } catch (contentError) {
+        console.error('❌ Error updating content templateData:', contentError);
+      }
+    }
+
+    // Auto-calculate status based on deadline if no explicit status provided
+    if (!status && !acknowledged) {
+      // This will be used for automatic status updates based on deadlines
+      const content = await Content.findById(contentId);
+      if (content && content.deadline) {
+        const now = new Date();
+        const deadline = new Date(content.deadline);
+        const timeDiff = deadline.getTime() - now.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        
+        const existingProgress = await Progress.findOne({
+          TraineeObjectUserID: new ObjectId(traineeId),
+          ObjectContentID: new ObjectId(contentId)
+        });
+        
+        // Only auto-update if not completed
+        if (!existingProgress || existingProgress.status !== 'completed') {
+          if (daysDiff < 0) {
+            // Overdue
+            updateData.status = 'overdue';
+            console.log('⏰ Auto-updating status to "overdue" - deadline passed');
+          } else if (daysDiff <= 3) {
+            // Due soon
+            if (!existingProgress || existingProgress.status === 'not started') {
+              updateData.status = 'due soon';
+              console.log('⚠️ Auto-updating status to "due soon" - deadline within 3 days');
+            }
+          }
+        }
+      }
+    }
+
+    console.log('Update data:', updateData);
+
+    const result = await Progress.findOneAndUpdate(
+      {
+        TraineeObjectUserID: new ObjectId(traineeId),
+        ObjectContentID: new ObjectId(contentId)
+      },
+      {
+        $set: {
+          ...updateData,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          _id: new ObjectId(),
+          TraineeObjectUserID: new ObjectId(traineeId),
+          ObjectContentID: new ObjectId(contentId),
+          createdAt: new Date()
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    console.log('✅ Progress updated successfully:', result);
+
+    res.json({
+      success: true,
+      message: 'Progress updated successfully',
+      progress: result
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating content progress:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update progress',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/content/trainee/view/:contentId
+ * Mark content as viewed (sets status to "in progress" if not started)
+ */
+router.put('/trainee/view/:contentId', authenticate, async (req, res) => {
+  try {
+    console.log('=== CONTENT VIEW REQUEST ===');
+    
+    // Check if user is a trainee
+    if (req.user.role !== 'Trainee') {
+      console.log('❌ Access denied - not a trainee, role:', req.user.role);
+      return res.status(403).json({ success: false, message: 'Trainee access required' });
+    }
+
+    const traineeId = req.user?.id;
+    const { contentId } = req.params;
+
+    console.log('Trainee ID:', traineeId);
+    console.log('Content ID:', contentId);
+
+    if (!traineeId) {
+      console.log('❌ No trainee ID found');
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Check current progress
+    const existingProgress = await Progress.findOne({
+      TraineeObjectUserID: new ObjectId(traineeId),
+      ObjectContentID: new ObjectId(contentId)
+    });
+
+    let updateData = {};
+    
+    // Only update the last viewed time - don't automatically change status
+    // The trainee should explicitly acknowledge or start the content to change status
+    updateData.lastViewedAt = new Date();
+    
+    console.log('� Recording content view - maintaining existing status');
+
+    // Always update the last viewed time
+    updateData.lastViewedAt = new Date();
+    
+    // If not started or no progress record, mark as "in progress" when viewing
+    if (!existingProgress || existingProgress.status === 'not started') {
+      updateData.status = 'in progress';
+      console.log('📈 Auto-updating status from "not started" to "in progress" due to content view');
+    }
+    
+    // Status should be changed when trainee explicitly acknowledges content
+    console.log('� Recording content view - maintaining existing status');
+    
+    updateData.updatedAt = new Date();
+
+    const result = await Progress.findOneAndUpdate(
+      {
+        TraineeObjectUserID: new ObjectId(traineeId),
+        ObjectContentID: new ObjectId(contentId)
+      },
+      {
+        $set: updateData,
+        $setOnInsert: {
+          _id: new ObjectId(),
+          TraineeObjectUserID: new ObjectId(traineeId),
+          ObjectContentID: new ObjectId(contentId),
+          createdAt: new Date()
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    console.log('✅ Content view updated successfully:', result);
+
+    res.json({
+      success: true,
+      message: 'Content view updated successfully',
+      progress: result
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating content view:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update content view',
+      error: error.message
+    });
+  }
+});
 
 export default router;
