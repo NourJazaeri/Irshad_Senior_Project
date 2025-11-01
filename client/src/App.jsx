@@ -1,4 +1,5 @@
 import React from "react";
+import ToastPortal from "./components/ToastPortal.jsx";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
@@ -72,6 +73,7 @@ export default function App() {
 
   return (
     <>
+      <ToastPortal />
       {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
 
@@ -96,6 +98,7 @@ export default function App() {
           <Route path="departments/:departmentName/details" element={<DepartmentDetails />} />
           <Route path="departments/:departmentName/assign-members" element={<AssignMembers />} />
           <Route path="groups/:id" element={<AdminGroupDetails />} />
+          <Route path="groups/:id/templates" element={<AdminTemplateManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="employees/:id" element={<EmployeeDetails />} />
           <Route path="trainees/:id" element={<TraineeDetails />} />
@@ -112,6 +115,7 @@ export default function App() {
           <Route path="content/:id/view" element={<ContentView />} />
           <Route path="templates" element={<SupervisorTemplateManagement />} />
           <Route path="groups/:id" element={<SupervisorGroupDetails />} />
+          <Route path="groups/:id/templates" element={<SupervisorTemplateManagement />} />
         </Route>
 
         {/* Dashboard Routes */}

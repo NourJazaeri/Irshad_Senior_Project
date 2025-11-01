@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
 import '../styles/TemplateForm.css';
@@ -174,11 +175,17 @@ const TemplateForm = ({ template, onClose, onTemplateSaved }) => {
 
   return (
     <div className="template-form-overlay">
-      <div className="template-form-container">
+      <div className="template-form-container" style={{ overflowY: 'auto', maxHeight: '90vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="template-form-header">
           <h2>{template.title}</h2>
           <p className="template-description">{template.description}</p>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button 
+            className="close-btn" 
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <div className="template-form-content">

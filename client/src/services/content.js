@@ -235,3 +235,53 @@ export async function getDepartments() {
     throw error;
   }
 }
+
+/**
+ * Unified AI gateway
+ * task: 'quiz' | 'summarize' | 'keywords' | ...
+ * Provide exactly one of: file | text | url
+ */
+export async function generateAI({ task, file, text, url, numQuestions = 5 }) {
+  const token = localStorage.getItem('token');
+  let response;
+  if (file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('task', task);
+    fd.append('numQuestions', String(numQuestions));
+    response = await fetch(`${API_BASE}/api/content/ai`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: fd
+    });
+  } else {
+    const body = url ? { task, url, numQuestions } : { task, text, numQuestions };
+    response = await fetch(`${API_BASE}/api/content/ai`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+  }
+  // Parse response
+  const data = await response.json().catch(() => ({}));
+  
+  if (!response.ok) {
+    // Extract error message with suggestion if available
+    let errorMessage = data.error || 'AI request failed';
+    
+    // Append suggestion if provided by backend
+    if (data.suggestion) {
+      errorMessage += '\n\nSuggestion: ' + data.suggestion;
+    }
+    
+    throw new Error(errorMessage);
+  }
+  
+  return data;
+}

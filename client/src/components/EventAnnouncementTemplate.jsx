@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Target, Users, Award, Calendar, MapPin } from 'lucide-react';
+import { Flame, Target, Users, Award, Calendar, MapPin, X } from 'lucide-react';
 import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
 import '../styles/EventAnnouncementTemplate.css';
@@ -177,8 +177,14 @@ const EventAnnouncementTemplate = ({ onClose, onTemplateSaved }) => {
 
   return (
     <div className="template-form-overlay">
-      <div className="event-container">
-        <button className="close-btn" onClick={onClose}>✕</button>
+      <div className="event-container" style={{ overflowY: 'auto', maxHeight: '90vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <button 
+          className="close-btn" 
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
         
         <div className="event-header">
           <h1>{formData.title}</h1>

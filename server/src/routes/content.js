@@ -12,7 +12,10 @@ import Trainee from '../models/Trainee.js';
 import Admin from '../models/Admin.js';
 import Supervisor from '../models/Supervisor.js';
 import Employee from '../models/Employees.js';
+import Quiz from '../models/Quiz.js';
 import { requireAdmin, requireAdminOrSupervisor } from '../middleware/authMiddleware.js';
+import axios from 'axios';
+import FormData from 'form-data';
 
 const { Types } = mongoose;
 const { ObjectId } = Types;
@@ -20,6 +23,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Helper: normalize a single ObjectId value which may arrive as array or JSON string
+function normalizeIdField(value) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0];
+  if (typeof value === 'string') {
+    try {
+      if (value.startsWith('[')) {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed[0] : parsed;
+      }
+      return value;
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
 
 /**
  * GET /api/content/test
@@ -411,6 +432,12 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       }
     }
     
+    const normGroupId = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId = normalizeIdField(assignedTo_traineeID);
+    console.log('🧭 Normalized IDs:', { normGroupId, normTraineeId, rawGroup: assignedTo_GroupID, rawTrainee: assignedTo_traineeID });
+
+    const normGroupId2 = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId2 = normalizeIdField(assignedTo_traineeID);
     const content = new Content({
       title: title || req.file.originalname,
       description: description || '',
@@ -419,9 +446,9 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normGroupId,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: normTraineeId,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
@@ -485,9 +512,9 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: videoId,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: normalizeIdField(assignedTo_traineeID),
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
@@ -556,6 +583,8 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       console.log('🎥 Extracted video ID:', youtubeVideoId);
     }
 
+    const normGroupId3 = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId3 = normalizeIdField(assignedTo_traineeID);
     const content = new Content({
       title: title || 'External Link',
       description: description || '',
@@ -565,9 +594,9 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: youtubeVideoId, // Add YouTube video ID if it's a YouTube URL
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normGroupId3,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: normTraineeId3,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
@@ -932,12 +961,12 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
     console.log('📝 Content title:', existingContent.title);
     console.log('📝 Content assignedBy_adminID:', existingContent.assignedBy_adminID);
     console.log('📝 Content assignedBy_adminID type:', typeof existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID constructor:', existingContent.assignedBy_adminID.constructor.name);
+    console.log('📝 Content assignedBy_adminID constructor:', existingContent.assignedBy_adminID ? existingContent.assignedBy_adminID.constructor.name : 'null');
 
     console.log('🔍 Ownership check:');
     console.log('📝 Content assignedBy_adminID:', existingContent.assignedBy_adminID);
     console.log('📝 Content assignedBy_adminID type:', typeof existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID toString:', existingContent.assignedBy_adminID.toString());
+    console.log('📝 Content assignedBy_adminID toString:', existingContent.assignedBy_adminID ? existingContent.assignedBy_adminID.toString() : 'null');
     console.log('📝 Request user ID:', req.user.id);
     console.log('📝 Request user ID type:', typeof req.user.id);
     
@@ -1319,4 +1348,224 @@ router.delete('/:id', requireAdminOrSupervisor, async (req, res) => {
 });
 
 
+
 export default router;
+
+/**
+ * POST /api/content/ai
+ * Unified AI gateway. Accepts task + (file|text|url) and proxies to Python AI service.
+ */
+router.post('/ai', requireAdminOrSupervisor, upload.single('file'), async (req, res) => {
+  try {
+    const PY_AI_URL = process.env.PY_AI_SERVICE_URL || 'http://localhost:8001';
+    const task = req.body.task;
+    const numQuestions = parseInt(req.body.numQuestions || '5', 10);
+    const incomingUrl = (req.body && (req.body.url || req.body.link || req.body.linkUrl)) || '';
+    const incomingText = (req.body && req.body.text) || '';
+
+    if (!task) {
+      return res.status(400).json({ ok: false, error: 'Missing task' });
+    }
+
+    let aiResponse;
+    if (req.file && req.file.path) {
+      const formData = new FormData();
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const filename = path.basename(req.file.originalname || 'upload');
+      formData.append('file', fileBuffer, { filename, contentType: req.file.mimetype || 'application/octet-stream' });
+      formData.append('task', String(task));
+      formData.append('numQuestions', String(numQuestions));
+      aiResponse = await axios.post(`${PY_AI_URL}/ai`, formData, {
+        headers: formData.getHeaders ? formData.getHeaders() : {},
+        maxBodyLength: Infinity
+      });
+    } else if (incomingText) {
+      aiResponse = await axios.post(`${PY_AI_URL}/ai`, { task, text: String(incomingText), numQuestions });
+    } else if (incomingUrl) {
+      aiResponse = await axios.post(`${PY_AI_URL}/ai`, { task, url: String(incomingUrl), numQuestions });
+    } else {
+      return res.status(400).json({ ok: false, error: "Provide 'file' or 'text' or 'url'" });
+    }
+
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+
+    const data = aiResponse.data;
+    return res.json({ ok: true, ...data });
+  } catch (error) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+    const message = error?.response?.data?.error || error.message || 'AI request failed';
+    return res.status(500).json({ ok: false, error: message });
+  }
+});
+
+/**
+ * GET /api/content/:id/quiz
+ * Get all quiz entities linked to a specific content item
+ */
+router.get('/:id/quiz', requireAdminOrSupervisor, async (req, res) => {
+  try {
+    const contentId = req.params.id;
+    
+    // Validate content ID format
+    if (!contentId || !/^[0-9a-fA-F]{24}$/.test(contentId)) {
+      return res.status(400).json({ ok: false, error: 'Invalid content ID format' });
+    }
+
+    // Find all quizzes for this content
+    const quizzes = await Quiz.find({ ObjectContentID: contentId })
+      .populate('createdBy_adminID', 'firstName lastName username')
+      .populate('createdBy_supervisorID', 'firstName lastName username')
+      .sort({ createdAt: -1 });
+
+    return res.json({ ok: true, quizzes });
+  } catch (err) {
+    console.error('Error fetching quizzes:', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to fetch quizzes' });
+  }
+});
+
+/**
+ * POST /api/content/:id/quiz
+ * Persist a quiz entity linked to a content item
+ * Body: { questions: [{ question, options[4], correctAnswer (index)|correctAnswerText }], isAiGenerated? }
+ * Supports both JSON and multipart/form-data
+ */
+router.post('/:id/quiz', requireAdminOrSupervisor, upload.none(), async (req, res) => {
+  try {
+    console.log('📥 POST /api/content/:id/quiz - Received request');
+    console.log('📥 Content ID:', req.params.id);
+    console.log('📥 User:', req.user.role, req.user.id);
+    console.log('📥 Request body:', req.body);
+    console.log('📥 Content-Type:', req.headers['content-type']);
+
+    const contentId = req.params.id;
+    
+    // Validate content ID format
+    if (!contentId || !/^[0-9a-fA-F]{24}$/.test(contentId)) {
+      console.error('❌ Invalid content ID format:', contentId);
+      return res.status(400).json({ ok: false, error: 'Invalid content ID format' });
+    }
+
+    // Verify content exists
+    const content = await Content.findById(contentId);
+    if (!content) {
+      console.error('❌ Content not found:', contentId);
+      return res.status(404).json({ ok: false, error: 'Content not found' });
+    }
+
+    let { questions = [], isAiGenerated = true } = req.body || {};
+
+    // Support multipart/form-data where questions may arrive as a JSON string
+    if (typeof questions === 'string') {
+      try {
+        questions = JSON.parse(questions);
+        console.log('✅ Parsed questions from JSON string');
+      } catch (e) {
+        console.error('❌ Failed to parse questions JSON:', e);
+        return res.status(400).json({ ok: false, error: 'Invalid questions payload (not valid JSON)' });
+      }
+    }
+
+    console.log('📝 Processing questions:', questions.length);
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      console.error('❌ No questions provided or not an array');
+      return res.status(400).json({ ok: false, error: 'questions array required with at least one question' });
+    }
+
+    // Normalize questions
+    const normalized = questions.map((q, idx) => {
+      const options = Array.isArray(q.options) ? q.options.map(String) : [];
+      let correct = q.correctAnswerText;
+      
+      // If correctAnswerText is not provided, use correctAnswer index to get the text
+      if ((correct === undefined || correct === null || correct === '') && 
+          typeof q.correctAnswer === 'number' && 
+          options[q.correctAnswer] !== undefined) {
+        correct = options[q.correctAnswer];
+      }
+      
+      const normalized = {
+        questionText: String(q.question || q.questionText || '').trim(),
+        options: options,
+        correctAnswer: String(correct || '').trim(),
+      };
+      
+      console.log(`📝 Question ${idx + 1}:`, {
+        questionText: normalized.questionText.substring(0, 50),
+        optionsCount: normalized.options.length,
+        correctAnswer: normalized.correctAnswer.substring(0, 30)
+      });
+      
+      return normalized;
+    }).filter((q, idx) => {
+      const isValid = q.questionText && q.options.length >= 2 && q.correctAnswer;
+      if (!isValid) {
+        console.warn(`⚠️ Question ${idx + 1} filtered out - invalid:`, {
+          hasQuestionText: !!q.questionText,
+          optionsLength: q.options.length,
+          hasCorrectAnswer: !!q.correctAnswer
+        });
+      }
+      return isValid;
+    });
+
+    if (normalized.length === 0) {
+      console.error('❌ No valid questions after normalization');
+      return res.status(400).json({ ok: false, error: 'No valid questions to save. Each question must have text, at least 2 options, and a correct answer.' });
+    }
+
+    console.log('✅ Checking if quiz already exists for content:', contentId);
+
+    // Check if a quiz already exists for this content
+    let existingQuiz = await Quiz.findOne({ ObjectContentID: contentId });
+
+    let saved;
+    if (existingQuiz) {
+      console.log('📝 Updating existing quiz:', existingQuiz._id);
+      
+      // Update the existing quiz
+      existingQuiz.questions = normalized;
+      existingQuiz.isAiGenerated = !!isAiGenerated;
+      
+      // Update creator info (in case a different admin/supervisor is updating)
+      if (req.user.role === 'Admin') {
+        existingQuiz.createdBy_adminID = req.user.id;
+        existingQuiz.createdBy_supervisorID = null;
+      } else if (req.user.role === 'Supervisor') {
+        existingQuiz.createdBy_supervisorID = req.user.id;
+        existingQuiz.createdBy_adminID = null;
+      }
+      
+      saved = await existingQuiz.save();
+      console.log('✅ Quiz updated successfully:', saved._id);
+    } else {
+      console.log('➕ Creating new quiz document with', normalized.length, 'questions');
+      
+      const quizDoc = new Quiz({
+        isAiGenerated: !!isAiGenerated,
+        questions: normalized,
+        createdBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
+        createdBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null,
+        ObjectContentID: contentId,
+      });
+
+      saved = await quizDoc.save();
+      console.log('✅ Quiz created successfully:', saved._id);
+    }
+    
+    return res.status(existingQuiz ? 200 : 201).json({ 
+      ok: true, 
+      quiz: saved,
+      action: existingQuiz ? 'updated' : 'created'
+    });
+  } catch (err) {
+    console.error('❌ Error saving quiz:', err);
+    console.error('❌ Error stack:', err.stack);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to save quiz' });
+  }
+});

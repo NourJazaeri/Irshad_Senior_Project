@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 import '../styles/TemplateDetails.css';
 
 const TemplateDetails = ({ template, onClose, onUseTemplate }) => {
@@ -21,7 +22,7 @@ const TemplateDetails = ({ template, onClose, onUseTemplate }) => {
 
   return (
     <div className="template-details-overlay">
-      <div className="template-details-modal">
+      <div className="template-details-modal" style={{ overflowY: 'auto', maxHeight: '90vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="template-details-header">
           <div className="template-details-title">
             <h2>{template.title}</h2>
@@ -30,8 +31,12 @@ const TemplateDetails = ({ template, onClose, onUseTemplate }) => {
               <span className="template-category-badge">{template.category}</span>
             </div>
           </div>
-          <button className="close-details-btn" onClick={onClose}>
-            ✕
+          <button 
+            className="close-details-btn" 
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
