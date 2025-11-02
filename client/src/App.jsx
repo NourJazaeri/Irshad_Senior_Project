@@ -1,4 +1,5 @@
 import React from "react";
+import ToastPortal from "./components/ToastPortal.jsx";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
@@ -8,9 +9,11 @@ import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
+import SupervisorHome from "./pages/SupervisorHome.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
+import TraineeLayout from "./pages/TraineeLayout.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 
@@ -72,6 +75,7 @@ export default function App() {
 
   return (
     <>
+      <ToastPortal />
       {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
 
@@ -96,6 +100,7 @@ export default function App() {
           <Route path="departments/:departmentName/details" element={<DepartmentDetails />} />
           <Route path="departments/:departmentName/assign-members" element={<AssignMembers />} />
           <Route path="groups/:id" element={<AdminGroupDetails />} />
+          <Route path="groups/:id/templates" element={<AdminTemplateManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="employees/:id" element={<EmployeeDetails />} />
           <Route path="trainees/:id" element={<TraineeDetails />} />
@@ -105,17 +110,21 @@ export default function App() {
 
         {/* Supervisor Routes */}
         <Route path="/supervisor" element={<SupervisorLayout />}>
-          <Route index element={<SupervisorDashboard />} />
-          <Route path="empty" element={<div style={{padding: '20px'}}><h2>Dashboard</h2><p>This page is intentionally left empty.</p></div>} />
+          <Route index element={<SupervisorHome />} />
+          <Route path="groups" element={<SupervisorDashboard />} />
           <Route path="content" element={<SupervisorContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />
           <Route path="content/:id/view" element={<ContentView />} />
           <Route path="templates" element={<SupervisorTemplateManagement />} />
           <Route path="groups/:id" element={<SupervisorGroupDetails />} />
+          <Route path="groups/:id/templates" element={<SupervisorTemplateManagement />} />
         </Route>
 
-        {/* Dashboard Routes */}
-        <Route path="/trainee" element={<TraineeDashboard />} />
+        {/* Trainee Routes */}
+        <Route path="/trainee" element={<TraineeLayout />}>
+          <Route index element={<TraineeDashboard />} />
+          <Route path="content/:id" element={<ContentView />} />
+        </Route>
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
 
         {/* WebOwner Layout Routes (from ActiveCompaniesFeature) */}

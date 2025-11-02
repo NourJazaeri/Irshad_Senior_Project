@@ -1,0 +1,19 @@
+/* Force static sidebar for trainee content view */
+.trainee-content-view .sidebar-static-override {
+  position: relative !important;
+  transform: none !important;
+  height: 100vh !important;
+  width: 100% !important;
+  z-index: auto !important;
+}
+
+.trainee-content-view .sidebar-static-override aside {
+  position: relative !important;
+  transform: translateX(0) !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.trainee-content-view {
+  overflow: hidden !important;
+}

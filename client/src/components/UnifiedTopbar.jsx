@@ -84,7 +84,7 @@ const getPageTitle = (pathname, userType) => {
   } else if (userType === 'supervisor') {
     switch (pathname) {
       case '/supervisor':
-        return 'Groups';
+        return 'Dashboard';
       case '/supervisor/groups':
         return 'Groups';
       case '/supervisor/content':
@@ -139,7 +139,7 @@ const getPageIcon = (pathname, userType) => {
   } else if (userType === 'supervisor') {
     switch (pathname) {
       case '/supervisor':
-        return Users;
+        return Home;
       case '/supervisor/groups':
         return Users;
       case '/supervisor/content':

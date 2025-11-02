@@ -1,3 +1,13 @@
+/* Hide Scrollbar for AddContentModal */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* Content Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -110,6 +120,12 @@
   max-height: 95vh;
   overflow-y: auto;
   position: relative;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.modal-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .modal-header {

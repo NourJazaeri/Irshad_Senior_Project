@@ -235,3 +235,190 @@ export async function getDepartments() {
     throw error;
   }
 }
+
+/**
+ * Test department assignment endpoint
+ */
+export async function testDepartmentAssignment(departmentId) {
+  try {
+    const response = await fetch(`${API_BASE}/api/content/test-department/${departmentId}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Department test data:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error in department test:', error);
+    throw error;
+  }
+}
+
+/**
+ * Debug endpoint to check trainee assignment relationships
+ */
+export async function debugTraineeAssignment() {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/api/content/trainee/debug`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ API Error Response:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Debug assignment data:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error in debug assignment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch content assigned to the authenticated trainee
+ */
+export async function fetchTraineeAssignedContent() {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/api/content/trainee/assigned`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ API Error Response:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Trainee assigned content:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching trainee assigned content:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update progress for a specific content item
+ */
+export async function updateContentProgress(contentId, progressData) {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/api/content/trainee/progress/${contentId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(progressData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ API Error Response:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Progress updated:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating content progress:', error);
+    throw error;
+  }
+}
+
+/**
+ * Unified AI gateway
+ * task: 'quiz' | 'summarize' | 'keywords' | ...
+ * Provide exactly one of: file | text | url
+ */
+export async function generateAI({ task, file, text, url, numQuestions = 5 }) {
+  const token = localStorage.getItem('token');
+  let response;
+  if (file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('task', task);
+    fd.append('numQuestions', String(numQuestions));
+    response = await fetch(`${API_BASE}/api/content/ai`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: fd
+    });
+  } else {
+    const body = url ? { task, url, numQuestions } : { task, text, numQuestions };
+    response = await fetch(`${API_BASE}/api/content/ai`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+  }
+  // Parse response
+  const data = await response.json().catch(() => ({}));
+  
+  if (!response.ok) {
+    // Extract error message with suggestion if available
+    let errorMessage = data.error || 'AI request failed';
+    
+    // Append suggestion if provided by backend
+    if (data.suggestion) {
+      errorMessage += '\n\nSuggestion: ' + data.suggestion;
+    }
+    
+    throw new Error(errorMessage);
+  }
+  
+  return data;
+}

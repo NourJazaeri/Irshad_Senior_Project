@@ -18,6 +18,7 @@ import adminUserManagement from './routes/adminUserManagement.js';
 import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groups.js";
 import supervisorGroupsRouter from './routes/supervisorGroups.js';
+import supervisorProfileRouter from './routes/supervisorProfile.js';
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import employeesRouter from './routes/employees.js';
 import content from './routes/content.js';
@@ -88,6 +89,7 @@ app.use('/api/admin/groups', adminGroupsRouter);
 
 // NEW: Supervisor routes (overview + my-groups, etc.)
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
+app.use('/api/supervisor', supervisorProfileRouter);
 
 app.use("/api/departments", departmentRoutes);
 app.use("/api/groups", groupRoutes);

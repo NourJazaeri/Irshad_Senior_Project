@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
-import { Lightbulb, BarChart3, Zap, Target, TrendingUp, Wrench } from 'lucide-react';
+import { Lightbulb, BarChart3, Zap, Target, TrendingUp, Wrench, X } from 'lucide-react';
 import '../styles/KnowledgeCardsTemplate.css';
 
 const KnowledgeCardsTemplate = ({ onClose, onTemplateSaved, isReadOnly = false, templateData: externalTemplateData = null }) => {
@@ -234,8 +234,14 @@ const KnowledgeCardsTemplate = ({ onClose, onTemplateSaved, isReadOnly = false, 
 
   return (
     <div className="template-form-overlay">
-      <div className="knowledge-cards-container">
-        <button className="close-btn" onClick={onClose}>✕</button>
+      <div className="knowledge-cards-container" style={{ overflowY: 'auto', maxHeight: '90vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <button 
+          className="close-btn" 
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
         
         <div className="header-section">
           <h1>
