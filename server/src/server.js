@@ -19,9 +19,11 @@ import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groups.js";
 import supervisorGroupsRouter from './routes/supervisorGroups.js';
 import supervisorProfileRouter from './routes/supervisorProfile.js';
+import traineeProfileRouter from './routes/traineeProfile.js';
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import employeesRouter from './routes/employees.js';
 import content from './routes/content.js';
+import todoRouter from './routes/todo.js';
 
 console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
 
@@ -53,7 +55,7 @@ app.use(cors({
     return callback(new Error(`CORS policy: origin ${origin} is not allowed`), false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -91,10 +93,14 @@ app.use('/api/admin/groups', adminGroupsRouter);
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
 app.use('/api/supervisor', supervisorProfileRouter);
 
+// Trainee routes
+app.use('/api/trainee', traineeProfileRouter);
+
 app.use("/api/departments", departmentRoutes);
 app.use("/api/groups", groupRoutes);
 app.use('/api/employees', employeesRouter);
 app.use('/api/content', content);
+app.use('/api/todos', todoRouter);
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Frontend static (if built)

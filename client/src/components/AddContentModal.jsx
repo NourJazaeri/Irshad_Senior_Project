@@ -2541,22 +2541,42 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                 width: '40px',
                 height: '40px',
                 borderRadius: '50%',
-                background: '#fee2e2'
+                background: (customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#dcfce7' : '#fee2e2'
               }}
             >
-              <svg 
-                style={{ width: '24px', height: '24px', color: '#dc2626' }} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth="2" 
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-                />
-              </svg>
+              {
+                (customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? (
+                  // Success: check circle
+                  <svg 
+                    style={{ width: '24px', height: '24px', color: '#16a34a' }} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth="2" 
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    />
+                  </svg>
+                ) : (
+                  // Default: warning triangle
+                  <svg 
+                    style={{ width: '24px', height: '24px', color: '#dc2626' }} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth="2" 
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                    />
+                  </svg>
+                )
+              }
             </div>
             <h2 
               style={{
@@ -2590,12 +2610,12 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
               onClick={closeAlert}
               className="px-6 py-2 rounded-lg font-medium text-sm text-white transition-all duration-150"
               style={{
-                background: '#3b82f6',
+                background: (customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#16a34a' : '#3b82f6',
                 border: 'none',
                 cursor: 'pointer'
               }}
-              onMouseEnter={(e) => e.target.style.background = '#2563eb'}
-              onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+              onMouseEnter={(e) => e.target.style.background = ((customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#15803d' : '#2563eb')}
+              onMouseLeave={(e) => e.target.style.background = ((customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#16a34a' : '#3b82f6')}
             >
               OK
             </button>

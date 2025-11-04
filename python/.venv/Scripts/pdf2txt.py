@@ -1,4 +1,4 @@
-#!C:\Users\Majestic Int\Desktop\PSU\SE499 - Senior Project\Sprint - 3\Irshad_Senior_Project_ContentWithQuiz\Irshad_Senior_Project-Quiz_Generation\python\.venv\Scripts\python.exe
+#!C:\Users\HUAWEI\Documents\GitHub\Irshad_Senior_Project\python\.venv\Scripts\python.exe
 """A command line tool for extracting text and images from PDF and
 output it to plain text, html, xml or tags.
 """
