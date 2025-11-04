@@ -59,6 +59,7 @@ import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
 import "./styles/owner-components.css";
 import './styles/supervisor.css';
+import TodoList from "./pages/TodoList.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -69,7 +70,7 @@ export default function App() {
   const adminRoutes = ['/admin'];
   const ownerRoutes = ['/owner'];
   const isLoginRoute = loginRoutes.includes(location.pathname);
-  const isDashboardRoute = dashboardRoutes.includes(location.pathname) || location.pathname.startsWith('/supervisor');
+  const isDashboardRoute = dashboardRoutes.includes(location.pathname) || location.pathname.startsWith('/supervisor') || location.pathname.startsWith('/trainee');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isOwnerRoute = location.pathname.startsWith('/owner');
 
@@ -123,6 +124,7 @@ export default function App() {
         {/* Trainee Routes */}
         <Route path="/trainee" element={<TraineeLayout />}>
           <Route index element={<TraineeDashboard />} />
+          <Route path="todo" element={<TodoList />} />
           <Route path="content/:id" element={<ContentView />} />
         </Route>
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />

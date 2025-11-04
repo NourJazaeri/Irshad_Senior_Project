@@ -64,12 +64,13 @@ const navigationConfigs = {
     ]
   }
   ,
-  // Trainee user type: only show dashboard
+  // Trainee user type: show dashboard and todo list
   trainee: {
     brand: { name: 'Irshad', subtitle: 'Trainee' },
     user: { name: 'Trainee', role: 'trainee@company.com', avatar: 'T' },
     items: [
-      { name: 'Dashboard', href: '/trainee', icon: Home }
+      { name: 'Dashboard', href: '/trainee', icon: Home },
+      { name: 'To Do List', href: '/trainee/todo', icon: ClipboardList }
     ]
   }
 };
@@ -235,9 +236,17 @@ export const UnifiedSidebar = ({
             const displayName = profile.firstName || formatDisplayName(profile.email || userData?.email);
             
             setAdminData({
-              firstName: displayName,
+              firstName: displayName || formatDisplayName(profile.email || userData?.email || ''),
               lastName: profile.lastName || '',
               email: profile.email || userData?.email || `${userType.toLowerCase()}@company.com`
+            });
+          } else if (userData) {
+            // If API fails but we have localStorage data, use it
+            const displayName = userData.firstName || formatDisplayName(userData.email);
+            setAdminData({
+              firstName: displayName || 'Trainee',
+              lastName: userData.lastName || '',
+              email: userData.email || `${userType.toLowerCase()}@company.com`
             });
           }
         } catch (error) {
@@ -396,17 +405,19 @@ export const UnifiedSidebar = ({
           <div className={cn("flex items-center", collapsed ? "justify-center py-2" : "gap-4 px-4 py-4")}> 
             <div 
               className="w-12 h-12 rounded-full bg-[#e6eef5] text-[#0A2C5C] flex items-center justify-center font-bold text-lg flex-shrink-0 relative group"
-              title={collapsed ? (userType === 'admin' ? `${adminData.firstName} ${adminData.lastName} - Admin` : userType === 'trainee' ? `${adminData.firstName} ${adminData.lastName} - Trainee` : userType === 'supervisor' ? `${adminData.firstName} ${adminData.lastName} - Supervisor` : `${config.user.name} - ${config.user.role}`) : undefined}
+              title={collapsed ? (userType === 'admin' ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Admin' : userType === 'trainee' ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Trainee' : userType === 'supervisor' ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Supervisor' : `${config.user.name} - ${config.user.role}`) : undefined}
             >
               {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) 
-                ? String(adminData.firstName || '').split(' ')[0].charAt(0).toUpperCase()
+                ? (adminData.firstName?.charAt(0) || adminData.email?.charAt(0) || 'T').toUpperCase()
                 : config.user.avatar}
               
               {/* Tooltip for collapsed state */}
               {collapsed && (
                 <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                   <div className="font-semibold">
-                    {['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType) ? `${adminData.firstName} ${adminData.lastName}` : config.user.name}
+                    {['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType) 
+                      ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || adminData.email?.split('@')[0] || config.user.name
+                      : config.user.name}
                   </div>
                   <div className="text-xs text-gray-300">
                     {['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType) ? userType.charAt(0).toUpperCase() + userType.slice(1) : config.user.role}
@@ -419,7 +430,9 @@ export const UnifiedSidebar = ({
             {!collapsed && (
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="text-base font-semibold truncate text-[#e6eef5]">
-                  {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? `${adminData.firstName} ${adminData.lastName}` : config.user.name}
+                  {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) 
+                    ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || adminData.email?.split('@')[0] || config.user.name
+                    : config.user.name}
                 </p>
                 <p className="text-sm font-medium text-[#e6eef5]/75 truncate" title={(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? userType.charAt(0).toUpperCase() + userType.slice(1) : config.user.role}>
                   {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? userType.charAt(0).toUpperCase() + userType.slice(1) : config.user.role}
