@@ -11,6 +11,7 @@ export default function SupervisorDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Fetch supervisor overview and groups
     (async () => {
       try {
         const [ov, gr] = await Promise.all([
@@ -32,12 +33,9 @@ export default function SupervisorDashboard() {
   }, []);
 
   return (
-    <div>
-          {/* Title */}
-          <h1 className="sv-title">Welcome, {name}!</h1>
-
+    <div style={{ padding: '20px' }}>
           {/* KPI cards */}
-          <div className="sv-grid sv-grid-2" style={{ marginBottom: '32px' }}>
+          <div className="sv-grid sv-grid-2" style={{ marginBottom: '24px' }}>
             <div className="sv-card sv-card-pad">
               <div className="sv-kpi-title">
                 <FiUserCheck /> Total Trainees
@@ -55,7 +53,7 @@ export default function SupervisorDashboard() {
           </div>
 
           {/* Groups */}
-          <h2 className="sv-section-title">My Supervised Groups</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: '0 0 16px 0' }}>My Supervised Groups</h2>
           {loading ? (
             <div className="sv-card sv-card-muted" style={{ padding: '40px', textAlign: 'center' }}>
               Loading…

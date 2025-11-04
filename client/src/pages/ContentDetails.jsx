@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, 
@@ -20,6 +20,7 @@ import AddContentModal from '../components/AddContentModal';
 const ContentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState([]);
@@ -27,6 +28,17 @@ const ContentDetails = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [quizzes, setQuizzes] = useState([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  
+  // Detect if we're in a group context
+  const isInGroupContext = () => {
+    const pathParts = location.pathname.split('/');
+    const groupsIndex = pathParts.findIndex(part => part === 'groups');
+    return groupsIndex !== -1 && pathParts[groupsIndex + 1];
+  };
+  
+  const inGroupContext = isInGroupContext();
 
   // Fetch content details
   useEffect(() => {
@@ -52,6 +64,9 @@ const ContentDetails = () => {
           if (contentData.assignedTo_depID && contentData.assignedTo_depID.length > 0) {
             fetchDepartments();
           }
+          
+          // Fetch quizzes for this content
+          fetchQuizzes();
         } else {
           console.error('Failed to fetch content');
         }
@@ -66,6 +81,31 @@ const ContentDetails = () => {
       fetchContent();
     }
   }, [id]);
+
+  // Fetch quizzes from database
+  const fetchQuizzes = async () => {
+    setLoadingQuizzes(true);
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      
+      const response = await fetch(`${API_BASE}/api/content/${id}/quiz`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuizzes(data.quizzes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching quizzes:', error);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
 
   // Fetch departments
   const fetchDepartments = async () => {
@@ -875,23 +915,25 @@ const ContentDetails = () => {
     <div className="mx-auto px-4 py-6" style={{ maxWidth: '95%' }}>
       {/* All Content Wrapped Together */}
       <div className="bg-card rounded-xl border border-border p-12 shadow-card mb-6">
-        {/* Breadcrumb Navigation */}
-        <div className="mb-6" style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>
-          <span 
-            style={{ color: '#6b7280', cursor: 'pointer' }} 
-            onClick={() => {
-              const isSupervisor = window.location.pathname.includes('/supervisor');
-              const backRoute = isSupervisor ? '/supervisor/content' : '/admin/content';
-              navigate(backRoute);
-            }}
-          >
-            Content Library
-          </span>
-          <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
-          <span style={{ color: '#111827', fontWeight: '700' }}>
-            {content?.title || 'Loading...'}
-          </span>
-        </div>
+        {/* Breadcrumb Navigation - only show if not in group context */}
+        {!inGroupContext && (
+          <div className="mb-6" style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>
+            <span 
+              style={{ color: '#6b7280', cursor: 'pointer' }} 
+              onClick={() => {
+                const isSupervisor = window.location.pathname.includes('/supervisor');
+                const backRoute = isSupervisor ? '/supervisor/content' : '/admin/content';
+                navigate(backRoute);
+              }}
+            >
+              Content Library
+            </span>
+            <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
+            <span style={{ color: '#111827', fontWeight: '700' }}>
+              {content?.title || 'Loading...'}
+            </span>
+          </div>
+        )}
 
         {/* Content Header */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -1076,6 +1118,86 @@ const ContentDetails = () => {
         </div>
         </div>
       </div>
+
+      {/* Quiz Card - Show quizzes from database */}
+      {loadingQuizzes ? (
+        <div className="bg-card rounded-xl border border-border p-10 mb-8 shadow-card">
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-muted-foreground">Loading quiz...</span>
+          </div>
+        </div>
+      ) : quizzes.length > 0 ? (
+        <div className="bg-card rounded-xl border border-border p-10 mb-8 shadow-card">
+          {(() => {
+            const quiz = quizzes[0]; // Only show the first (and only) quiz
+            return (
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold flex items-center gap-3 text-foreground">
+                    <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center">
+                      <CheckCircle className="w-8 h-8 text-purple-600" />
+                    </div>
+                    Quiz Questions
+                  </h3>
+                  <span className="text-sm text-muted-foreground bg-purple-50 px-4 py-2 rounded-full">
+                    {quiz.questions.length} Question{quiz.questions.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* Questions */}
+                <div className="space-y-4">
+                  {quiz.questions.map((q, idx) => {
+                    const questionText = q.questionText || '';
+                    const options = q.options || [];
+                    const correctAnswer = q.correctAnswer || '';
+                    const correctIdx = options.findIndex(o => String(o).trim() === String(correctAnswer).trim());
+                    
+                    return (
+                      <div key={idx} className="bg-white rounded-lg border-2 border-gray-200 p-5 hover:border-purple-300 transition-colors">
+                        <div className="flex items-start gap-3 mb-4">
+                          <span className="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                            {idx + 1}
+                          </span>
+                          <div className="font-semibold text-lg text-foreground flex-1">{questionText}</div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-11">
+                          {options.map((opt, i) => (
+                            <div 
+                              key={i} 
+                              className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                                i === correctIdx 
+                                  ? 'border-green-500 bg-green-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {i === correctIdx && (
+                                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                )}
+                                <span className={`text-sm ${
+                                  i === correctIdx 
+                                    ? 'text-green-700 font-semibold' 
+                                    : 'text-gray-700'
+                                }`}>
+                                  {opt}
+                                </span>
+                              </div>
+                              {i === correctIdx && (
+                                <span className="text-xs text-green-600 font-medium ml-7">✓ Correct Answer</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      ) : null}
 
       {/* Template Content Display */}
       {content.contentType === 'template' && content.templateData && (

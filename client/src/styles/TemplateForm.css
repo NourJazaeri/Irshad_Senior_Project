@@ -24,6 +24,12 @@
   overflow-y: auto;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   margin: 20px 0;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.template-form-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .template-form-header {

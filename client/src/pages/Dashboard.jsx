@@ -1,10 +1,61 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, FolderOpen, UserCog, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  // User name and company from localStorage
+  const [userName, setUserName] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        if (userData.firstName) {
+          return userData.firstName;
+        } else if (userData.email) {
+          const namePart = userData.email.split('@')[0];
+          return namePart.split('.')
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+        }
+      }
+    } catch (e) {
+      console.error('Error reading user from localStorage:', e);
+    }
+    return 'Admin';
+  });
+
+  const [companyName, setCompanyName] = useState('Company');
+
+  useEffect(() => {
+    const fetchCompanyName = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/company-profile/me`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+          },
+        });
+        console.log('Company API response:', res.data);
+        
+        // The field is "name" not "companyName"
+        if (res.data?.company?.name) {
+          setCompanyName(res.data.company.name);
+        } else if (res.data?.company?.companyName) {
+          setCompanyName(res.data.company.companyName);
+        } else if (res.data?.companyName) {
+          setCompanyName(res.data.companyName);
+        }
+      } catch (err) {
+        console.error('Error fetching company name:', err);
+      }
+    };
+    fetchCompanyName();
+  }, []);
 
   const dashboardCards = [
     {
@@ -38,8 +89,19 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen">
-      <div className="container mx-auto px-0 py-8">
+    <div className="min-h-screen -mt-4">
+      <div className="container mx-auto px-4 pb-4">
+        {/* Welcome Section */}
+        <div className="mb-4">
+          <h1 className="text-3xl font-semibold text-gray-900 mb-0.5">Admin Dashboard</h1>
+          <p className="text-gray-600 text-lg">
+            Welcome, {userName}!
+          </p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Company: {companyName}
+          </p>
+        </div>
+
         {/* Dashboard Cards - Individual containers with equal wrapper */}
         <div className="w-full bg-white border border-gray-200 rounded-xl p-8 shadow-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">

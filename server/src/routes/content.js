@@ -12,7 +12,11 @@ import Trainee from '../models/Trainee.js';
 import Admin from '../models/Admin.js';
 import Supervisor from '../models/Supervisor.js';
 import Employee from '../models/Employees.js';
-import { requireAdmin, requireAdminOrSupervisor } from '../middleware/authMiddleware.js';
+import Progress from '../models/Progress.js';
+import Quiz from '../models/Quiz.js';
+import { requireAdmin, requireAdminOrSupervisor, authenticate } from '../middleware/authMiddleware.js';
+import axios from 'axios';
+import FormData from 'form-data';
 
 const { Types } = mongoose;
 const { ObjectId } = Types;
@@ -20,6 +24,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Helper: normalize a single ObjectId value which may arrive as array or JSON string
+function normalizeIdField(value) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0];
+  if (typeof value === 'string') {
+    try {
+      if (value.startsWith('[')) {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed[0] : parsed;
+      }
+      return value;
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
 
 /**
  * GET /api/content/test
@@ -60,6 +82,137 @@ router.post('/debug-update', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+/**
+ * GET /api/content/test-department/:departmentId
+ * Test endpoint to check department assignment matching
+ */
+router.get('/test-department/:departmentId', async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    
+    if (!departmentId || !ObjectId.isValid(departmentId)) {
+      return res.status(400).json({ success: false, message: 'Valid department ID required' });
+    }
+
+    // Find all content assigned to this department
+    const departmentContent = await Content.find({
+      $or: [
+        { assignedTo_depID: { $elemMatch: { $eq: new ObjectId(departmentId) } } },
+        { assignedTo_depID: new ObjectId(departmentId) },
+        { assignedTo_depID: { $in: [new ObjectId(departmentId)] } }
+      ]
+    })
+    .select('title assignedTo_depID assignedTo_GroupID assignedTo_traineeID')
+    .populate('assignedTo_depID', 'departmentName')
+    .lean();
+
+    // Also get all content for comparison
+    const allContent = await Content.find({})
+      .select('title assignedTo_depID')
+      .populate('assignedTo_depID', 'departmentName')
+      .lean();
+
+    res.json({
+      success: true,
+      departmentId,
+      departmentContent,
+      totalContent: allContent.length,
+      departmentContentCount: departmentContent.length,
+      allContentSample: allContent.slice(0, 5) // First 5 for debugging
+    });
+
+  } catch (error) {
+    console.error('Test department error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Helper function to create initial progress records for assigned trainees
+ */
+async function createInitialProgressRecords(content) {
+  try {
+    const traineesToAssign = [];
+
+    console.log('🔍 createInitialProgressRecords - Input content:', {
+      _id: content._id,
+      assignedTo_traineeID: content.assignedTo_traineeID,
+      assignedTo_GroupID: content.assignedTo_GroupID,
+      assignedTo_depID: content.assignedTo_depID
+    });
+
+    // Collect all trainee IDs based on assignment
+    if (content.assignedTo_traineeID) {
+      // Assigned to specific trainee(s) - can be array or single ID
+      if (Array.isArray(content.assignedTo_traineeID)) {
+        console.log('✅ assignedTo_traineeID is an array with', content.assignedTo_traineeID.length, 'trainees');
+        traineesToAssign.push(...content.assignedTo_traineeID);
+      } else {
+        console.log('✅ assignedTo_traineeID is a single trainee');
+        traineesToAssign.push(content.assignedTo_traineeID);
+      }
+    } else if (content.assignedTo_GroupID) {
+      // Assigned to group - get all trainees in the group
+      console.log('✅ Fetching trainees from group:', content.assignedTo_GroupID);
+      const group = await Group.findById(content.assignedTo_GroupID).populate('traineeObjectUserID');
+      if (group && group.traineeObjectUserID) {
+        const groupTrainees = group.traineeObjectUserID.map(trainee => trainee._id);
+        console.log('✅ Found', groupTrainees.length, 'trainees in group');
+        traineesToAssign.push(...groupTrainees);
+      }
+    } else if (content.assignedTo_depID) {
+      // Assigned to department(s) - get all trainees in the department(s)
+      // assignedTo_depID can be a single ID or an array of IDs
+      console.log('✅ Fetching trainees from departments:', content.assignedTo_depID);
+      const departmentIds = Array.isArray(content.assignedTo_depID) ? content.assignedTo_depID : [content.assignedTo_depID];
+      
+      for (const depId of departmentIds) {
+        const department = await Department.findById(depId);
+        if (department) {
+          // Find employees in this department
+          const employees = await Employee.find({ ObjectDepartmentID: depId });
+          const employeeIds = employees.map(emp => emp._id);
+          
+          // Find trainees linked to these employees
+          const departmentTrainees = await Trainee.find({ EmpObjectUserID: { $in: employeeIds } });
+          const traineeIds = departmentTrainees.map(trainee => trainee._id);
+          console.log('✅ Found', traineeIds.length, 'trainees in department', depId);
+          traineesToAssign.push(...traineeIds);
+        }
+      }
+    }
+
+    console.log('🔍 Total trainees to assign:', traineesToAssign.length);
+    console.log('🔍 Trainee IDs:', traineesToAssign);
+
+    // Create progress records for all assigned trainees
+    if (traineesToAssign.length > 0) {
+      const progressRecords = traineesToAssign.map(traineeId => ({
+        _id: new mongoose.Types.ObjectId(),
+        TraineeObjectUserID: traineeId,
+        ObjectContentID: content._id,
+        status: 'not started',
+        acknowledged: false,
+        score: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+
+      const result = await Progress.insertMany(progressRecords);
+      console.log('✅ Created', result.length, 'progress records');
+      return result;
+    } else {
+      console.log('⚠️ No trainees to assign progress records');
+      return [];
+    }
+
+  } catch (error) {
+    console.error('❌ Error creating initial progress records:', error);
+    // Don't throw error here - content is already saved, this is just a bonus feature
+    return [];
+  }
+}
 
 // Save content from template
 router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
@@ -111,6 +264,32 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
     
     console.log('✅ Validation passed - proceeding with save');
 
+    // Parse department IDs (can be array or single ID)
+    let departmentIds = [];
+    if (assignedTo_depID) {
+      try {
+        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
+        if (!Array.isArray(departmentIds)) {
+          departmentIds = [departmentIds];
+        }
+      } catch {
+        departmentIds = [assignedTo_depID];
+      }
+    }
+
+    // Parse trainee IDs (can be array or single ID)
+    let traineeIds = [];
+    if (assignedTo_traineeID) {
+      try {
+        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+        if (!Array.isArray(traineeIds)) {
+          traineeIds = [traineeIds];
+        }
+      } catch {
+        traineeIds = [assignedTo_traineeID];
+      }
+    }
+
     // Prepare the content data based on who assigned it
     const contentData = {
       title,
@@ -125,8 +304,8 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired || false,
       assignedTo_GroupID,
-      assignedTo_depID,
-      assignedTo_traineeID
+      assignedTo_depID: departmentIds.length > 0 ? departmentIds : undefined,
+      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined
     };
 
     // Set the appropriate assignedBy field based on user role
@@ -143,6 +322,11 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
     // Create new content
     const newContent = new Content(contentData);
     const savedContent = await newContent.save();
+
+    console.log('✅ Content saved successfully, now creating progress records...');
+
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(savedContent);
 
     res.status(201).json({
       message: 'Content saved successfully',
@@ -321,6 +505,19 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       }
     }
     
+    // Parse trainee IDs (can be array or single ID)
+    let traineeIds = [];
+    if (assignedTo_traineeID) {
+      try {
+        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+        if (!Array.isArray(traineeIds)) {
+          traineeIds = [traineeIds];
+        }
+      } catch {
+        traineeIds = [assignedTo_traineeID];
+      }
+    }
+    
     let contentUrl = null;
     
     // Upload ALL files to Supabase if configured
@@ -411,6 +608,11 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       }
     }
     
+    const normGroupId = normalizeIdField(assignedTo_GroupID);
+    const normTraineeId = normalizeIdField(assignedTo_traineeID);
+    console.log('🧭 Normalized IDs:', { normGroupId, normTraineeId, rawGroup: assignedTo_GroupID, rawTrainee: assignedTo_traineeID });
+
+    const normGroupId2 = normalizeIdField(assignedTo_GroupID);
     const content = new Content({
       title: title || req.file.originalname,
       description: description || '',
@@ -419,14 +621,19 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normGroupId,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
 
     await content.save();
+    
+    console.log('✅ Content uploaded successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -470,11 +677,34 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Invalid YouTube URL format' });
     }
     
-    // Parse department IDs
+    // Parse department IDs (can be array or single ID)
     let departmentIds = [];
     if (assignedTo_depID) {
-      departmentIds = Array.isArray(assignedTo_depID) ? assignedTo_depID : [assignedTo_depID];
+      try {
+        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
+        if (!Array.isArray(departmentIds)) {
+          departmentIds = [departmentIds];
+        }
+      } catch {
+        departmentIds = [assignedTo_depID];
+      }
     }
+    
+    // Parse trainee IDs (can be array or single ID)
+    let traineeIds = [];
+    if (assignedTo_traineeID) {
+      try {
+        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+        if (!Array.isArray(traineeIds)) {
+          traineeIds = [traineeIds];
+        }
+      } catch {
+        traineeIds = [assignedTo_traineeID];
+      }
+    }
+    
+    console.log('🔍 YOUTUBE UPLOAD - Parsed trainee IDs:', traineeIds);
+    console.log('🔍 YOUTUBE UPLOAD - Parsed department IDs:', departmentIds);
     
     const content = new Content({
       title: title || 'YouTube Video',
@@ -485,14 +715,20 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: videoId,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
 
     await content.save();
+    
+    console.log('✅ YouTube content created with trainee IDs:', content.assignedTo_traineeID);
+    console.log('✅ YouTube content created successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -538,10 +774,30 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Invalid URL format' });
     }
     
-    // Parse department IDs
+    // Parse department IDs (can be array or single ID)
     let departmentIds = [];
     if (assignedTo_depID) {
-      departmentIds = Array.isArray(assignedTo_depID) ? assignedTo_depID : [assignedTo_depID];
+      try {
+        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
+        if (!Array.isArray(departmentIds)) {
+          departmentIds = [departmentIds];
+        }
+      } catch {
+        departmentIds = [assignedTo_depID];
+      }
+    }
+    
+    // Parse trainee IDs (can be array or single ID)
+    let traineeIds = [];
+    if (assignedTo_traineeID) {
+      try {
+        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+        if (!Array.isArray(traineeIds)) {
+          traineeIds = [traineeIds];
+        }
+      } catch {
+        traineeIds = [assignedTo_traineeID];
+      }
     }
     
     // Automatically determine if it's a YouTube link or regular link
@@ -556,6 +812,12 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       console.log('🎥 Extracted video ID:', youtubeVideoId);
     }
 
+    const normGroupId = normalizeIdField(assignedTo_GroupID);
+    
+    console.log('🔍 LINK UPLOAD - Parsed trainee IDs:', traineeIds);
+    console.log('🔍 LINK UPLOAD - Parsed department IDs:', departmentIds);
+    console.log('🔍 LINK UPLOAD - Normalized group ID:', normGroupId);
+    
     const content = new Content({
       title: title || 'External Link',
       description: description || '',
@@ -565,14 +827,21 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: youtubeVideoId, // Add YouTube video ID if it's a YouTube URL
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normGroupId,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
     });
 
     await content.save();
+    
+    console.log('✅ LINK UPLOAD - Content saved with trainee IDs:', content.assignedTo_traineeID);
+    
+    console.log('✅ Link content created successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -600,10 +869,30 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
   try {
     const { templateType, title, description, category, deadline, ackRequired, assignedTo_GroupID, assignedTo_depID, assignedTo_traineeID } = req.body;
     
-    // Parse department IDs
+    // Parse department IDs (can be array or single ID)
     let departmentIds = [];
     if (assignedTo_depID) {
-      departmentIds = Array.isArray(assignedTo_depID) ? assignedTo_depID : [assignedTo_depID];
+      try {
+        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
+        if (!Array.isArray(departmentIds)) {
+          departmentIds = [departmentIds];
+        }
+      } catch {
+        departmentIds = [assignedTo_depID];
+      }
+    }
+    
+    // Parse trainee IDs (can be array or single ID)
+    let traineeIds = [];
+    if (assignedTo_traineeID) {
+      try {
+        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+        if (!Array.isArray(traineeIds)) {
+          traineeIds = [traineeIds];
+        }
+      } catch {
+        traineeIds = [assignedTo_traineeID];
+      }
     }
     
     // Define template structures
@@ -656,6 +945,9 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
 
     const template = templates[templateType];
     
+    console.log('🔍 TEMPLATE UPLOAD - Parsed trainee IDs:', traineeIds);
+    console.log('🔍 TEMPLATE UPLOAD - Parsed department IDs:', departmentIds);
+    
     const content = new Content({
       title: template.title,
       description: template.description,
@@ -664,15 +956,21 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
       contentUrl: template.contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true || template.templateData.ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null,
+      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null,
       templateData: template.templateData
     });
 
     await content.save();
+    
+    console.log('✅ Template content saved with trainee IDs:', content.assignedTo_traineeID);
+    console.log('✅ Template content created successfully, now creating progress records...');
+    
+    // Create progress records for assigned trainees with "not started" status
+    await createInitialProgressRecords(content);
     
     res.json({ 
       ok: true, 
@@ -797,7 +1095,131 @@ router.get('/templates', requireAdminOrSupervisor, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/content/trainee/view/:id
+ * Get specific content item for authenticated trainee
+ * Only allows viewing content that is assigned to the trainee
+ */
+router.get('/trainee/view/:id', authenticate, async (req, res) => {
+  try {
+    // Check if user is a trainee
+    if (req.user.role !== 'Trainee') {
+      return res.status(403).json({ success: false, message: 'Trainee access required' });
+    }
 
+    const traineeId = req.user?.id;
+    const contentId = req.params.id;
+
+    if (!traineeId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Get trainee details to check assignments
+    const trainee = await Trainee.findById(traineeId)
+      .populate({
+        path: 'EmpObjectUserID',
+        select: 'ObjectDepartmentID',
+        populate: {
+          path: 'ObjectDepartmentID',
+          select: 'departmentName'
+        }
+      })
+      .lean();
+
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Trainee not found' });
+    }
+
+    const departmentId = trainee.EmpObjectUserID?.ObjectDepartmentID?._id;
+    const groupId = trainee.ObjectGroupID;
+
+    // Find the content and check if it's assigned to this trainee
+    const content = await Content.findById(contentId)
+      .populate('assignedTo_GroupID', 'groupName')
+      .populate('assignedTo_depID', 'departmentName')
+      .lean();
+
+    if (!content) {
+      return res.status(404).json({ success: false, message: 'Content not found' });
+    }
+
+    // Check if content is assigned to this trainee
+    let isAssigned = false;
+
+    // Check individual assignment (now an array)
+    if (content.assignedTo_traineeID && Array.isArray(content.assignedTo_traineeID)) {
+      const isTraineeAssigned = content.assignedTo_traineeID.some(tid => 
+        tid.toString() === traineeId.toString()
+      );
+      if (isTraineeAssigned) {
+        isAssigned = true;
+      }
+    } else if (content.assignedTo_traineeID && content.assignedTo_traineeID.toString() === traineeId.toString()) {
+      // Backward compatibility for old single-trainee assignments
+      isAssigned = true;
+    }
+
+    // Check group assignment
+    if (!isAssigned && groupId && content.assignedTo_GroupID && content.assignedTo_GroupID._id.toString() === groupId.toString()) {
+      isAssigned = true;
+    }
+
+    // Check department assignment
+    if (!isAssigned && departmentId && content.assignedTo_depID) {
+      const isDepartmentAssigned = content.assignedTo_depID.some(dep => 
+        dep._id.toString() === departmentId.toString()
+      );
+      if (isDepartmentAssigned) {
+        isAssigned = true;
+      }
+    }
+
+    if (!isAssigned) {
+      return res.status(403).json({ success: false, message: 'Content not assigned to you' });
+    }
+
+    // Fetch associated quiz questions if any
+    const quiz = await Quiz.findOne({ ObjectContentID: contentId }).lean();
+    
+    // Add quiz to content if it exists
+    if (quiz) {
+      content.quiz = {
+        _id: quiz._id,
+        questions: quiz.questions,
+        isAiGenerated: quiz.isAiGenerated
+      };
+    }
+
+    // Fetch progress for this trainee
+    const progress = await Progress.findOne({
+      TraineeObjectUserID: traineeId,
+      ObjectContentID: contentId
+    }).lean();
+
+    // Add quiz taken status to content
+    if (progress && quiz) {
+      // Quiz is taken if score is not null (even if it's 0)
+      content.quizTaken = progress.score !== null && progress.score !== undefined;
+      content.quizScore = progress.score;
+    }
+
+    // Return the content with the same structure as the admin/supervisor endpoint
+    res.json({ 
+      ok: true, 
+      content: content,
+      progress: progress,
+      success: true 
+    });
+
+  } catch (error) {
+    console.error('Error fetching trainee content:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch content',
+      error: error.message
+    });
+  }
+});
 
 /**
  * GET /api/content/:id
@@ -862,7 +1284,7 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       assignedTo_traineeID 
     } = req.body;
     
-    // Parse department IDs
+    // Parse department IDs (can be array or single ID)
     let departmentIds = [];
     if (assignedTo_depID) {
       try {
@@ -888,6 +1310,19 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
         console.error('❌ Error parsing department IDs:', parseError);
         console.error('❌ Raw assignedTo_depID:', assignedTo_depID);
         departmentIds = [];
+      }
+    }
+    
+    // Parse trainee IDs (can be array or single ID)
+    let traineeIds = [];
+    if (assignedTo_traineeID) {
+      try {
+        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+        if (!Array.isArray(traineeIds)) {
+          traineeIds = [traineeIds];
+        }
+      } catch {
+        traineeIds = [assignedTo_traineeID];
       }
     }
     
@@ -932,12 +1367,12 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
     console.log('📝 Content title:', existingContent.title);
     console.log('📝 Content assignedBy_adminID:', existingContent.assignedBy_adminID);
     console.log('📝 Content assignedBy_adminID type:', typeof existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID constructor:', existingContent.assignedBy_adminID.constructor.name);
+    console.log('📝 Content assignedBy_adminID constructor:', existingContent.assignedBy_adminID ? existingContent.assignedBy_adminID.constructor.name : 'null');
 
     console.log('🔍 Ownership check:');
     console.log('📝 Content assignedBy_adminID:', existingContent.assignedBy_adminID);
     console.log('📝 Content assignedBy_adminID type:', typeof existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID toString:', existingContent.assignedBy_adminID.toString());
+    console.log('📝 Content assignedBy_adminID toString:', existingContent.assignedBy_adminID ? existingContent.assignedBy_adminID.toString() : 'null');
     console.log('📝 Request user ID:', req.user.id);
     console.log('📝 Request user ID type:', typeof req.user.id);
     
@@ -1000,7 +1435,7 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       ackRequired: ackRequired === 'true' || ackRequired === true,
       assignedTo_GroupID: assignedTo_GroupID || null,
       assignedTo_depID: departmentIds,
-      assignedTo_traineeID: assignedTo_traineeID || null
+      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined
     };
 
     // Handle file upload updates
@@ -1318,5 +1753,837 @@ router.delete('/:id', requireAdminOrSupervisor, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/content/ai
+ * Unified AI gateway. Accepts task + (file|text|url) and proxies to Python AI service.
+ */
+router.post('/ai', requireAdminOrSupervisor, upload.single('file'), async (req, res) => {
+  try {
+    const PY_AI_URL = process.env.PY_AI_SERVICE_URL || 'http://localhost:8001';
+    const task = req.body.task;
+    const numQuestions = parseInt(req.body.numQuestions || '5', 10);
+    const incomingUrl = (req.body && (req.body.url || req.body.link || req.body.linkUrl)) || '';
+    const incomingText = (req.body && req.body.text) || '';
+
+    if (!task) {
+      return res.status(400).json({ ok: false, error: 'Missing task' });
+    }
+
+    let aiResponse;
+    if (req.file && req.file.path) {
+      // Verify file exists and is readable
+      if (!fs.existsSync(req.file.path)) {
+        return res.status(400).json({ ok: false, error: 'Uploaded file not found' });
+      }
+      
+      const formData = new FormData();
+      const fileBuffer = fs.readFileSync(req.file.path);
+      
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ ok: false, error: 'Uploaded file is empty' });
+      }
+      
+      const filename = path.basename(req.file.originalname || 'upload');
+      // Use correct form-data syntax: append(buffer, { filename, contentType })
+      formData.append('file', fileBuffer, { 
+        filename: filename, 
+        contentType: req.file.mimetype || 'application/octet-stream' 
+      });
+      formData.append('task', String(task));
+      formData.append('numQuestions', String(numQuestions));
+      
+      console.log(`[AI Proxy] Sending file to Python service: ${filename}, type: ${req.file.mimetype}, size: ${fileBuffer.length} bytes`);
+      
+      aiResponse = await axios.post(`${PY_AI_URL}/ai`, formData, {
+        headers: formData.getHeaders ? formData.getHeaders() : {},
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        timeout: 300000 // 5 minute timeout for large files
+      });
+    } else if (incomingText) {
+      aiResponse = await axios.post(`${PY_AI_URL}/ai`, { task, text: String(incomingText), numQuestions });
+    } else if (incomingUrl) {
+      aiResponse = await axios.post(`${PY_AI_URL}/ai`, { task, url: String(incomingUrl), numQuestions });
+    } else {
+      return res.status(400).json({ ok: false, error: "Provide 'file' or 'text' or 'url'" });
+    }
+
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+
+    const data = aiResponse.data;
+    return res.json({ ok: true, ...data });
+  } catch (error) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+    
+    console.error('❌ AI proxy error:', error.message);
+    
+    // Pass through full error details from Python service
+    const pythonError = error?.response?.data;
+    if (pythonError) {
+      console.error('❌ Python service error details:', pythonError);
+      return res.status(error.response.status || 500).json({ 
+        ok: false, 
+        error: pythonError.error || error.message,
+        suggestion: pythonError.suggestion,
+        type: pythonError.type
+      });
+    }
+    
+    // Handle connection errors
+    if (error.code === 'ECONNREFUSED') {
+      return res.status(503).json({ 
+        ok: false, 
+        error: 'AI service is not running',
+        suggestion: 'Please ensure the Python quiz generation service is running on port 8001'
+      });
+    }
+    
+    const message = error.message || 'AI request failed';
+    return res.status(500).json({ ok: false, error: message });
+  }
+});
+
+/**
+ * GET /api/content/:id/quiz
+ * Get all quiz entities linked to a specific content item
+ */
+router.get('/:id/quiz', requireAdminOrSupervisor, async (req, res) => {
+  try {
+    const contentId = req.params.id;
+    
+    // Validate content ID format
+    if (!contentId || !/^[0-9a-fA-F]{24}$/.test(contentId)) {
+      return res.status(400).json({ ok: false, error: 'Invalid content ID format' });
+    }
+
+    // Find all quizzes for this content
+    const quizzes = await Quiz.find({ ObjectContentID: contentId })
+      .populate('createdBy_adminID', 'firstName lastName username')
+      .populate('createdBy_supervisorID', 'firstName lastName username')
+      .sort({ createdAt: -1 });
+
+    return res.json({ ok: true, quizzes });
+  } catch (err) {
+    console.error('Error fetching quizzes:', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to fetch quizzes' });
+  }
+});
+
+/**
+ * POST /api/content/:id/quiz
+ * Persist a quiz entity linked to a content item
+ * Body: { questions: [{ question, options[4], correctAnswer (index)|correctAnswerText }], isAiGenerated? }
+ * Supports both JSON and multipart/form-data
+ */
+router.post('/:id/quiz', requireAdminOrSupervisor, upload.none(), async (req, res) => {
+  try {
+    console.log('📥 POST /api/content/:id/quiz - Received request');
+    console.log('📥 Content ID:', req.params.id);
+    console.log('📥 User:', req.user.role, req.user.id);
+    console.log('📥 Request body:', req.body);
+    console.log('📥 Content-Type:', req.headers['content-type']);
+
+    const contentId = req.params.id;
+    
+    // Validate content ID format
+    if (!contentId || !/^[0-9a-fA-F]{24}$/.test(contentId)) {
+      console.error('❌ Invalid content ID format:', contentId);
+      return res.status(400).json({ ok: false, error: 'Invalid content ID format' });
+    }
+
+    // Verify content exists
+    const content = await Content.findById(contentId);
+    if (!content) {
+      console.error('❌ Content not found:', contentId);
+      return res.status(404).json({ ok: false, error: 'Content not found' });
+    }
+
+    let { questions = [], isAiGenerated = true } = req.body || {};
+
+    // Support multipart/form-data where questions may arrive as a JSON string
+    if (typeof questions === 'string') {
+      try {
+        questions = JSON.parse(questions);
+        console.log('✅ Parsed questions from JSON string');
+      } catch (e) {
+        console.error('❌ Failed to parse questions JSON:', e);
+        return res.status(400).json({ ok: false, error: 'Invalid questions payload (not valid JSON)' });
+      }
+    }
+
+    console.log('📝 Processing questions:', questions.length);
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      console.error('❌ No questions provided or not an array');
+      return res.status(400).json({ ok: false, error: 'questions array required with at least one question' });
+    }
+
+    // Normalize questions
+    const normalized = questions.map((q, idx) => {
+      const options = Array.isArray(q.options) ? q.options.map(String) : [];
+      let correct = q.correctAnswerText;
+      
+      // If correctAnswerText is not provided, use correctAnswer index to get the text
+      if ((correct === undefined || correct === null || correct === '') && 
+          typeof q.correctAnswer === 'number' && 
+          options[q.correctAnswer] !== undefined) {
+        correct = options[q.correctAnswer];
+      }
+      
+      const normalized = {
+        questionText: String(q.question || q.questionText || '').trim(),
+        options: options,
+        correctAnswer: String(correct || '').trim(),
+      };
+      
+      console.log(`📝 Question ${idx + 1}:`, {
+        questionText: normalized.questionText.substring(0, 50),
+        optionsCount: normalized.options.length,
+        correctAnswer: normalized.correctAnswer.substring(0, 30)
+      });
+      
+      return normalized;
+    }).filter((q, idx) => {
+      const isValid = q.questionText && q.options.length >= 2 && q.correctAnswer;
+      if (!isValid) {
+        console.warn(`⚠️ Question ${idx + 1} filtered out - invalid:`, {
+          hasQuestionText: !!q.questionText,
+          optionsLength: q.options.length,
+          hasCorrectAnswer: !!q.correctAnswer
+        });
+      }
+      return isValid;
+    });
+
+    if (normalized.length === 0) {
+      console.error('❌ No valid questions after normalization');
+      return res.status(400).json({ ok: false, error: 'No valid questions to save. Each question must have text, at least 2 options, and a correct answer.' });
+    }
+
+    console.log('✅ Checking if quiz already exists for content:', contentId);
+
+    // Check if a quiz already exists for this content
+    let existingQuiz = await Quiz.findOne({ ObjectContentID: contentId });
+
+    let saved;
+    if (existingQuiz) {
+      console.log('📝 Updating existing quiz:', existingQuiz._id);
+      
+      // Update the existing quiz
+      existingQuiz.questions = normalized;
+      existingQuiz.isAiGenerated = !!isAiGenerated;
+      
+      // Update creator info (in case a different admin/supervisor is updating)
+      if (req.user.role === 'Admin') {
+        existingQuiz.createdBy_adminID = req.user.id;
+        existingQuiz.createdBy_supervisorID = null;
+      } else if (req.user.role === 'Supervisor') {
+        existingQuiz.createdBy_supervisorID = req.user.id;
+        existingQuiz.createdBy_adminID = null;
+      }
+      
+      saved = await existingQuiz.save();
+      console.log('✅ Quiz updated successfully:', saved._id);
+    } else {
+      console.log('➕ Creating new quiz document with', normalized.length, 'questions');
+      
+      const quizDoc = new Quiz({
+        isAiGenerated: !!isAiGenerated,
+        questions: normalized,
+        createdBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
+        createdBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null,
+        ObjectContentID: contentId,
+      });
+
+      saved = await quizDoc.save();
+      console.log('✅ Quiz created successfully:', saved._id);
+    }
+    
+    return res.status(existingQuiz ? 200 : 201).json({ 
+      ok: true, 
+      quiz: saved,
+      action: existingQuiz ? 'updated' : 'created'
+    });
+  } catch (err) {
+    console.error('❌ Error saving quiz:', err);
+    console.error('❌ Error stack:', err.stack);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to save quiz' });
+  }
+});
+
+// ============================================
+// TRAINEE ROUTES
+// ============================================
+
+/**
+ * GET /trainee/assigned
+ * Fetch all content assigned to the authenticated trainee
+ */
+router.get('/trainee/assigned', authenticate, async (req, res) => {
+  try {
+    console.log('🔍 Fetching assigned content for trainee:', req.user.id);
+
+    // Find the trainee and populate employee with department
+    const trainee = await Trainee.findById(req.user.id).populate({
+      path: 'EmpObjectUserID',
+      populate: { path: 'ObjectDepartmentID', select: 'departmentName' }
+    });
+    if (!trainee) {
+      return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    const departmentId = trainee.EmpObjectUserID?.ObjectDepartmentID?._id;
+    if (!departmentId) {
+      return res.status(404).json({ ok: false, error: 'Department not found for trainee' });
+    }
+
+    const groupId = trainee.ObjectGroupID;
+
+    console.log('✅ Trainee found:', {
+      id: trainee._id,
+      employee: trainee.EmpObjectUserID?._id,
+      department: trainee.EmpObjectUserID?.ObjectDepartmentID?.departmentName,
+      departmentId: departmentId,
+      groupId: groupId
+    });
+
+    // Debug: Check all content in database with department assignments
+    const allContentWithDept = await Content.find({ assignedTo_depID: { $exists: true, $ne: [] } })
+      .select('title assignedTo_depID assignedTo_GroupID assignedTo_traineeID')
+      .lean();
+    
+    console.log('🔍 DEBUG: All content with department assignments:', allContentWithDept.length);
+    allContentWithDept.forEach(c => {
+      console.log('  📋', c.title, '- Dept IDs:', c.assignedTo_depID, 'Type:', Array.isArray(c.assignedTo_depID) ? 'Array' : typeof c.assignedTo_depID);
+    });
+
+    // Build query to find content assigned to:
+    // 1. The trainee's department
+    // 2. The trainee's group (if they have one)
+    // 3. Directly to this trainee
+    const query = {
+      $or: [
+        { assignedTo_depID: { $in: [departmentId] } },
+        { assignedTo_traineeID: { $in: [trainee._id] } }
+      ]
+    };
+
+    // Add group condition if trainee belongs to a group
+    if (groupId) {
+      query.$or.push({ assignedTo_GroupID: groupId });
+    }
+    
+    console.log('🔍 Query being used:', JSON.stringify(query, null, 2));
+    console.log('🔍 Looking for trainee ID:', trainee._id.toString());
+
+    // Find all content assigned to this trainee
+    const contents = await Content.find(query)
+      .populate('assignedBy_adminID', 'name email')
+      .populate('assignedBy_supervisorID', 'name email')
+      .populate('assignedTo_depID', 'departmentName')
+      .populate('assignedTo_GroupID', 'name')
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${contents.length} assigned content items`);
+    
+    // Debug: Log which content items have this trainee in assignedTo_traineeID
+    contents.forEach(c => {
+      if (c.assignedTo_traineeID) {
+        console.log(`  📋 ${c.title} - assignedTo_traineeID:`, c.assignedTo_traineeID, 
+                    'Is Array:', Array.isArray(c.assignedTo_traineeID),
+                    'Includes trainee:', Array.isArray(c.assignedTo_traineeID) 
+                      ? c.assignedTo_traineeID.some(id => id.toString() === trainee._id.toString())
+                      : c.assignedTo_traineeID.toString() === trainee._id.toString());
+      }
+    });
+
+    // Get progress for each content
+    const contentsWithProgress = await Promise.all(
+      contents.map(async (content) => {
+        const progress = await Progress.findOne({
+          TraineeObjectUserID: trainee._id,
+          ObjectContentID: content._id
+        });
+
+        return {
+          ...content.toObject(),
+          progress: progress ? {
+            status: progress.status,
+            viewedAt: progress.viewedAt,
+            completedAt: progress.completedAt,
+            score: progress.score,
+            taskCompletions: progress.taskCompletions ? Object.fromEntries(progress.taskCompletions) : {}
+          } : null
+        };
+      })
+    );
+
+    // Calculate metrics
+    const metrics = {
+      total: contentsWithProgress.length,
+      completed: contentsWithProgress.filter(c => c.progress?.status === 'completed').length,
+      inProgress: contentsWithProgress.filter(c => c.progress?.status === 'in progress').length,
+      notStarted: contentsWithProgress.filter(c => !c.progress || c.progress.status === 'not started').length,
+      overdue: contentsWithProgress.filter(c => {
+        if (c.progress?.status === 'completed') return false;
+        if (!c.deadline) return false;
+        return new Date(c.deadline) < new Date();
+      }).length,
+      dueSoon: contentsWithProgress.filter(c => {
+        if (c.progress?.status === 'completed') return false;
+        if (!c.deadline) return false;
+        const daysUntilDeadline = Math.ceil((new Date(c.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+        return daysUntilDeadline > 0 && daysUntilDeadline <= 7;
+      }).length
+    };
+
+    return res.json({ 
+      success: true,
+      data: {
+        content: contentsWithProgress,
+        traineeInfo: {
+          id: trainee._id,
+          email: trainee.loginEmail,
+          department: trainee.EmpObjectUserID?.ObjectDepartmentID?.departmentName,
+          departmentId: departmentId
+        },
+        metrics: metrics
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error fetching trainee assigned content:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * PUT /trainee/view/:contentId
+ * Mark content as viewed by trainee
+ */
+router.put('/trainee/view/:contentId', authenticate, async (req, res) => {
+  try {
+    const { contentId } = req.params;
+    console.log('👁️ Marking content as viewed:', contentId, 'by trainee:', req.user.id);
+
+    // Validate content exists
+    const content = await Content.findById(contentId);
+    if (!content) {
+      return res.status(404).json({ ok: false, error: 'Content not found' });
+    }
+
+    // Validate trainee exists
+    const trainee = await Trainee.findById(req.user.id);
+    if (!trainee) {
+      return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    // Check if content has an associated quiz
+    const quiz = await Quiz.findOne({ ObjectContentID: contentId });
+    const quizId = quiz ? quiz._id : null;
+
+    // Find or create progress record
+    let progress = await Progress.findOne({
+      TraineeObjectUserID: trainee._id,
+      ObjectContentID: content._id
+    });
+
+    if (!progress) {
+      console.log('➕ Creating new progress record');
+      progress = new Progress({
+        TraineeObjectUserID: trainee._id,
+        ObjectContentID: content._id,
+        ObjectQuizID: quizId,
+        status: 'in progress',
+        viewedAt: new Date()
+      });
+    } else {
+      // Update quiz ID if it wasn't set before
+      if (!progress.ObjectQuizID && quizId) {
+        progress.ObjectQuizID = quizId;
+      }
+      
+      if (progress.status === 'not started') {
+        console.log('📝 Updating progress status to "in progress"');
+        progress.status = 'in progress';
+        progress.viewedAt = new Date();
+      }
+    }
+
+    await progress.save();
+    console.log('✅ Progress updated successfully');
+
+    return res.json({ 
+      ok: true, 
+      progress: {
+        status: progress.status,
+        viewedAt: progress.viewedAt,
+        completedAt: progress.completedAt,
+        score: progress.score,
+        acknowledged: progress.acknowledged
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error marking content as viewed:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * PUT /trainee/progress/:contentId
+ * Update progress for a content item (e.g., quiz completion)
+ */
+router.put('/trainee/progress/:contentId', authenticate, async (req, res) => {
+  try {
+    const { contentId } = req.params;
+    const { status, score, completedAt, taskCompletions, acknowledged } = req.body;
+
+    console.log('📊 Updating progress for content:', contentId, 'trainee:', req.user.id);
+    console.log('📋 Received data:', { status, score, completedAt, taskCompletions, acknowledged });
+
+    // Validate content exists
+    const content = await Content.findById(contentId);
+    if (!content) {
+      return res.status(404).json({ ok: false, error: 'Content not found' });
+    }
+
+    // Validate trainee exists
+    const trainee = await Trainee.findById(req.user.id);
+    if (!trainee) {
+      return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    // Check if content has an associated quiz
+    const quiz = await Quiz.findOne({ ObjectContentID: contentId });
+    const quizId = quiz ? quiz._id : null;
+
+    // Find or create progress record
+    let progress = await Progress.findOne({
+      TraineeObjectUserID: trainee._id,
+      ObjectContentID: content._id
+    });
+
+    if (!progress) {
+      console.log('➕ Creating new progress record');
+      progress = new Progress({
+        TraineeObjectUserID: trainee._id,
+        ObjectContentID: content._id,
+        ObjectQuizID: quizId
+      });
+    } else {
+      // Update quiz ID if it wasn't set before
+      if (!progress.ObjectQuizID && quizId) {
+        progress.ObjectQuizID = quizId;
+      }
+    }
+
+    // Update fields if provided
+    if (status) progress.status = status;
+    if (score !== undefined) progress.score = score;
+    if (completedAt) progress.completedAt = new Date(completedAt);
+    if (acknowledged !== undefined) progress.acknowledged = acknowledged;
+    
+    // Update task completions (for Tool/System Guide templates)
+    if (taskCompletions) {
+      console.log('✅ Updating task completions:', taskCompletions);
+      progress.taskCompletions = new Map(Object.entries(taskCompletions));
+    }
+    
+    // Auto-set completedAt if status is 'completed' and not already set
+    if (status === 'completed' && !progress.completedAt) {
+      progress.completedAt = new Date();
+    }
+
+    await progress.save();
+    console.log('✅ Progress updated:', progress);
+
+    return res.json({ 
+      ok: true, 
+      progress: {
+        status: progress.status,
+        viewedAt: progress.viewedAt,
+        completedAt: progress.completedAt,
+        score: progress.score,
+        acknowledged: progress.acknowledged,
+        taskCompletions: progress.taskCompletions ? Object.fromEntries(progress.taskCompletions) : {}
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error updating progress:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * PUT /trainee/content/:contentId/step/:stepId/complete
+ * Update step completion status for Tool/System Guide templates
+ */
+router.put('/trainee/content/:contentId/step/:stepId/complete', authenticate, async (req, res) => {
+  try {
+    const { contentId, stepId } = req.params;
+    const { completed } = req.body;
+
+    console.log('📋 Updating step completion:', { contentId, stepId, completed });
+
+    // Find the content
+    const content = await Content.findById(contentId);
+    if (!content) {
+      return res.status(404).json({ success: false, message: 'Content not found' });
+    }
+
+    // Verify it's a template with steps
+    if (!content.templateData || !content.templateData.steps) {
+      return res.status(400).json({ success: false, message: 'Content is not a template with steps' });
+    }
+
+    // Find and update the step
+    const stepIndex = content.templateData.steps.findIndex(step => step.id === parseInt(stepId));
+    if (stepIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Step not found' });
+    }
+
+    content.templateData.steps[stepIndex].completed = completed;
+    content.markModified('templateData');
+    await content.save();
+
+    console.log('✅ Step completion updated:', content.templateData.steps[stepIndex]);
+
+    return res.json({ 
+      success: true, 
+      message: 'Step completion updated',
+      step: content.templateData.steps[stepIndex]
+    });
+  } catch (err) {
+    console.error('❌ Error updating step completion:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * PUT /trainee/content/:contentId/task/:taskId/complete
+ * Update task completion status for Task Reminders Board templates
+ */
+router.put('/trainee/content/:contentId/task/:taskId/complete', authenticate, async (req, res) => {
+  try {
+    const { contentId, taskId } = req.params;
+    const { completed } = req.body;
+
+    console.log('✅ Updating task completion:', { contentId, taskId, completed });
+
+    // Find the content
+    const content = await Content.findById(contentId);
+    if (!content) {
+      return res.status(404).json({ success: false, message: 'Content not found' });
+    }
+
+    // Verify it's a template with tasks
+    if (!content.templateData || !content.templateData.tasks) {
+      return res.status(400).json({ success: false, message: 'Content is not a template with tasks' });
+    }
+
+    // Find and update the task
+    const taskIndex = content.templateData.tasks.findIndex(task => task.id === parseInt(taskId));
+    if (taskIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    content.templateData.tasks[taskIndex].completed = completed;
+    content.markModified('templateData');
+    await content.save();
+
+    console.log('✅ Task completion updated:', content.templateData.tasks[taskIndex]);
+
+    return res.json({ 
+      success: true, 
+      message: 'Task completion updated',
+      task: content.templateData.tasks[taskIndex]
+    });
+  } catch (err) {
+    console.error('❌ Error updating task completion:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/content/trainee/content/:contentId/quiz/submit
+ * Submit quiz answers and calculate score
+ */
+router.post('/trainee/content/:contentId/quiz/submit', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'Trainee') {
+      return res.status(403).json({ success: false, message: 'Trainee access required' });
+    }
+
+    const traineeId = req.user.id;
+    const { contentId } = req.params;
+    const { answers } = req.body; // answers: { questionIndex: selectedAnswer }
+
+    console.log('📝 Submitting quiz:', { contentId, traineeId, answers });
+
+    // Find the quiz for this content
+    const quiz = await Quiz.findOne({ ObjectContentID: contentId });
+    if (!quiz) {
+      return res.status(404).json({ success: false, message: 'Quiz not found for this content' });
+    }
+
+    // Check if trainee has already taken the quiz (one attempt only)
+    const existingProgress = await Progress.findOne({
+      TraineeObjectUserID: traineeId,
+      ObjectContentID: contentId
+    });
+
+    if (existingProgress && existingProgress.score !== undefined && existingProgress.score !== null && existingProgress.score !== 0) {
+      console.log('⚠️ Quiz already taken by this trainee');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You have already taken this quiz. Only one attempt is allowed.',
+        alreadyTaken: true,
+        score: existingProgress.score
+      });
+    }
+
+    // Calculate score
+    let correctCount = 0;
+    const totalQuestions = quiz.questions.length;
+    
+    const results = quiz.questions.map((question, index) => {
+      const userAnswer = answers[index];
+      const isCorrect = userAnswer === question.correctAnswer;
+      if (isCorrect) correctCount++;
+      
+      return {
+        questionIndex: index,
+        questionText: question.questionText,
+        userAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect
+      };
+    });
+
+    const score = Math.round((correctCount / totalQuestions) * 100);
+
+    // Update or create progress record
+    let progress = await Progress.findOne({
+      TraineeObjectUserID: traineeId,
+      ObjectContentID: contentId
+    });
+
+    if (!progress) {
+      console.log('➕ Creating new progress record with quiz results');
+      progress = new Progress({
+        TraineeObjectUserID: traineeId,
+        ObjectContentID: contentId,
+        ObjectQuizID: quiz._id,
+        score: score
+      });
+    } else {
+      console.log('📝 Updating existing progress record with quiz results');
+      progress.score = score;
+      progress.ObjectQuizID = quiz._id;
+    }
+    
+    await progress.save();
+
+    console.log('✅ Quiz submitted - Score:', score, 'Correct:', correctCount, '/', totalQuestions);
+    console.log('✅ Progress saved:', {
+      trainee: progress.TraineeObjectUserID,
+      content: progress.ObjectContentID,
+      quiz: progress.ObjectQuizID,
+      score: progress.score
+    });
+
+    return res.json({
+      success: true,
+      score,
+      correctCount,
+      totalQuestions,
+      results,
+      message: `You scored ${score}% (${correctCount}/${totalQuestions} correct)`
+    });
+  } catch (err) {
+    console.error('❌ Error submitting quiz:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /trainee/debug
+ * Debug endpoint to check trainee assignment status
+ */
+router.get('/trainee/debug', authenticate, async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking trainee assignment for user:', req.user.id);
+
+    const trainee = await Trainee.findById(req.user.id).populate({
+      path: 'EmpObjectUserID',
+      populate: { path: 'ObjectDepartmentID', select: 'departmentName' }
+    });
+    
+    if (!trainee) {
+      return res.json({
+        ok: false,
+        message: 'Trainee not found',
+        userId: req.user.id
+      });
+    }
+
+    const departmentId = trainee.EmpObjectUserID?.ObjectDepartmentID?._id;
+    const groupId = trainee.ObjectGroupID;
+    
+    if (!departmentId) {
+      return res.json({
+        ok: false,
+        message: 'Department not found for trainee'
+      });
+    }
+
+    // Get all content with "testt" or "AA" in the title
+    const testContent = await Content.find({
+      $or: [
+        { title: { $regex: /testt/i } },
+        { title: { $regex: /AA/i } }
+      ]
+    }).populate('assignedTo_depID', 'departmentName')
+      .populate('assignedTo_GroupID', 'name')
+      .populate('assignedBy_supervisorID', 'name email');
+
+    // Get content assigned by department
+    const contentByDept = await Content.find({
+      assignedTo_depID: { $in: [departmentId] }
+    }).populate('assignedTo_depID', 'departmentName');
+
+    // Get content assigned by group
+    const contentByGroup = groupId ? await Content.find({
+      assignedTo_GroupID: groupId
+    }).populate('assignedTo_GroupID', 'name') : [];
+
+    return res.json({
+      ok: true,
+      trainee: {
+        id: trainee._id,
+        email: trainee.loginEmail,
+        department: trainee.EmpObjectUserID?.ObjectDepartmentID?.departmentName,
+        departmentId: departmentId,
+        groupId: groupId
+      },
+      testContent: testContent.map(c => ({
+        id: c._id,
+        title: c.title,
+        assignedTo_depID: c.assignedTo_depID,
+        assignedTo_GroupID: c.assignedTo_GroupID,
+        assignedTo_traineeID: c.assignedTo_traineeID,
+        assignedBy_supervisorID: c.assignedBy_supervisorID
+      })),
+      contentByDept: contentByDept.length,
+      contentByGroup: contentByGroup.length
+    });
+  } catch (err) {
+    console.error('❌ Error in trainee debug:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 export default router;

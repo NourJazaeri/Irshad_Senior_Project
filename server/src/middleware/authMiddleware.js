@@ -159,36 +159,8 @@ export const requireAdminOrSupervisor = async (req, res, next) => {
   }
 };
 
-// Optional: General authentication middleware for any role
+// General authentication middleware for any authenticated user (Admin, Supervisor, Trainee, etc.)
 export const authenticate = async (req, res, next) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. No token provided.' 
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = {
-      id: decoded.id,
-      role: decoded.role
-    };
-
-    next();
-  } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token.' 
-    });
-  }
-};
-
-// Middleware to authenticate Admin requests (alternative naming)
-export const authenticateAdmin = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
@@ -202,32 +174,15 @@ export const authenticateAdmin = async (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Check if the user is an Admin
-    if (decoded.role !== 'Admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied. Admin role required.' 
-      });
-    }
-
-    // Find the Admin to ensure they still exist
-    const admin = await Admin.findById(decoded.id);
-    if (!admin) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Admin not found.' 
-      });
-    }
-
-    // Add Admin info to request object
-    req.admin = {
-      id: admin._id,
-      email: admin.loginEmail
+    // Add basic user info to request object
+    req.user = {
+      id: decoded.id,
+      role: decoded.role
     };
 
     next();
   } catch (error) {
-    console.error('Admin authentication error:', error);
+    console.error('Authentication error:', error);
     return res.status(401).json({ 
       success: false, 
       message: 'Invalid token.' 
