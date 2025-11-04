@@ -218,6 +218,17 @@ function TraineeDashboard() {
 
   const filteredContent = getFilteredContent();
 
+  // Derived progress values for display
+  const totalAssigned = assignedData.metrics?.total || 0;
+  const completedCount = assignedData.metrics?.completed || 0;
+  const completionPercentage = (typeof assignedData.metrics?.completionPercentage === 'number')
+    ? assignedData.metrics.completionPercentage
+    : (totalAssigned ? Math.round((completedCount / totalAssigned) * 100) : 0);
+
+  const progressBarColor = completionPercentage < 25
+    ? 'bg-red-400'
+    : (completionPercentage <= 65 ? 'bg-amber-400' : 'bg-green-400');
+
   return (
     <div className="w-full p-6">
       {showContentView && selectedContent ? (
@@ -294,49 +305,30 @@ function TraineeDashboard() {
                   </div>
                 </div>
 
-                {/* Progress Cards */}
+                {/* Progress bar (replaces individual cards) */}
                 <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Your Onboarding Progress</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Total Content Items */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center mb-2">
-                        <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Your Onboarding Progress</h3>
+                  <div className="mt-3 flex items-center space-x-4">
+                    <div className="flex-1">
+                      <div className="text-sm text-gray-700 font-medium mb-1">{completionPercentage}% Completed</div>
+                      <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                        <div
+                          className={`${progressBarColor} h-4 rounded-full transition-all`}
+                          style={{ width: `${Math.max(0, Math.min(100, completionPercentage))}%` }}
+                          role="progressbar"
+                          aria-valuenow={Math.max(0, Math.min(100, completionPercentage))}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        />
                       </div>
-                      <div className="text-2xl font-bold text-gray-900">{assignedData.metrics.total}</div>
-                      <div className="text-sm text-gray-600">Total Content Items</div>
                     </div>
 
-                    {/* Completed */}
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <div className="flex items-center mb-2">
-                        <div className="p-2 bg-green-100 rounded-lg mr-3">
-                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-green-600">{assignedData.metrics.completed}</div>
-                      <div className="text-sm text-gray-600">Completed</div>
-                    </div>
-
-                    {/* Overdue */}
-                    <div className="bg-red-50 rounded-lg p-4">
-                      <div className="flex items-center mb-2">
-                        <div className="p-2 bg-red-100 rounded-lg mr-3">
-                          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-red-600">{assignedData.metrics.overdue}</div>
-                      <div className="text-sm text-gray-600">Overdue</div>
+                    <div className="ml-2 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm text-gray-700 shadow-sm">
+                      {completedCount} / {totalAssigned} completed
                     </div>
                   </div>
+
+                  <div className="mt-2 text-xs text-gray-500">Status: <span className="font-medium">{completionPercentage < 25 ? 'At risk' : completionPercentage <= 65 ? 'On track' : 'Good'}</span></div>
                 </div>
 
                 {/* Tabs */}
