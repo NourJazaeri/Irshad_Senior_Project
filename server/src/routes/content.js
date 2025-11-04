@@ -2141,6 +2141,9 @@ router.get('/trainee/assigned', authenticate, async (req, res) => {
       }).length
     };
 
+    // Add completion percentage for convenience (rounded integer 0-100)
+    metrics.completionPercentage = metrics.total ? Math.round((metrics.completed / metrics.total) * 100) : 0;
+
     return res.json({ 
       success: true,
       data: {
