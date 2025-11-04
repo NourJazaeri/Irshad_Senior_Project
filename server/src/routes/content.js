@@ -2140,6 +2140,10 @@ router.get('/trainee/assigned', authenticate, async (req, res) => {
         return daysUntilDeadline > 0 && daysUntilDeadline <= 7;
       }).length
     };
+    
+    // Add completion percentage for convenience (rounded integer 0-100)
+    metrics.completionPercentage = metrics.total ? Math.round((metrics.completed / metrics.total) * 100) : 0;
+
 
     return res.json({ 
       success: true,
