@@ -232,9 +232,81 @@ export const testEmailConfiguration = async () => {
   }
 };
 
+// Send password reset email
+export const sendPasswordResetEmail = async (email, resetLink) => {
+  try {
+    console.log(`📧 Attempting to send password reset email to: ${email}`);
+    
+    const transporter = createTransporter();
+    
+    if (!transporter) {
+      console.error('❌ Email transporter not available - credentials not configured');
+      return { success: false, error: 'Email credentials not configured' };
+    }
+
+    // Verify transporter connection
+    try {
+      await transporter.verify();
+      console.log('✅ Email transporter verified successfully');
+    } catch (verifyError) {
+      console.error('❌ Email transporter verification failed:', verifyError);
+      return { success: false, error: `Email verification failed: ${verifyError.message}` };
+    }
+
+    const mailOptions = {
+      from: `"Irshad Platform" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Reset Your Password - Irshad Platform',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h1 style="color: #007bff; text-align: center;">Password Reset Request</h1>
+            
+            <div style="background-color: white; padding: 20px; border-radius: 6px; margin-top: 20px;">
+              <p>We received a request to reset your password for your Irshad account.</p>
+              <p>Click the button below to set a new password:</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetLink}" style="background-color: #007bff; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; display: inline-block; font-weight: bold;">Reset Password</a>
+              </div>
+              
+              <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                <h4 style="color: #856404; margin-top: 0;">⚠️ Important</h4>
+                <ul style="color: #856404; margin-bottom: 0;">
+                  <li>This link will expire in <strong>10 minutes</strong></li>
+                  <li>If you did not request this, you can safely ignore this email</li>
+                  <li>Your password will not change until you create a new one</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; color: #666;">
+              <p style="font-size: 12px; color: #999;">This is an automated security notification from Irshad Platform.</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ Password reset email sent successfully to ${email}:`, result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error(`❌ Failed to send password reset email to ${email}:`, error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response
+    });
+    return { success: false, error: error.message };
+  }
+};
+
 export default {
   generateRandomPassword,
   sendLoginCredentials,
   sendGroupCreationNotification,
+  sendPasswordResetEmail,
   testEmailConfiguration
 };

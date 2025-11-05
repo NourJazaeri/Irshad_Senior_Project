@@ -11,7 +11,8 @@ import {
   Building,
   Bell,
   UserCog,
-  Building2 as BuildingOffice
+  Building2 as BuildingOffice,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
@@ -33,6 +34,8 @@ const getPageTitle = (pathname, userType) => {
         return 'Content Library';
       case '/admin/profile':
         return 'Company Profile';
+      case '/admin/my-profile':
+        return 'My Profile';
       default:
         // Check if it's a group detail page
         if (pathname.match(/^\/admin\/groups\/\d+$/)) {
@@ -67,6 +70,8 @@ const getPageTitle = (pathname, userType) => {
         return 'Registrations';
       case '/owner/settings':
         return 'Settings';
+      case '/owner/my-profile':
+        return 'My Profile';
       default:
         return 'Platform Management';
     }
@@ -84,17 +89,38 @@ const getPageTitle = (pathname, userType) => {
   } else if (userType === 'supervisor') {
     switch (pathname) {
       case '/supervisor':
-        return 'Groups';
+        return 'Dashboard';
       case '/supervisor/groups':
         return 'Groups';
       case '/supervisor/content':
         return 'Content Library';
       case '/supervisor/templates':
         return 'Templates';
+      case '/supervisor/profile':
+        return 'My Profile';
+      case '/supervisor/my-profile':
+        return 'My Profile';
       default:
         // Check if it's a group detail page
         if (pathname.startsWith('/supervisor/groups/')) {
           return 'Group Details';
+        }
+        return 'Dashboard';
+    }
+  } else if (userType === 'trainee') {
+    switch (pathname) {
+      case '/trainee':
+      case '/trainee/':
+        return 'Dashboard';
+      case '/trainee/todo':
+        return 'To Do List';
+      case '/trainee/profile':
+        return 'My Profile';
+      case '/trainee/my-profile':
+        return 'My Profile';
+      default:
+        if (pathname.startsWith('/trainee/content/')) {
+          return 'Content';
         }
         return 'Dashboard';
     }
@@ -117,6 +143,8 @@ const getPageIcon = (pathname, userType) => {
         return Library;
       case '/admin/profile':
         return Building;
+      case '/admin/my-profile':
+        return User;
       default:
         // Check if it's a group detail page
         if (pathname.match(/^\/admin\/groups\/\d+$/)) {
@@ -136,20 +164,57 @@ const getPageIcon = (pathname, userType) => {
         }
         return Home;
     }
+  } else if (userType === 'webOwner') {
+    switch (pathname) {
+      case '/owner':
+      case '/owner/dashboard':
+        return Home;
+      case '/owner/companies':
+        return Building2;
+      case '/owner/registrations':
+        return UserCog;
+      case '/owner/settings':
+        return UserCog;
+      case '/owner/my-profile':
+        return User;
+      default:
+        return Home;
+    }
   } else if (userType === 'supervisor') {
     switch (pathname) {
       case '/supervisor':
-        return Users;
+        return Home;
       case '/supervisor/groups':
         return Users;
       case '/supervisor/content':
         return Library;
       case '/supervisor/templates':
         return Library;
+      case '/supervisor/profile':
+        return User;
+      case '/supervisor/my-profile':
+        return User;
       default:
         // Check if it's a group detail page
         if (pathname.startsWith('/supervisor/groups/')) {
           return Users;
+        }
+        return Home;
+    }
+  } else if (userType === 'trainee') {
+    switch (pathname) {
+      case '/trainee':
+      case '/trainee/':
+        return Home;
+      case '/trainee/todo':
+        return ClipboardList;
+      case '/trainee/profile':
+        return User;
+      case '/trainee/my-profile':
+        return User;
+      default:
+        if (pathname.startsWith('/trainee/content/')) {
+          return Library;
         }
         return Home;
     }
@@ -292,7 +357,7 @@ export const UnifiedTopbar = ({
       "bg-blue-50 border-b border-blue-200 shadow-sm w-full sticky top-0 z-50 font-sans antialiased",
       className
     )}>
-      <div className="flex items-center justify-between px-12 py-4">
+      <div className="flex items-center px-12 py-4">
         {/* Left: Page Title with Icon */}
         <div className="flex items-center gap-4">
           <PageIcon className="w-8 h-8 text-primary" />
@@ -302,7 +367,7 @@ export const UnifiedTopbar = ({
         </div>
 
         {/* Company Logo at far right (bigger, crisper) */}
-        <div className="h-24 w-auto flex items-center justify-center overflow-visible">
+        <div className="h-24 w-auto flex items-center justify-center overflow-visible ml-auto">
           <img
             ref={logoImgRef}
             src="/logos/majestic-logo.png"

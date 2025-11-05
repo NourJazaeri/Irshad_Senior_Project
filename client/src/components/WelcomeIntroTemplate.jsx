@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
 import '../styles/WelcomeIntroTemplate.css';
@@ -99,8 +100,14 @@ Your unique skills and perspective will be invaluable as we work towards our sha
 
   return (
     <div className="welcome-intro-container">
-      <div className="welcome-intro-modal">
-        <button className="close-btn" onClick={onClose}>×</button>
+      <div className="welcome-intro-modal" style={{ overflowY: 'auto', maxHeight: '90vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <button 
+          className="close-btn" 
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
         
         <div className="welcome-intro-header">
           <h1>Welcome & Introduction Message</h1>

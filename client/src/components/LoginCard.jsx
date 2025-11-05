@@ -17,24 +17,22 @@ function LoginCard({ onLogin }) {
     try {
       const res = await loginUser({ email, password, role });
 
-      console.log("Login response:", res); // Debug log
-
       if (res.success) {
         onLogin?.(res.user);
         localStorage.setItem("token", res.token);
         localStorage.setItem("sessionId", res.sessionId);
-        // Use the redirect URL from backend or fallback
+        localStorage.setItem("user", JSON.stringify(res.user)); // Save user data for TodoList
+
         if (res.redirectTo) {
           window.location.href = res.redirectTo;
         } else {
-          // Fallback redirects
           const redirectMap = {
-            'Admin': '/admin/dashboard',
-            'Supervisor': '/supervisor', 
-            'Trainee': '/trainee',
-            'WebOwner': '/webowner'
+            Admin: "/admin/dashboard",
+            Supervisor: "/supervisor",
+            Trainee: "/trainee",
+            WebOwner: "/webowner",
           };
-          window.location.href = redirectMap[res.user.role] || '/';
+          window.location.href = redirectMap[res.user.role] || "/";
         }
       } else {
         setErrorMsg(res.message || "Login failed");
@@ -119,7 +117,7 @@ function LoginCard({ onLogin }) {
       </form>
 
       <div className="links">
-        <a href="#">Forgot your password?</a>
+        <a href="/forgot-password">Forgot your password?</a>
         <div className="link-inline">
           <span>Don't have a company account? </span>
           <a href="/registration">Register your company</a>

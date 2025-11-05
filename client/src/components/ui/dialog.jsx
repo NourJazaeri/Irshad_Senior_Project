@@ -28,7 +28,7 @@ const Dialog = ({ open, onOpenChange, children }) => {
 const DialogContent = ({ children, className = '', ...props }) => {
   return (
     <div 
-      className={`relative z-50 bg-card rounded-xl border border-border shadow-elevated ${className}`}
+      className={`relative z-50 bg-card rounded-xl border border-border shadow-elevated overflow-hidden ${className}`}
       onClick={(e) => e.stopPropagation()}
       {...props}
     >

@@ -2,11 +2,14 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import Admin from "../models/Admin.js";
 import Supervisor from "../models/Supervisor.js";
 import Trainee from "../models/Trainee.js";
 import WebOwner from "../models/WebOwner.js";
 import UserSession from "../models/UserSession.js";
+import { sendPasswordResetEmail } from "../services/emailService.js";
+
 const router = express.Router();
 // ===== ROUTE HANDLERS =====
 // Role to model mapping
@@ -153,6 +156,134 @@ router.post("/logout", async (req, res) => {
 });
 
 
-;
+// FORGOT PASSWORD route
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { role, email } = req.body;
+    console.log("📩 Forgot Password request received:", { role, email });
+
+    // Validation
+    if (!role || !email) {
+      return res.status(400).json({ message: "Role and email are required" });
+    }
+
+    const UserModel = roleModels[role];
+    if (!UserModel) {
+      return res.status(400).json({ message: "Invalid role selected" });
+    }
+
+    // Search for user across multiple email fields (loginEmail, email, companyEmail)
+    const user =
+      (await UserModel.findOne({
+        loginEmail: { $regex: new RegExp(`^${email}$`, "i") },
+      })) ||
+      (await UserModel.findOne({
+        email: { $regex: new RegExp(`^${email}$`, "i") },
+      })) ||
+      (await UserModel.findOne({
+        companyEmail: { $regex: new RegExp(`^${email}$`, "i") },
+      }));
+
+    if (!user) {
+      console.warn("⚠️ No user found for email:", email, "in role:", role);
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    // Generate reset token and set expiry (10 minutes)
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Save reset token to user (using strict: false to allow dynamic fields)
+    await UserModel.updateOne(
+      { _id: user._id },
+      { $set: { resetToken: token, resetTokenExpiry: expiry } },
+      { strict: false }
+    );
+
+    // Build reset link
+    const baseURL =
+      process.env.CLIENT_ORIGIN?.split(",")[0] || "http://localhost:5173";
+    const resetLink = `${baseURL}/reset-password?token=${token}&uid=${user._id}&role=${role}`;
+
+    console.log("🔗 Sending password reset link:", resetLink);
+    
+    // Send email with reset link
+    await sendPasswordResetEmail(email, resetLink);
+
+    console.log("✅ Reset email sent successfully to:", email);
+    return res.json({
+      success: true,
+      message: "Password reset link has been sent to your email",
+    });
+  } catch (err) {
+    console.error("❌ Forgot Password Error:", err);
+    return res.status(500).json({
+      message:
+        err?.message ||
+        "Server error while sending reset link. Please try again later.",
+    });
+  }
+});
+
+
+// RESET PASSWORD route
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, uid, role, newPassword } = req.body;
+    console.log("🔑 Reset Password request received for user:", uid);
+
+    // Validation
+    if (!token || !uid || !role || !newPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const UserModel = roleModels[role];
+    if (!UserModel) {
+      return res.status(400).json({ message: "Invalid role selected" });
+    }
+
+    // Find user with valid token and check expiry
+    const user = await UserModel.findOne({
+      _id: uid,
+      resetToken: token,
+      resetTokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      console.log("❌ Token validation failed for user:", uid);
+      return res.status(400).json({ 
+        message: "Invalid or expired password reset token. Please request a new one." 
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await UserModel.updateOne(
+      { _id: uid },
+      {
+        $set: { passwordHash: hashedPassword },
+        $unset: { resetToken: "", resetTokenExpiry: "" },
+      },
+      { strict: false }
+    );
+
+    console.log(
+      "✅ Password successfully reset for user:",
+      user.loginEmail || user.email || user.companyEmail
+    );
+    
+    return res.json({
+      success: true,
+      message: "Password reset successful. You can now log in with your new password.",
+    });
+  } catch (err) {
+    console.error("❌ Reset Password Error:", err);
+    return res.status(500).json({ 
+      message: "Error resetting password. Please try again." 
+    });
+  }
+});
 
 export default router;

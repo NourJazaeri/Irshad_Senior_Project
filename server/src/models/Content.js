@@ -36,7 +36,7 @@ const ContentSchema = new Schema(
     // References for assignment
     assignedTo_GroupID: { type: Schema.Types.ObjectId, ref: "Group" },
     assignedTo_depID: [{ type: Schema.Types.ObjectId, ref: "Department" }], // Array for multiple departments
-    assignedTo_traineeID: { type: Schema.Types.ObjectId, ref: "Trainee" },
+    assignedTo_traineeID: [{ type: Schema.Types.ObjectId, ref: "Trainee" }], // Array for multiple trainees
 
     // References for assignment source
     assignedBy_adminID: { type: Schema.Types.ObjectId, ref: "Admin" },
@@ -49,7 +49,6 @@ const ContentSchema = new Schema(
 function cleanAssignmentFields(docLike) {
   const maybeUnsetKeys = [
     'assignedTo_GroupID',
-    'assignedTo_traineeID',
     'youtubeVideoId',
   ];
 
@@ -58,8 +57,15 @@ function cleanAssignmentFields(docLike) {
     if (val === null || val === undefined || val === '') delete docLike[key];
   }
 
+  // Handle array fields separately
   if (Array.isArray(docLike.assignedTo_depID) && docLike.assignedTo_depID.length === 0) {
     delete docLike.assignedTo_depID;
+  }
+  
+  if (Array.isArray(docLike.assignedTo_traineeID) && docLike.assignedTo_traineeID.length === 0) {
+    delete docLike.assignedTo_traineeID;
+  } else if (docLike.assignedTo_traineeID === null || docLike.assignedTo_traineeID === undefined || docLike.assignedTo_traineeID === '') {
+    delete docLike.assignedTo_traineeID;
   }
 }
 

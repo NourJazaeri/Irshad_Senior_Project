@@ -6,23 +6,9 @@ import "../styles/admin-components.css";
 
 export default function AdminLayout() {
   const { pathname } = useLocation();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
-  // Reset sidebar to collapsed on mount and whenever path changes
-  useEffect(() => {
-    setSidebarCollapsed(true);
-  }, [pathname]);
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      // Use setTimeout to ensure this runs after React state updates
-      setTimeout(() => setSidebarCollapsed(true), 0);
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  // Removed auto-collapse on navigation - sidebar only collapses when user clicks the toggle button
 
   return (
     <div className="admin-shell h-screen">

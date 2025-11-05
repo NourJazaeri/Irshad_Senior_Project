@@ -1,5 +1,59 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
+// Global function to handle session expiration
+export const handleSessionExpired = () => {
+  // Clear all auth data
+  localStorage.removeItem('token');
+  localStorage.removeItem('sessionId');
+  localStorage.removeItem('userRole');
+  
+  // Show alert
+  alert('⏰ Your session has expired. Please log in again.');
+  
+  // Redirect to login
+  window.location.href = '/login';
+};
+
+// Enhanced fetch wrapper that handles authentication errors
+export const authenticatedFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('token');
+  
+  // Add authorization header if token exists
+  if (token && !options.headers?.Authorization) {
+    options.headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+  }
+  
+  try {
+    const response = await fetch(url, options);
+    
+    // Handle 401 Unauthorized (token expired or invalid)
+    if (response.status === 401) {
+      handleSessionExpired();
+      throw new Error('Session expired');
+    }
+    
+    return response;
+  } catch (error) {
+    // If it's a network error and we have a token, check if it's expired
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentTime = Date.now() / 1000;
+        if (payload.exp && payload.exp < currentTime) {
+          handleSessionExpired();
+        }
+      } catch {
+        // Token is malformed, clear it
+        handleSessionExpired();
+      }
+    }
+    throw error;
+  }
+};
+
 // Utility functions for user authentication and session management
 export const getCurrentUser = () => {
   try {
@@ -313,12 +367,12 @@ export async function fetchEmployees() {
 
     console.log("Fetching employees...");
     
-    const response = await fetch(`${API_BASE}/api/admin/users/employees`, {
+    // Use authenticatedFetch instead of fetch - it handles 401 automatically
+    const response = await authenticatedFetch(`${API_BASE}/api/admin/users/employees`, {
       method: "GET",
       headers: { 
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Accept": "application/json"
       }
     });
 
@@ -334,6 +388,10 @@ export async function fetchEmployees() {
     return data;
   } catch (error) {
     console.error("Error fetching employees:", error);
+    // Don't return error if session expired (user already redirected)
+    if (error.message === 'Session expired') {
+      return null;
+    }
     return { 
       success: false, 
       message: error.message || "Cannot fetch employees.",
@@ -730,4 +788,106 @@ export async function getContent(params = {}) {
       message: error.message || "Cannot connect to server to fetch content." 
     };
   }
+}
+
+// --------------------------- Todo API ---------------------------
+
+export async function deleteAllCompletedTodos(traineeId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(
+    `${API_BASE}/api/todos/completed/${traineeId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete all completed todos');
+  }
+  return res.json();
+}
+
+export async function fetchTodos(traineeId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${traineeId}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to fetch todos');
+  }
+  return res.json();
+}
+
+export async function addTodo({ traineeId, day, title }) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ traineeId, day, title }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to add todo');
+  }
+  return res.json();
+}
+
+export async function updateTodo(id, title) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to update todo');
+  }
+  return res.json();
+}
+
+export async function completeTodo(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}/complete`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to complete todo');
+  }
+  return res.json();
+}
+
+export async function deleteTodo(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete todo');
+  }
+  return res.json().catch(() => ({}));
 }

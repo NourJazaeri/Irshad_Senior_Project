@@ -23,6 +23,9 @@ const webOwnerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+     // Reset password fields
+    resetToken: { type: String, default: null },
+    resetTokenExpiry: { type: Date, default: null },
   },
   { collection: "Web_Owner", timestamps: true }
 );

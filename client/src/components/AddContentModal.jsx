@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, Link, LayoutTemplate, Users, Clock, CheckCircle, Bell, CalendarIcon, X, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { uploadContent, createLinkContent, createTemplateContent, saveContentFromTemplate, getTemplates, getDepartments } from '../services/content';
+import { uploadContent, createLinkContent, createTemplateContent, saveContentFromTemplate, getTemplates, getDepartments, generateAI } from '../services/content';
 import { getSupervisorGroups, getSupervisorGroupDetails } from '../services/api';
 import '../styles/content-modal.css';
 import '../styles/content-modal-enhanced.css';
@@ -61,6 +61,10 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [urlValidationStatus, setUrlValidationStatus] = useState(null); // 'valid', 'invalid', 'checking'
   const [showFileReplaceConfirm, setShowFileReplaceConfirm] = useState(false);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [numQuestionsToGenerate, setNumQuestionsToGenerate] = useState(5); // Number of questions for AI generation
+  const [showQuestionCountDialog, setShowQuestionCountDialog] = useState(false); // Show chat-style dialog
+  const [customAlert, setCustomAlert] = useState({ show: false, title: '', message: '', icon: '' }); // Custom alert state
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -75,6 +79,38 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     ackRequired: false,
     mcqs: [],
   });
+  
+  // Detect group context from URL if template data is provided but no groupId
+  const getEffectiveGroupId = () => {
+    if (groupId) return groupId;
+    if (templateData && !groupId) {
+      const pathParts = window.location.pathname.split('/');
+      const groupsIndex = pathParts.findIndex(part => part === 'groups');
+      if (groupsIndex !== -1 && pathParts[groupsIndex + 1]) {
+        return pathParts[groupsIndex + 1];
+      }
+    }
+    return null;
+  };
+  
+  const effectiveGroupId = getEffectiveGroupId();
+
+  // Reset to options screen when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setShowContentOptions(true);
+      setCurrentStep(1);
+    }
+  }, [isOpen]);
+
+  // Custom Alert Helper Function
+  const showAlert = (title, message, icon = '⚠️') => {
+    setCustomAlert({ show: true, title, message, icon });
+  };
+
+  const closeAlert = () => {
+    setCustomAlert({ show: false, title: '', message: '', icon: '' });
+  };
 
   // Function to get steps based on user role
   const getSteps = () => [
@@ -114,7 +150,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
   }, [isOpen, editMode, editContent, templateData, groupId, traineeId]);
 
   // Populate form with existing content data for editing
-  const populateEditForm = () => {
+  const populateEditForm = async () => {
     if (!editContent) {
       console.log('⚠️ No editContent provided');
       return;
@@ -151,19 +187,62 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     });
     
     setContentType(contentType);
+    
+    // Fetch quiz questions from database
+    let existingQuizzes = [];
+    setLoadingQuizzes(true);
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/api/content/${editContent._id}/quiz`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const quizzes = data.quizzes || [];
+        console.log('📚 Fetched quizzes from database:', quizzes);
+        
+        // Convert database quiz format to form format
+        if (quizzes.length > 0) {
+          // Get the most recent quiz (first one, since they're sorted by createdAt desc)
+          const latestQuiz = quizzes[0];
+          existingQuizzes = latestQuiz.questions.map((q, idx) => {
+            const correctIdx = q.options.findIndex(opt => String(opt).trim() === String(q.correctAnswer).trim());
+            return {
+              id: `${Date.now()}-${idx}`,
+              question: q.questionText || '',
+              options: q.options || ['', '', '', ''],
+              correctAnswer: correctIdx >= 0 ? correctIdx : 0,
+            };
+          });
+          console.log('✅ Converted quiz questions to form format:', existingQuizzes);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching quizzes:', error);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+    
     setFormData({
       title: editContent.title || '',
       description: editContent.description || '',
       category: editContent.category || '',
       contentType: contentType,
       file: null, // Don't pre-populate file
-        link: (editContent.contentType === 'link' || editContent.contentType === 'template') ? (editContent.contentUrl || editContent.link || '') : '',
+      link: (editContent.contentType === 'link' || editContent.contentType === 'template') ? (editContent.contentUrl || editContent.link || '') : '',
       selectedDepartments: editContent.assignedTo_depID || [],
       selectedGroups: editContent.assignedTo_GroupID ? [editContent.assignedTo_GroupID] : [],
-      selectedTrainees: editContent.assignedTo_traineeID ? [editContent.assignedTo_traineeID] : [],
+      selectedTrainees: Array.isArray(editContent.assignedTo_traineeID) 
+        ? editContent.assignedTo_traineeID.map(t => typeof t === 'object' ? t._id : t)
+        : (editContent.assignedTo_traineeID ? [editContent.assignedTo_traineeID] : []),
       deadline: editContent.deadline ? new Date(editContent.deadline) : undefined,
       ackRequired: editContent.ackRequired || false,
-      mcqs: editContent.mcqs || [],
+      mcqs: existingQuizzes, // Load quizzes from database
     });
     setShowContentOptions(false);
     
@@ -172,7 +251,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       category: editContent.category,
       contentType: contentType,
       link: editContent.contentUrl,
-      selectedDepartments: editContent.assignedTo_depID
+      selectedDepartments: editContent.assignedTo_depID,
+      mcqsCount: existingQuizzes.length
     });
   };
 
@@ -235,12 +315,12 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       
       console.log('👤 User role:', role);
       
-             if (role === 'Supervisor') {
-         // If groupId is provided, only load that specific group and its trainees
-         if (groupId) {
-           console.log('🎯 Loading specific group:', groupId);
+      if (role === 'Supervisor') {
+        // If groupId is provided (or detected from URL), only load that specific group and its trainees
+        if (effectiveGroupId) {
+          console.log('🎯 Loading specific group:', effectiveGroupId);
            try {
-             const groupDetails = await getSupervisorGroupDetails(groupId);
+             const groupDetails = await getSupervisorGroupDetails(effectiveGroupId);
              if (groupDetails && groupDetails.group) {
                // Set only this group as available
                setAvailableGroups([{
@@ -264,11 +344,11 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                // Pre-select the group
                setFormData(prev => ({
                  ...prev,
-                 selectedGroups: [groupId]
+                 selectedGroups: [effectiveGroupId]
                }));
              }
            } catch (err) {
-             console.error(`Error loading group ${groupId}:`, err);
+             console.error(`Error loading group ${effectiveGroupId}:`, err);
              setError('Failed to load group details');
            }
          } else {
@@ -336,10 +416,25 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     }
   };
 
-  // URL validation function
+  // URL validation function - only allows YouTube and web page URLs, not file URLs
   const isValidUrl = (string) => {
     try {
-      new URL(string);
+      const url = new URL(string);
+      
+      // Check for file extensions that shouldn't be allowed for Link/URL resource type
+      const fileExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', 
+                             '.zip', '.rar', '.jpg', '.jpeg', '.png', '.gif', '.mp4', 
+                             '.mp3', '.avi', '.mov', '.exe', '.dmg'];
+      
+      const pathname = url.pathname.toLowerCase();
+      const hasFileExtension = fileExtensions.some(ext => 
+        pathname.endsWith(ext) || pathname.includes(`${ext}?`)
+      );
+      
+      if (hasFileExtension) {
+        return false; // Reject file URLs
+      }
+      
       return true;
     } catch (_) {
       return false;
@@ -414,7 +509,20 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     
     // Validate URL format first
     if (url && !isValidUrl(url)) {
-      setUrlValidationError('Please enter a valid URL (e.g., https://example.com)');
+      // Check if it's a file URL
+      const fileExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', 
+                             '.zip', '.rar', '.jpg', '.jpeg', '.png', '.gif', '.mp4', 
+                             '.mp3', '.avi', '.mov', '.exe', '.dmg'];
+      const urlLower = url.toLowerCase();
+      const hasFileExtension = fileExtensions.some(ext => 
+        urlLower.endsWith(ext) || urlLower.includes(`${ext}?`)
+      );
+      
+      if (hasFileExtension) {
+        setUrlValidationError('File URLs are not supported. Please upload files using the "File" option or use YouTube URLs for videos.');
+      } else {
+        setUrlValidationError('Please enter a valid URL (e.g., https://example.com or https://youtube.com/watch?v=...)');
+      }
       setUrlValidationStatus('invalid');
     } else if (url && isValidUrl(url)) {
       // For YouTube URLs, validate immediately since we can check the video ID format
@@ -442,36 +550,36 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     // Validation for step 1
     if (currentStep === 1) {
       if (!formData.title || !formData.category) {
-        alert('Please fill in all required fields');
+        showAlert('Missing Required Fields', 'Please fill in all required fields before proceeding.', '📝');
         return;
       }
       if (contentType === 'file' && !formData.file && !editMode) {
-        alert('Please upload a file');
+        showAlert('File Required', 'Please upload a file to continue.', '📁');
         return;
       }
       if (contentType === 'link') {
         if (!formData.link) {
-          alert('Please enter a URL');
+          showAlert('URL Required', 'Please enter a URL to continue.', '🔗');
           return;
         }
         if (!isValidUrl(formData.link)) {
           setUrlValidationError('Please enter a valid URL (e.g., https://example.com)');
-          alert('Please enter a valid URL (e.g., https://example.com)');
+          showAlert('Invalid URL', 'Please enter a valid URL (e.g., https://example.com)', '🔗');
           return;
         }
         if (urlValidationStatus === 'invalid') {
-          alert('This URL is not accessible or does not exist. Please check the URL and try again.');
+          showAlert('URL Not Accessible', 'This URL is not accessible or does not exist. Please check the URL and try again.', '❌');
           return;
         }
         if (urlValidationStatus === 'checking') {
-          alert('Please wait while we validate the URL...');
+          showAlert('Validating URL', 'Please wait while we validate the URL...', '⏳');
           return;
         }
         if (urlValidationStatus !== 'valid') {
           // If validation hasn't completed yet, trigger it now
           const isValid = await validateUrlExists(formData.link);
           if (!isValid) {
-            alert('This URL is not accessible or does not exist. Please check the URL and try again.');
+            showAlert('URL Not Accessible', 'This URL is not accessible or does not exist. Please check the URL and try again.', '❌');
             return;
           }
         }
@@ -485,8 +593,20 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         formData.selectedGroups.length === 0 &&
         formData.selectedTrainees.length === 0
       ) {
-        alert('Please assign to at least one department, group, or trainee');
+        showAlert('Assignment Required', 'Please assign to at least one department, group, or trainee', '👥');
         return;
+      }
+    }
+
+    // Validation for step 4 (MCQ step)
+    if (currentStep === 4) {
+      // Only validate if user has added questions
+      if (formData.mcqs && formData.mcqs.length > 0) {
+        const validation = validateQuestions();
+        if (!validation.valid) {
+          showAlert('Some Quiz Questions Are Incomplete', validation.errors.join('\n\n'), '⚠️');
+          return;
+        }
       }
     }
 
@@ -506,7 +626,18 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     console.log('🚀 Edit mode:', editMode);
     console.log('🚀 Content type:', contentType);
     console.log('🚀 Form data file:', formData.file);
-    console.log('🚀 Form data:', formData);
+    console.log('🚀 Form data MCQs count:', formData.mcqs?.length || 0);
+    console.log('🚀 Form data MCQs:', formData.mcqs);
+    console.log('🚀 Full Form data:', formData);
+    
+    // Validate questions before publishing if they exist
+    if (formData.mcqs && formData.mcqs.length > 0) {
+      const validation = validateQuestions();
+      if (!validation.valid) {
+        showAlert('Some Quiz Questions Are Incomplete', 'Please fix the following issues with your quiz questions:\n\n' + validation.errors.join('\n\n'), '⚠️');
+        return;
+      }
+    }
     
     setIsLoading(true);
     setError(null);
@@ -520,7 +651,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         ackRequired: formData.ackRequired,
         assignedTo_depID: formData.selectedDepartments,
         assignedTo_GroupID: formData.selectedGroups.length > 0 ? formData.selectedGroups[0] : null,
-        assignedTo_traineeID: formData.selectedTrainees.length > 0 ? formData.selectedTrainees[0] : null,
+        assignedTo_traineeID: formData.selectedTrainees.length > 0 
+          ? formData.selectedTrainees.map(t => typeof t === 'object' ? t._id : t)
+          : null,
       };
 
       let response;
@@ -618,13 +751,22 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
           console.log('✅ Update successful - Response content:', responseData.content);
           console.log('✅ Updated content type:', responseData.content?.contentType);
           console.log('✅ Updated content URL:', responseData.content?.contentUrl);
-          
-          alert('Content updated successfully!');
-          if (onContentAdded) {
-            onContentAdded(responseData.content || responseData);
+          // Only save quiz if there are questions
+          const contentId = responseData.content?._id || editContent._id;
+          if (formData.mcqs && formData.mcqs.length > 0 && contentId) {
+            try { 
+              await saveQuizForContent(contentId); 
+            } catch (quizError) {
+              console.error('Quiz save failed but content was updated:', quizError);
+            }
           }
-          onClose();
-          resetForm();
+          showAlert('Success!', 'Content updated successfully!', '✅');
+          setTimeout(() => {
+            closeAlert();
+            onContentAdded(responseData.content || responseData);
+            onClose();
+            resetForm();
+          }, 1500);
         } else {
           console.error('❌ Update failed:', responseData);
           console.error('❌ Response status:', response.status);
@@ -727,7 +869,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
             assignedByModel: userRole,
             assignedTo_depID: formData.selectedDepartments,
             assignedTo_GroupID: formData.selectedGroups.length > 0 ? formData.selectedGroups[0] : null,
-            assignedTo_traineeID: formData.selectedTrainees.length > 0 ? formData.selectedTrainees[0] : null,
+            assignedTo_traineeID: formData.selectedTrainees.length > 0 ? formData.selectedTrainees : null,
           };
 
           console.log('🔄 Sending template content data:', templateContentData);
@@ -762,12 +904,24 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         }
 
         if (response && (response.ok || response.success || response.message === 'Content saved successfully')) {
-          alert('Content published successfully!');
-          if (onContentAdded) {
-            onContentAdded(response.content || response);
+          showAlert('Success!', 'Content published successfully!', '✅');
+          setTimeout(async () => {
+            closeAlert();
+          // Only save quiz if there are questions
+          const contentId = (response.content && response.content._id) || response._id;
+          if (formData.mcqs && formData.mcqs.length > 0 && contentId) {
+            try { 
+              await saveQuizForContent(contentId); 
+            } catch (quizError) {
+              console.error('Quiz save failed but content was created:', quizError);
+            }
           }
-          onClose();
-          resetForm();
+            if (onContentAdded) {
+              onContentAdded(response.content || response);
+            }
+            onClose();
+            resetForm();
+          }, 1500);
         } else {
           throw new Error(response?.error || response?.message || 'Failed to publish content');
         }
@@ -776,7 +930,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     } catch (error) {
       console.error('Error publishing content:', error);
       setError(error.message || 'Failed to publish content. Please try again.');
-      alert(`Error: ${error.message || 'Failed to publish content. Please try again.'}`);
+      showAlert('Publication Error', error.message || 'Failed to publish content. Please try again.', '❌');
     } finally {
       setIsLoading(false);
     }
@@ -784,10 +938,19 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
 
   const handleContentOptionSelect = (option) => {
     if (option === 'template') {
-      // Navigate to templates page based on user role and close modal
+      // Navigate to templates page based on user role and group context
       onClose();
-      const templatesRoute = userRole === 'Supervisor' ? '/supervisor/templates' : '/admin/templates';
-      navigate(templatesRoute);
+      if (effectiveGroupId) {
+        // If we're in a group context, navigate to group-specific templates
+        const templatesRoute = userRole === 'Supervisor' 
+          ? `/supervisor/groups/${effectiveGroupId}/templates` 
+          : `/admin/groups/${effectiveGroupId}/templates`;
+        navigate(templatesRoute);
+      } else {
+        // If not in group context, navigate to general templates
+        const templatesRoute = userRole === 'Supervisor' ? '/supervisor/templates' : '/admin/templates';
+        navigate(templatesRoute);
+      }
       return;
     }
     
@@ -857,6 +1020,270 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     setFormData({ ...formData, mcqs: [...formData.mcqs, newMCQ] });
   };
 
+  // Add MCQ at specific index (below a question)
+  const addMCQAtIndex = (afterIndex) => {
+    const newMCQ = {
+      id: Date.now().toString(),
+      question: '',
+      options: ['', '', '', ''],
+      correctAnswer: 0,
+    };
+    const newMcqs = [...formData.mcqs];
+    newMcqs.splice(afterIndex + 1, 0, newMCQ); // Insert after the specified index
+    setFormData({ ...formData, mcqs: newMcqs });
+  };
+
+  const handleGenerateClick = () => {
+    setShowQuestionCountDialog(true);
+  };
+
+  const confirmAndGenerate = async () => {
+    setShowQuestionCountDialog(false);
+    await generateMcqsWithAI();
+  };
+
+  const generateMcqsWithAI = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      let result;
+      if (contentType === 'file' && formData.file) {
+        result = await generateAI({ task: 'quiz', file: formData.file, numQuestions: numQuestionsToGenerate });
+      } else if (contentType === 'link' && formData.link) {
+        result = await generateAI({ task: 'quiz', url: formData.link, numQuestions: numQuestionsToGenerate });
+      } else {
+        const baseText = `${formData.title}\n\n${formData.description || ''}`.trim();
+        if (!baseText) {
+          showAlert('Content Required', 'Please enter title or description, or upload a file to use AI.', '📝');
+          setIsLoading(false);
+          return;
+        }
+        result = await generateAI({ task: 'quiz', text: baseText, numQuestions: numQuestionsToGenerate });
+      }
+      // Handle both response formats: direct { questions: [...] } or wrapped { data: { questions: [...] } }
+      const questions = result.questions || (result.data && result.data.questions) || [];
+      console.log('🤖 AI Response - Raw questions:', questions);
+      
+      if (questions.length === 0) {
+        showAlert('No Questions Generated', 'No questions were generated. Please try again or check your content.', '⚠️');
+        setIsLoading(false);
+        return;
+      }
+      
+      const mapped = questions.map((q, idx) => {
+        console.log(`🤖 Question ${idx + 1} from AI:`, {
+          question: q.question?.substring(0, 50),
+          correctAnswer: q.correctAnswer,
+          correctAnswerType: typeof q.correctAnswer,
+          correctAnswerText: q.correctAnswerText,
+          options: q.options
+        });
+        
+        return {
+          id: `${Date.now()}-${idx}`,
+          question: q.question || '',
+          options: q.options || ['', '', '', ''],
+          correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+        };
+      });
+      console.log('✅ Mapped questions:', mapped);
+      console.log('✅ Setting formData.mcqs to:', mapped.length, 'questions');
+      setFormData(prev => {
+        const updated = { ...prev, mcqs: mapped };
+        console.log('✅ Updated formData:', updated);
+        return updated;
+      });
+      alert(`Successfully generated ${mapped.length} questions!`);
+    } catch (e) {
+      console.error('❌ AI generation failed:', e);
+      
+      // Use the error message from backend (includes suggestion if provided)
+      let errorMessage = e.message || 'Failed to generate quiz';
+      let errorTitle = '';
+      let errorDetails = '';
+      let suggestions = '';
+      
+      // Detect specific error types and provide helpful messages
+      if (errorMessage.toLowerCase().includes('transcript') || 
+          errorMessage.toLowerCase().includes('caption') || 
+          errorMessage.toLowerCase().includes('no element found') ||
+          errorMessage.includes('CC button')) {
+        errorTitle = '⚠️ YouTube Transcript Not Available';
+        errorDetails = 'This video doesn\'t have captions or transcripts available.\n\n' +
+                      'The CC (Closed Captions) button must be visible on YouTube for AI to generate questions.';
+        suggestions = '\n\n✅ Solutions:\n' +
+                     '• Choose a different video with captions enabled (check for CC button)\n' +
+                     '• Upload the video content as a PDF or text file instead\n' +
+                     '• Try a video with auto-generated captions (most YouTube videos have these)\n' +
+                     '• If it\'s your video, enable captions in YouTube Studio';
+      } else if (errorMessage.includes('too short')) {
+        errorTitle = '📏 Content Too Short';
+        errorDetails = errorMessage;
+        suggestions = '\n\n✅ Try:\n' +
+                     '• A longer video or document\n' +
+                     '• Content with more detailed information';
+      } else if (errorMessage.includes('rate limit') || errorMessage.includes('Too Many Requests')) {
+        errorTitle = '⏰ Rate Limited';
+        errorDetails = 'YouTube is temporarily blocking transcript requests.';
+        suggestions = '\n\n✅ Solutions:\n' +
+                     '• Wait 30-60 minutes and try again\n' +
+                     '• Upload content as a PDF file (works immediately!)\n' +
+                     '• Try a different network/VPN';
+      } else if (errorMessage.includes('Video unavailable') || errorMessage.includes('private')) {
+        errorTitle = '🔒 Video Not Accessible';
+        errorDetails = 'This video is unavailable, private, or restricted.';
+        suggestions = '\n\n✅ Try:\n' +
+                     '• A public, non-restricted video\n' +
+                     '• Uploading content as a PDF instead';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED')) {
+        errorTitle = '⚠️ Connection Error';
+        errorDetails = 'Cannot connect to the AI service.';
+        suggestions = '\n\n✅ Check:\n' +
+                     '• Python AI service is running (port 8001)\n' +
+                     '• Console for startup errors\n' +
+                     '• Try restarting the Python service';
+      } else if (errorMessage.includes('Suggestion:')) {
+        // Backend provided a suggestion
+        errorTitle = '❌ Generation Failed';
+        errorDetails = errorMessage;
+        suggestions = '';
+      } else {
+        // Generic error
+        errorTitle = '❌ Unexpected Error';
+        errorDetails = errorMessage;
+        suggestions = '\n\n💡 Tip: PDF files work most reliably for quiz generation!';
+      }
+      
+      // Show custom alert instead of browser alert
+      showAlert(errorTitle, `${errorDetails}${suggestions}`, errorTitle.includes('⚠️') || errorTitle.includes('❌') ? errorTitle.split(' ')[0] : '⚠️');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const validateQuestions = () => {
+    if (!formData.mcqs || formData.mcqs.length === 0) {
+      return { valid: true, errors: [] }; // No questions is OK (optional)
+    }
+
+    const errors = [];
+    
+    formData.mcqs.forEach((q, idx) => {
+      const questionNum = idx + 1;
+      
+      // Check if question text is empty
+      if (!q.question || q.question.trim() === '') {
+        errors.push(`Question ${questionNum}: Question text is empty`);
+      }
+      
+      // Check if at least 2 options are filled
+      const filledOptions = q.options.filter((opt, optIdx) => opt && opt.trim() !== '');
+      const filledOptionIndices = q.options.map((opt, idx) => (opt && opt.trim() !== '') ? idx : null).filter(idx => idx !== null);
+      
+      if (filledOptions.length < 2) {
+        errors.push(`Question ${questionNum}: At least 2 answer options are required`);
+      }
+      
+      // Check if correct answer is selected and is one of the filled options
+      if (typeof q.correctAnswer === 'number' && q.correctAnswer >= 0) {
+        if (q.options[q.correctAnswer] === undefined || !q.options[q.correctAnswer] || !q.options[q.correctAnswer].trim()) {
+          errors.push(`Question ${questionNum}: The selected correct answer (Option ${q.correctAnswer + 1}) is empty`);
+        } else if (!filledOptionIndices.includes(q.correctAnswer)) {
+          errors.push(`Question ${questionNum}: The correct answer must be one of the filled options`);
+        }
+      }
+    });
+    
+    return { valid: errors.length === 0, errors };
+  };
+
+  const saveQuizForContent = async (contentId) => {
+    try {
+      console.log('💾 saveQuizForContent called with contentId:', contentId);
+      console.log('💾 formData.mcqs at save time:', formData.mcqs);
+      console.log('💾 formData.mcqs is array?', Array.isArray(formData.mcqs));
+      console.log('💾 formData.mcqs length:', formData.mcqs?.length);
+      
+      // Validate questions before sending
+      const validation = validateQuestions();
+      if (!validation.valid) {
+        console.error('❌ Quiz validation failed:', validation.errors);
+        showAlert('Some Quiz Questions Are Incomplete', validation.errors.join('\n\n'), '⚠️');
+        throw new Error('Invalid quiz questions');
+      }
+      
+      const questions = Array.isArray(formData.mcqs) ? formData.mcqs.map((q, idx) => {
+        const mapped = {
+          question: q.question,
+          options: q.options,
+          correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+        };
+        console.log(`💾 Question ${idx + 1} being sent:`, {
+          question: mapped.question?.substring(0, 50) || '(empty)',
+          options: mapped.options,
+          correctAnswer: mapped.correctAnswer,
+          correctAnswerText: mapped.options[mapped.correctAnswer]
+        });
+        return mapped;
+      }) : [];
+      
+      console.log('💾 Mapped questions for save:', questions);
+      console.log('💾 Mapped questions count:', questions.length);
+      
+      if (!contentId || questions.length === 0) {
+        console.log('⚠️ Skipping quiz save - no content ID or no questions', { 
+          contentId, 
+          questionsCount: questions.length,
+          hasContentId: !!contentId,
+          originalMcqs: formData.mcqs 
+        });
+        return;
+      }
+
+      console.log('💾 Saving quiz for content:', contentId, 'Questions:', questions.length);
+      
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+      
+      if (!token) {
+        console.warn('⚠️ No auth token present; cannot save quiz');
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('isAiGenerated', 'true');
+      fd.append('questions', JSON.stringify(questions));
+      
+      console.log('📤 Sending quiz data to:', `${API_BASE}/api/content/${contentId}/quiz`);
+      console.log('📤 Questions payload:', JSON.stringify(questions, null, 2));
+
+      const response = await fetch(`${API_BASE}/api/content/${contentId}/quiz`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: fd
+      });
+
+      const responseData = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Quiz saved successfully:', responseData);
+        if (responseData.action === 'updated') {
+          console.log('📝 Quiz was updated (not created new)');
+        } else if (responseData.action === 'created') {
+          console.log('➕ New quiz was created');
+        }
+      } else {
+        console.error('❌ Failed to save quiz:', response.status, responseData);
+        throw new Error(responseData.error || 'Failed to save quiz to database');
+      }
+    } catch (e) {
+      console.error('❌ Exception while saving quiz:', e);
+      // Don't throw - we don't want to block content creation if quiz save fails
+    }
+  };
+
   const updateMCQ = (id, updates) => {
     setFormData({
           ...formData,
@@ -872,20 +1299,32 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       mcqs: formData.mcqs.filter((mcq) => mcq.id !== id),
     });
   };
-
-
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`overflow-y-auto ${
+      <DialogContent className={`${
         showContentOptions 
-          ? "max-w-4xl w-[90vw] max-h-[80vh] p-8" 
-          : "max-w-6xl w-[95vw] max-h-[95vh] p-8"
+          ? "max-w-5xl w-[92vw] max-h-[80vh]" 
+          : "max-w-6xl w-[95vw] max-h-[95vh]"
       }`}>
-        <DialogHeader>
-          <DialogTitle className="text-3xl">
+        <div 
+          className="overflow-y-auto h-full p-8 hide-scrollbar" 
+          style={{ 
+            maxHeight: showContentOptions ? '80vh' : '95vh'
+          }}
+        >
+        <DialogHeader className="!px-0 !pb-4 pt-0 relative">
+          <button
+            onClick={onClose}
+            className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-full hover:bg-gray-100 z-10"
+            aria-label="Close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <DialogTitle className="text-3xl font-bold pr-10">
             {editMode ? 'Edit Content' : 'Add New Content'}
           </DialogTitle>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 text-lg mt-2">
             {showContentOptions 
               ? (editMode ? "Choose how you want to modify this content." : "Choose how you want to add content to the system.")
               : (editMode ? "Follow the steps to update and reassign this content." : "Follow the steps to add and assign new learning content.")
@@ -896,104 +1335,95 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         {/* Content Options Selection */}
         {showContentOptions && (
           <div className="space-y-8 mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Upload File Option */}
               <div 
-                className="flex flex-col items-center p-10 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
+                className="flex flex-col items-center px-12 py-8 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
                 onClick={() => handleContentOptionSelect('file')}
               >
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                   <Upload className="w-10 h-10 text-blue-600" />
-                          </div>
+                </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Upload File</h3>
                 <p className="text-gray-600 text-center leading-relaxed text-lg">
                   Upload images or documents directly to the system
                 </p>
-                  </div>
+              </div>
 
               {/* Link Resource Option */}
               <div 
-                className="flex flex-col items-center p-10 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
+                className="flex flex-col items-center px-12 py-8 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
                 onClick={() => handleContentOptionSelect('link')}
               >
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                   <Link className="w-10 h-10 text-blue-600" />
-                    </div>
+                </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Link Resource</h3>
                 <p className="text-gray-600 text-center leading-relaxed text-lg">
                   Add an external link to a video, article, or website
                 </p>
-                    </div>
+              </div>
                     
               {/* Use Template Option */}
               <div 
-                className="flex flex-col items-center p-10 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
+                className="flex flex-col items-center px-12 py-8 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
                 onClick={() => handleContentOptionSelect('template')}
               >
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                   <LayoutTemplate className="w-10 h-10 text-blue-600" />
-                                  </div>
+                </div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Use Template</h3>
                 <p className="text-gray-600 text-center leading-relaxed text-lg">
                   Start from a ready-to-use content template
                 </p>
-                                  </div>
-                                </div>
-                          </div>
-                        )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Multi-step Form */}
         {!showContentOptions && (
           <>
-            {/* Back to Options Button */}
-            <div className="flex justify-start mb-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowContentOptions(true)}
-                className="flex items-center gap-2 px-4 py-2"
-              >
-                ← Back to Options
-              </Button>
-                    </div>
-
         {/* Step Indicator */}
-        <div className="flex items-center justify-between mb-10 mt-6">
-          {steps.map((step, index) => {
-            const StepIcon = step.icon;
-            const isActive = currentStep === step.number;
-            const isCompleted = currentStep > step.number;
-            
-        return (
-              <div key={step.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center gap-2 flex-1">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                      isActive ? 'bg-blue-600 text-white shadow-lg' :
-                      isCompleted ? 'bg-blue-100 text-blue-600' :
-                      'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    <StepIcon className="w-6 h-6" />
+        <div className="flex items-center justify-center mb-10 mt-6 w-full">
+          <div className="flex items-center w-full max-w-4xl">
+            {steps.map((step, index) => {
+              const StepIcon = step.icon;
+              const isActive = currentStep === step.number;
+              const isCompleted = currentStep > step.number;
+              
+              return (
+                <React.Fragment key={step.number}>
+                  <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                        isActive ? 'bg-blue-600 text-white shadow-lg' :
+                        isCompleted ? 'bg-blue-100 text-blue-600' :
+                        'bg-gray-200 text-gray-500'
+                      }`}
+                    >
+                      <StepIcon className="w-6 h-6" />
                     </div>
-                  <span
-                    className={`text-sm text-center font-medium hidden sm:block ${
-                      isActive ? 'text-blue-600' : 'text-gray-500'
-                    }`}
-                  >
-                    {step.label}
-                        </span>
-                    </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`h-0.5 flex-1 transition-all ${
-                      currentStep > step.number ? 'bg-blue-600' : 'bg-gray-300'
-                    }`}
-                  />
-                )}
-                    </div>
-  );
-          })}
-                    </div>
+                    <span
+                      className={`text-sm text-center font-medium hidden sm:block whitespace-nowrap ${
+                        isActive ? 'text-blue-600' : 'text-gray-500'
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div
+                      className={`h-0.5 flex-1 mx-2 transition-all ${
+                        currentStep > step.number ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Step 1: Upload/Select Content */}
                 {currentStep === 1 && (
@@ -1033,7 +1463,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                     value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Introduction to Cloud Security"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                className={`w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${
+                  formData.title ? 'bg-blue-50' : 'bg-white'
+                }`}
                   />
                 </div>
 
@@ -1045,7 +1477,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="A comprehensive guide to understanding fundamental cloud security principles and best practices."
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                className={`w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${
+                  formData.description ? 'bg-blue-50' : 'bg-white'
+                }`}
                   />
                 </div>
 
@@ -1055,7 +1489,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                 id="category"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                className={`w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${
+                  formData.category ? 'bg-blue-50' : 'bg-white'
+                }`}
               >
                 <option value="">Select category</option>
                 {categories.map((cat) => (
@@ -1125,6 +1561,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                     urlValidationError 
                       ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
                       : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  } ${
+                    formData.link ? 'bg-blue-50' : 'bg-white'
                   }`}
                 />
                 {urlValidationError && (
@@ -1203,11 +1641,15 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                               : 'border-gray-200 hover:border-blue-300'
                           }`}
                           onClick={() => {
+                            const newSelectedGroups = formData.selectedGroups.includes(group._id)
+                              ? formData.selectedGroups.filter(id => id !== group._id)
+                              : [...formData.selectedGroups, group._id];
+                            
+                            // Clear trainee selections when groups change
                             setFormData({
                               ...formData,
-                              selectedGroups: formData.selectedGroups.includes(group._id)
-                                ? formData.selectedGroups.filter(id => id !== group._id)
-                                : [...formData.selectedGroups, group._id]
+                              selectedGroups: newSelectedGroups,
+                              selectedTrainees: []
                             });
                           }}
                         >
@@ -1229,14 +1671,45 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
 
                 {/* Trainees Section */}
                 <div className="space-y-4">
-                  <label className="block text-base font-medium text-gray-700">Or assign to specific Trainees</label>
-                  {availableTrainees.length === 0 ? (
-                    <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
-                      <p className="text-gray-500">No trainees found</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {availableTrainees.map((trainee) => (
+                  <label className="block text-base font-medium text-gray-700">
+                    Or assign to specific Trainees
+                    {(groupId || (templateData && effectiveGroupId)) ? (
+                      <span className="text-sm text-gray-500 ml-2">
+                        (showing trainees from this group only)
+                      </span>
+                    ) : formData.selectedGroups.length > 0 && (
+                      <span className="text-sm text-gray-500 ml-2">
+                        (showing trainees from selected groups only)
+                      </span>
+                    )}
+                  </label>
+                  {(() => {
+                    // Filter trainees based on selected groups
+                    // If groupId is provided (or detected from URL), we already have only trainees from that group
+                    const filteredTrainees = (groupId || (templateData && effectiveGroupId))
+                      ? availableTrainees // When groupId is provided or detected, all availableTrainees are already from that group
+                      : formData.selectedGroups.length > 0 
+                        ? availableTrainees.filter(trainee => 
+                            formData.selectedGroups.some(groupId => {
+                              const group = availableGroups.find(g => g._id === groupId);
+                              return group && trainee.groupName === group.groupName;
+                            })
+                          )
+                        : availableTrainees;
+                    
+                    return filteredTrainees.length === 0 ? (
+                      <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
+                        <p className="text-gray-500">
+                          {(groupId || (templateData && effectiveGroupId))
+                            ? "No trainees found in this group"
+                            : formData.selectedGroups.length > 0 
+                              ? "No trainees found in selected groups" 
+                              : "No trainees found"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {filteredTrainees.map((trainee) => (
                         <div
                           key={trainee.traineeId}
                           className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
@@ -1266,7 +1739,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                         </div>
                       ))}
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 <div className="pt-4 border-t border-gray-200">
@@ -1544,7 +2018,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         )}
 
         {/* Step 4: Add MCQs */}
-                {currentStep === 4 && (
+        {currentStep === 4 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -1552,14 +2026,120 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                 <p className="text-base text-gray-600">
                   Add quiz questions to test trainee understanding
                 </p>
-                    </div>
-              <Button onClick={addMCQ} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Question
-              </Button>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Generate with AI Button - Cyan to Purple Gradient */}
+                <button
+                  onClick={handleGenerateClick}
+                  disabled={isLoading}
+                  className={`
+                    relative overflow-hidden px-5 py-2.5 rounded-full font-semibold text-sm
+                    text-white transition-all duration-300 flex items-center gap-2
+                    shadow-md hover:shadow-lg
+                    ${isLoading 
+                      ? 'cursor-wait opacity-90' 
+                      : 'hover:scale-105 active:scale-100'
+                    }
+                  `}
+                  style={{
+                    background: 'linear-gradient(90deg, #06B6D4 0%, #3B82F6 50%, #8B5CF6 100%)',
+                    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="animate-pulse font-semibold">
+                        Generating...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {/* Magic Wand Icon */}
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14l2.5 1.4zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4L22 2zm-8.66 10.78l2.44-2.44c.2-.2.2-.51 0-.71l-2.37-2.37c-.2-.2-.51-.2-.71 0l-2.44 2.44-5.66-5.66c-.59-.59-1.54-.59-2.12 0L1.17 5.36c-.59.58-.59 1.53 0 2.12l5.66 5.66-2.44 2.44c-.2.2-.2.51 0 .71l2.37 2.37c.2.2.51.2.71 0l2.44-2.44 5.66 5.66c.59.59 1.54.59 2.12 0l1.31-1.31c.59-.59.59-1.54 0-2.12l-5.66-5.67z"/>
+                      </svg>
+                      <span className="font-semibold">
+                        Generate
+                      </span>
+                    </>
+                  )}
+                </button>
+                
+                <Button 
+                  onClick={addMCQ} 
+                  size="sm" 
+                  variant="outline"
+                  className="group hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm transition-all duration-200"
+                >
+                  <Plus className="w-4 h-4 mr-2 transition-transform duration-200 group-hover:scale-110" />
+                  Add Question
+                </Button>
+              </div>
             </div>
 
-            {formData.mcqs.length === 0 && (
+            {/* AI Generation Loading Message */}
+            {isLoading && (
+              <div className="bg-white border-2 border-gray-200 rounded-2xl shadow-lg p-8">
+                <div className="flex flex-col items-center gap-6">
+                  {/* Animated AI Icon with Gradient */}
+                  <div className="relative">
+                    <div 
+                      className="w-20 h-20 rounded-full flex items-center justify-center animate-pulse"
+                      style={{
+                        background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 50%, #8B5CF6 100%)'
+                      }}
+                    >
+                      <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14l2.5 1.4zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4L22 2zm-8.66 10.78l2.44-2.44c.2-.2.2-.51 0-.71l-2.37-2.37c-.2-.2-.51-.2-.71 0l-2.44 2.44-5.66-5.66c-.59-.59-1.54-.59-2.12 0L1.17 5.36c-.59.58-.59 1.53 0 2.12l5.66 5.66-2.44 2.44c-.2.2-.2.51 0 .71l2.37 2.37c.2.2.51.2.71 0l2.44-2.44 5.66 5.66c.59.59 1.54.59 2.12 0l1.31-1.31c.59-.59.59-1.54 0-2.12l-5.66-5.67z"/>
+                      </svg>
+                    </div>
+                    {/* Spinning ring with gradient colors */}
+                    <div className="absolute inset-0 border-4 border-transparent border-t-cyan-400 rounded-full animate-spin"></div>
+                  </div>
+                  
+                  {/* Loading Text */}
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Generating Quiz Questions...</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      AI is analyzing your content and creating personalized questions. This may take a moment.
+                    </p>
+                  </div>
+                  
+                  {/* Progress Dots with Gradient Colors */}
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                  
+                  {/* Tip */}
+                  <div 
+                    className="border-l-4 rounded-lg p-4 w-full"
+                    style={{
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      borderColor: '#3B82F6'
+                    }}
+                  >
+                    <p className="text-sm text-gray-700 text-center">
+                      <span className="font-semibold">💡 Tip:</span> AI generation works best with detailed, well-structured content!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {loadingQuizzes && (
+              <div className="text-center py-12 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-blue-700 text-lg font-medium">Loading existing quiz questions...</p>
+              </div>
+            )}
+
+            {!loadingQuizzes && formData.mcqs.length === 0 && (
               <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
                 <CheckCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                 <p className="text-gray-600 text-lg">No questions added yet</p>
@@ -1569,8 +2149,17 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
               </div>
             )}
 
+            {!loadingQuizzes && formData.mcqs.length > 0 && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 text-sm">
+                  ✅ {formData.mcqs.length} question{formData.mcqs.length > 1 ? 's' : ''} loaded
+                  {editMode && ' from database'}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-4">
-              {formData.mcqs.map((mcq, index) => (
+              {!loadingQuizzes && formData.mcqs.map((mcq, index) => (
                 <div key={mcq.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
                   <div className="flex items-start justify-between">
                     <label className="block text-base font-medium text-gray-700">Question {index + 1}</label>
@@ -1587,20 +2176,39 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                     value={mcq.question}
                     onChange={(e) => updateMCQ(mcq.id, { question: e.target.value })}
                     placeholder="Enter your question"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${
+                      mcq.question ? 'bg-blue-50' : 'bg-white'
+                    }`}
                   />
-                  <div className="space-y-2">
-                    <label className="block text-base font-medium text-gray-700">Answer Options</label>
+                  <div className="space-y-3">
+                    <label className="block text-base font-medium text-gray-700">
+                      Answer Options
+                    </label>
                     {mcq.options.map((option, optIndex) => (
-                      <div key={optIndex} className="flex items-center gap-2">
+                      <div 
+                        key={optIndex} 
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                          mcq.correctAnswer === optIndex 
+                            ? 'border-green-500 bg-green-50' 
+                            : 'border-gray-200 bg-white hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
                           <input
-                          type="radio"
-                          name={`correct-${mcq.id}`}
-                          checked={mcq.correctAnswer === optIndex}
-                          onChange={() => updateMCQ(mcq.id, { correctAnswer: optIndex })}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                        />
-                          <input
+                            type="radio"
+                            name={`correct-${mcq.id}`}
+                            checked={mcq.correctAnswer === optIndex}
+                            onChange={() => updateMCQ(mcq.id, { correctAnswer: optIndex })}
+                            className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 cursor-pointer"
+                            title="Mark as correct answer"
+                          />
+                          <span className={`text-sm font-medium ${
+                            mcq.correctAnswer === optIndex ? 'text-green-700' : 'text-gray-600'
+                          }`}>
+                            {mcq.correctAnswer === optIndex ? '✓ Correct' : `Option ${optIndex + 1}`}
+                          </span>
+                        </div>
+                        <input
                           type="text"
                           value={option}
                           onChange={(e) => {
@@ -1608,15 +2216,49 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                             newOptions[optIndex] = e.target.value;
                             updateMCQ(mcq.id, { options: newOptions });
                           }}
-                          placeholder={`Option ${optIndex + 1}`}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={`Enter option ${optIndex + 1}`}
+                          className={`flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-0 ${
+                            mcq.correctAnswer === optIndex ? 'font-medium text-green-900' : 'text-gray-900'
+                          } ${
+                            option ? (mcq.correctAnswer === optIndex ? 'bg-green-100' : 'bg-blue-50') : 'bg-transparent'
+                          }`}
                         />
-                            </div>
-                    ))}
-                          </div>
-                            </div>
-                            ))}
                       </div>
+                    ))}
+                    {mcq.correctAnswer !== undefined && (
+                      <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Correct answer: Option {mcq.correctAnswer + 1} - {mcq.options[mcq.correctAnswer] || '(empty)'}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Add Question Below Button */}
+                  <div className="flex justify-center pt-2 border-t border-gray-200">
+                    <button
+                      onClick={() => addMCQAtIndex(index)}
+                      className="group flex items-center gap-2 px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 hover:shadow-sm transition-all duration-200"
+                      title="Add question below"
+                    >
+                      <svg 
+                        className="w-4 h-4 text-gray-700 transition-transform duration-200 group-hover:scale-110" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      <span className="text-sm font-normal text-gray-700">
+                        Add question below
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
                         </div>
         )}
 
@@ -1724,16 +2366,20 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         )}
 
         {/* Navigation Buttons */}
-        <div className="flex gap-3 pt-6 border-t border-gray-200">
+        <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
           {currentStep > 1 && (
-            <Button variant="outline" onClick={handleBack} className="flex-1">
+            <Button 
+              variant="outline" 
+              onClick={handleBack} 
+              className="px-8 py-2.5 text-base font-medium"
+            >
               Back
             </Button>
           )}
           {currentStep < 5 ? (
             <Button 
               onClick={handleNext}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-8 py-2.5 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"
             >
               Next
             </Button>
@@ -1741,16 +2387,248 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
             <Button 
               onClick={handlePublish}
               disabled={isLoading}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+              className="px-8 py-2.5 text-base font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
             >
               {isLoading ? (editMode ? 'Updating...' : 'Publishing...') : (editMode ? 'Update' : 'Publish')}
             </Button>
-                        )}
-                    </div>
+          )}
+        </div>
                   </>
                 )}
+        </div>
       </DialogContent>
     </Dialog>
+
+    {/* Chat-Style Question Count Dialog */}
+    {showQuestionCountDialog && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" onClick={() => setShowQuestionCountDialog(false)}>
+        <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          {/* Header with Gradient - Clean & Modern */}
+          <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 flex items-center justify-center">
+                <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14l2.5 1.4zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4L22 2zm-8.66 10.78l2.44-2.44c.2-.2.2-.51 0-.71l-2.37-2.37c-.2-.2-.51-.2-.71 0l-2.44 2.44-5.66-5.66c-.59-.59-1.54-.59-2.12 0L1.17 5.36c-.59.58-.59 1.53 0 2.12l5.66 5.66-2.44 2.44c-.2.2-.2.51 0 .71l2.37 2.37c.2.2.51.2.71 0l2.44-2.44 5.66 5.66c.59.59 1.54.59 2.12 0l1.31-1.31c.59-.59.59-1.54 0-2.12l-5.66-5.67z"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white">AI Quiz Generator</h3>
+                <div className="flex items-center gap-1 text-white/90 text-xs">
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                  <span>Ready to generate</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowQuestionCountDialog(false)}
+                className="text-white hover:text-white/80 transition-colors p-1"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Chat Messages Area */}
+          <div className="bg-gray-50 p-6 space-y-4 overflow-y-auto">
+            {/* AI Message */}
+            <div className="flex gap-3">
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+              </div>
+              <div className="flex-1">
+                <div className="bg-white rounded-2xl rounded-tl-none px-4 py-3 shadow-sm border border-gray-100">
+                  <p className="text-sm text-gray-800 leading-relaxed">
+                    Hi there! 👋 How many quiz questions would you like me to generate from your content?
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5 ml-2">
+                  <span className="text-[11px] text-gray-400">Just now</span>
+                </div>
+              </div>
+            </div>
+
+            {/* User Response Area */}
+            <div className="flex gap-3 justify-end">
+              <div className="flex-1 max-w-sm">
+                <div className="bg-blue-500 rounded-2xl rounded-tr-none px-3 py-2.5 shadow-sm">
+                  <div className="flex items-center gap-2 justify-center">
+                    <span className="text-white font-medium text-sm whitespace-nowrap">
+                      I want
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={numQuestionsToGenerate}
+                      onChange={(e) => setNumQuestionsToGenerate(Math.max(1, Math.min(10, parseInt(e.target.value) || 5)))}
+                      className="w-14 h-9 px-2 text-center text-lg font-bold bg-white text-blue-600 rounded-lg focus:ring-2 focus:ring-white/50 focus:outline-none shadow-sm transition-all"
+                      autoFocus
+                    />
+                    <span className="text-white font-medium text-sm whitespace-nowrap">
+                      question{numQuestionsToGenerate !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5 mr-2 justify-end">
+                  <span className="text-[11px] text-gray-400">You</span>
+                </div>
+              </div>
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Info Tip */}
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <p className="text-xs text-blue-800 leading-relaxed">
+                <span className="font-semibold">Tip:</span> You can generate 1-10 questions. More questions = more comprehensive assessment!
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons Footer */}
+          <div className="bg-white border-t border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowQuestionCountDialog(false)}
+                className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndGenerate}
+                className="relative overflow-hidden px-6 py-2.5 rounded-full font-semibold text-sm text-white transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-105 active:scale-100"
+                style={{
+                  background: 'linear-gradient(90deg, #06B6D4 0%, #3B82F6 50%, #8B5CF6 100%)',
+                  boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14l2.5 1.4zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4L22 2zm-8.66 10.78l2.44-2.44c.2-.2.2-.51 0-.71l-2.37-2.37c-.2-.2-.51-.2-.71 0l-2.44 2.44-5.66-5.66c-.59-.59-1.54-.59-2.12 0L1.17 5.36c-.59.58-.59 1.53 0 2.12l5.66 5.66-2.44 2.44c-.2.2-.2.51 0 .71l2.37 2.37c.2.2.51.2.71 0l2.44-2.44 5.66 5.66c.59.59 1.54.59 2.12 0l1.31-1.31c.59-.59.59-1.54 0-2.12l-5.66-5.67z"/>
+                </svg>
+                Generate Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Custom Alert Modal */}
+    {customAlert.show && (
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4" 
+        onClick={closeAlert}
+        style={{ animation: 'fadeIn 0.2s ease-out' }}
+      >
+        <div 
+          className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-gray-200" 
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            padding: '32px',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          {/* Header with Icon and Title */}
+          <div className="flex items-center mb-4">
+            <div 
+              className="flex items-center justify-center flex-shrink-0 mr-3"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: (customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#dcfce7' : '#fee2e2'
+              }}
+            >
+              {
+                (customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? (
+                  // Success: check circle
+                  <svg 
+                    style={{ width: '24px', height: '24px', color: '#16a34a' }} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth="2" 
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    />
+                  </svg>
+                ) : (
+                  // Default: warning triangle
+                  <svg 
+                    style={{ width: '24px', height: '24px', color: '#dc2626' }} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth="2" 
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                    />
+                  </svg>
+                )
+              }
+            </div>
+            <h2 
+              style={{
+                margin: 0,
+                fontWeight: '700',
+                color: '#111827',
+                fontSize: '18px',
+                lineHeight: '1.5'
+              }}
+            >
+              {customAlert.title}
+            </h2>
+          </div>
+
+          {/* Message Body */}
+          <p 
+            className="whitespace-pre-line"
+            style={{
+              color: '#6b7280',
+              fontSize: '14px',
+              lineHeight: '1.6',
+              marginBottom: '24px'
+            }}
+          >
+            {customAlert.message}
+          </p>
+
+          {/* Footer with OK Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={closeAlert}
+              className="px-6 py-2 rounded-lg font-medium text-sm text-white transition-all duration-150"
+              style={{
+                background: (customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#16a34a' : '#3b82f6',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.target.style.background = ((customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#15803d' : '#2563eb')}
+              onMouseLeave={(e) => e.target.style.background = ((customAlert.icon === '✅' || (customAlert.title || '').toLowerCase().includes('success')) ? '#16a34a' : '#3b82f6')}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+  </>
   );
 };
 
