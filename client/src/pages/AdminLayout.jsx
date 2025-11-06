@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import AdminSidebar from "../components/AdminSidebar.jsx";
-import AdminTopbar from "../components/AdminTopbar.jsx";
+import { UnifiedSidebar } from "../components/UnifiedSidebar.jsx";
+import { UnifiedTopbar } from "../components/UnifiedTopbar.jsx";
 import "../styles/admin-components.css";
 
 export default function AdminLayout() {
@@ -10,10 +10,14 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-shell">
-      <AdminSidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <UnifiedSidebar
+        userType="admin"
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
 
       <main className="admin-main">
-        <AdminTopbar />
+        <UnifiedTopbar userType="admin" />
 
         <div className="admin-content">
           {/* page content from child routes */}

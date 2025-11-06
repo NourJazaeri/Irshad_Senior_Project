@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTraineeSupervisor, getTraineeUnreadCount } from "../services/api";
 import { FiMessageCircle, FiUser, FiMail } from "react-icons/fi";
+import { NotificationBell } from "../components/NotificationBell";
 import "../styles/login.css";
 import "../styles/chat.css";
 
@@ -55,8 +56,11 @@ function TraineeDashboard() {
       <div className="trainee-dashboard-wrapper">
         {/* Header Section */}
         <div className="trainee-header">
-          <h1 className="trainee-title">Trainee Dashboard</h1>
-          <p className="trainee-subtitle">Welcome to your training portal!</p>
+          <div>
+            <h1 className="trainee-title">Trainee Dashboard</h1>
+            <p className="trainee-subtitle">Welcome to your training portal!</p>
+          </div>
+          <NotificationBell />
         </div>
 
         {/* Main Content */}

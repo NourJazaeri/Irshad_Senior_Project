@@ -22,6 +22,8 @@ import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groupRoutes.js";
 import supervisorGroupsRouter from './routes/supervisorGroups.js'; // ← NEW (ESM import)
 import chatRoutes from './routes/chat.js'; // ← Chat routes
+import notificationRoutes from './routes/notifications.js'; // ← Notification routes
+import contentRoutes from './routes/content.js'; // ← Content routes
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import Chat from './models/Chat.js'; // For Socket.io chat handling
 console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
@@ -170,6 +172,12 @@ app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
 
 // Chat routes
 app.use('/api/chat', chatRoutes);
+
+// Notification routes
+app.use('/api/notifications', notificationRoutes);
+
+// Content routes
+app.use('/api/content', contentRoutes);
 
 app.use("/api/departments", departmentRoutes);
 app.use("/api/groups", groupRoutes);

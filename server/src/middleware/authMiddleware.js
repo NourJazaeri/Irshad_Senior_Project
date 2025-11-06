@@ -141,6 +141,63 @@ export const requireSupervisor = async (req, res, next) => {
   }
 };
 
+// ============== ADMIN OR SUPERVISOR ==================
+export const requireAdminOrSupervisor = async (req, res, next) => {
+  try {
+    const token = readBearer(req);
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'Admin' && decoded.role !== 'Supervisor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin or Supervisor role required.'
+      });
+    }
+
+    // Try to find user as either Admin or Supervisor
+    let user;
+    if (decoded.role === 'Admin') {
+      user = await Admin.findById(decoded.id);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Admin not found.'
+        });
+      }
+    } else {
+      user = await Supervisor.findById(decoded.id);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Supervisor not found.'
+        });
+      }
+    }
+
+    req.user = {
+      id: user._id,
+      _id: user._id,
+      email: user.loginEmail,
+      role: decoded.role
+    };
+
+    next();
+  } catch (error) {
+    console.error('Authentication error (Admin/Supervisor):', error);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
+    });
+  }
+};
+
 // ===================== TRAINEE =====================
 export const requireTrainee = async (req, res, next) => {
   try {

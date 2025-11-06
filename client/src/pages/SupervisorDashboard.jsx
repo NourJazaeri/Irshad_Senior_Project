@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Sidebar from '../components/Sidebar.jsx';
-import Topbar from '../components/Topbar.jsx';
+import { UnifiedSidebar } from '../components/UnifiedSidebar.jsx';
+import { UnifiedTopbar } from '../components/UnifiedTopbar.jsx';
 import { getSupervisorOverview, getSupervisorGroups } from '../services/api';
 import { FiUserCheck, FiUsers } from 'react-icons/fi';
 import '../styles/supervisor.css';
@@ -11,6 +11,7 @@ export default function SupervisorDashboard() {
   const [stats, setStats] = useState({ totalTrainees: 0, activeGroups: 0 });
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -36,13 +37,15 @@ export default function SupervisorDashboard() {
   return (
     <div className="sup-shell">
       {/* LEFT SIDEBAR */}
-      <aside className="sup-sidebar">
-        <Sidebar />
-      </aside>
+      <UnifiedSidebar
+        userType="supervisor"
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
 
       {/* MAIN */}
       <main className="sup-main">
-        <Topbar />
+        <UnifiedTopbar userType="supervisor" />
         <div className="sup-content">
           {/* Title */}
           <h1 className="sv-title">Welcome, {name}!</h1>

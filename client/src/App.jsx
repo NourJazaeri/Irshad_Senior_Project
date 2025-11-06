@@ -25,6 +25,7 @@ import Dashboard from "./pages/WebOwnerDashboard.jsx";
 import Registrations from "./pages/Registrations.jsx";
 import Reports from "./pages/Reports.jsx";
 import AdminGroupDetails from "./pages/AdminGroupDetails.jsx";
+import ContentLibrary from "./pages/ContentLibrary.jsx";
 // Import UsageReport pages
 import ActivityLog from "./pages/ActivityLog.jsx";
 import ReportCompanyDetails from "./pages/ReportCompanyDetails.jsx";
@@ -64,10 +65,12 @@ export default function App() {
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<CompanyProfile />} />
+          <Route path="content" element={<ContentLibrary />} />
         </Route>
 
         {/* Dashboard Routes */}
         <Route path="/supervisor" element={<SupervisorDashboard />} />
+        <Route path="/supervisor/content" element={<ContentLibrary />} />
         <Route path="/trainee" element={<TraineeDashboard />} />
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
         <Route path="/admin/groups/:id" element={<AdminGroupDetails />} />
