@@ -16,7 +16,12 @@ const TraineeSchema = new Schema(
     passwordHash: { type: String, required: true },
     // Must match the actual model name exported in Employees.js ("Employee")
     EmpObjectUserID: { type: Types.ObjectId, ref: "Employee", required: true, unique: true },
-    ObjectGroupID: { type: Types.ObjectId, ref: "Group"}
+    ObjectGroupID: { type: Types.ObjectId, ref: "Group"},
+    
+     // Reset password fields
+    resetToken: { type: String, default: null },
+    resetTokenExpiry: { type: Date, default: null },
+    
   },
   { collection: "Trainee", timestamps: true }
 );

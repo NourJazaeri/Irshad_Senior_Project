@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TemplateForm from './TemplateForm.jsx';
 import KnowledgeCardsTemplate from './KnowledgeCardsTemplate.jsx';
 import RecognitionTemplate from './RecognitionTemplate.jsx';
@@ -57,8 +57,18 @@ const TEMPLATE_DATA = [
 
 const PredefinedTemplates = ({ onTemplateSelect, onClose, onTemplateSaved }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
+  
+  // Detect if we're in a group context
+  const isInGroupContext = () => {
+    const pathParts = location.pathname.split('/');
+    const groupsIndex = pathParts.findIndex(part => part === 'groups');
+    return groupsIndex !== -1 && pathParts[groupsIndex + 1];
+  };
+  
+  const inGroupContext = isInGroupContext();
 
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
@@ -149,19 +159,25 @@ const PredefinedTemplates = ({ onTemplateSelect, onClose, onTemplateSaved }) => 
       {/* Template Grid Container */}
       <main className="container mx-auto" style={{ margin: '0', padding: '20px 12px', maxWidth: '1800px' }}>
         <div style={{ background: '#f9fafc', padding: '32px', borderRadius: '12px' }}>
-          {/* Breadcrumb */}
-          <div className="mb-6" style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>
-            <span 
-              style={{ color: '#6b7280', cursor: 'pointer' }}
-              onClick={() => navigate('/admin/content')}
-            >
-              Content Library
-            </span>
-            <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
-            <span style={{ color: '#111827', fontWeight: '700' }}>
-              Template Library
-            </span>
-          </div>
+          {/* Breadcrumb - only show if not in group context */}
+          {!inGroupContext && (
+            <div className="mb-6" style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>
+              <span 
+                style={{ color: '#6b7280', cursor: 'pointer' }}
+                onClick={() => {
+                  const isSupervisor = window.location.pathname.includes('/supervisor');
+                  const backRoute = isSupervisor ? '/supervisor/content' : '/admin/content';
+                  navigate(backRoute);
+                }}
+              >
+                Content Library
+              </span>
+              <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
+              <span style={{ color: '#111827', fontWeight: '700' }}>
+                Template Library
+              </span>
+            </div>
+          )}
 
           <div className="template-grid">
         {TEMPLATE_DATA.map((template) => (

@@ -23,6 +23,12 @@
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease-out;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.template-details-modal::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 @keyframes slideIn {
@@ -79,20 +85,25 @@
 }
 
 .close-details-btn {
-  background: none;
+  background: #fee2e2;
   border: none;
-  font-size: 24px;
-  color: #6b7280;
+  font-size: 18px;
+  color: #dc2626;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px 10px;
   border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s ease;
-  line-height: 1;
+  z-index: 10;
 }
 
 .close-details-btn:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background: #fecaca;
+  transform: scale(1.1);
 }
 
 /* Content */

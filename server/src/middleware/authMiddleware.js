@@ -1,48 +1,45 @@
 import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
-import Supervisor from '../models/Supervisor.js';
 import WebOwner from '../models/WebOwner.js';
+import Supervisor from '../models/Supervisor.js';
+import Trainee from '../models/Trainee.js';
 
-// Helper function to read Bearer token
-const readBearer = (req) => {
-  return req.header('Authorization')?.replace('Bearer ', '');
-};
+// Helper to read "Authorization: Bearer <token>"
+const readBearer = (req) => req.header('Authorization')?.replace('Bearer ', '');
 
-// Middleware to authenticate Admin requests
+// ======================= ADMIN =======================
 export const requireAdmin = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    const token = readBearer(req);
+
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. No token provided.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
       });
     }
 
-    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Check if the user is an Admin
+
     if (decoded.role !== 'Admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied. Admin role required.' 
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
       });
     }
 
-    // Find the Admin to ensure they still exist
     const admin = await Admin.findById(decoded.id);
+
     if (!admin) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Admin not found.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Admin not found.'
       });
     }
 
-    // Add Admin info to request object
     req.user = {
       id: admin._id,
+      _id: admin._id,
       email: admin.loginEmail,
       role: decoded.role,
       EmpObjectUserID: admin.EmpObjectUserID
@@ -50,18 +47,65 @@ export const requireAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token.' 
+    console.error('Authentication error (Admin):', error.name, error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
     });
   }
 };
 
-// Middleware to authenticate Supervisor requests
+// ===================== WEB OWNER =====================
+export const authenticateWebOwner = async (req, res, next) => {
+  try {
+    const token = readBearer(req);
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'WebOwner') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. WebOwner role required.'
+      });
+    }
+
+    const webOwner = await WebOwner.findById(decoded.id);
+
+    if (!webOwner) {
+      return res.status(401).json({
+        success: false,
+        message: 'WebOwner not found.'
+      });
+    }
+
+    req.webOwner = {
+      id: webOwner._id,
+      email: webOwner.loginEmail,
+      name: `${webOwner.fname} ${webOwner.lname}`
+    };
+
+    next();
+  } catch (error) {
+    console.error('Authentication error (WebOwner):', error.name, error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
+    });
+  }
+};
+
+// ===================== SUPERVISOR =====================
 export const requireSupervisor = async (req, res, next) => {
   try {
     const token = readBearer(req);
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -79,6 +123,7 @@ export const requireSupervisor = async (req, res, next) => {
     }
 
     const supervisor = await Supervisor.findById(decoded.id);
+
     if (!supervisor) {
       return res.status(401).json({
         success: false,
@@ -88,6 +133,7 @@ export const requireSupervisor = async (req, res, next) => {
 
     req.user = {
       id: supervisor._id,
+      _id: supervisor._id,
       email: supervisor.loginEmail,
       role: decoded.role
     };
@@ -102,76 +148,131 @@ export const requireSupervisor = async (req, res, next) => {
   }
 };
 
-// Middleware to authenticate both Admin and Supervisor requests
+// ============== ADMIN OR SUPERVISOR ==================
 export const requireAdminOrSupervisor = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    const token = readBearer(req);
+
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. No token provided.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
       });
     }
 
-    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Check if the user is an Admin or Supervisor
+
     if (decoded.role !== 'Admin' && decoded.role !== 'Supervisor') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied. Admin or Supervisor role required.' 
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin or Supervisor role required.'
       });
     }
 
-    // Find the user based on their role
+    // Try to find user as either Admin or Supervisor
     let user;
     if (decoded.role === 'Admin') {
       user = await Admin.findById(decoded.id);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Admin not found.'
+        });
+      }
     } else {
       user = await Supervisor.findById(decoded.id);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Supervisor not found.'
+        });
+      }
     }
 
-    if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: `${decoded.role} not found.` 
-      });
-    }
-
-    // Add user info to request object
     req.user = {
       id: user._id,
+      _id: user._id,
       email: user.loginEmail,
       role: decoded.role,
       EmpObjectUserID: user.EmpObjectUserID
     };
 
-
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token.' 
+    console.error('Authentication error (Admin/Supervisor):', error.name, error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
     });
   }
 };
 
-// Optional: General authentication middleware for any role
-export const authenticate = async (req, res, next) => {
+// ===================== TRAINEE =====================
+export const requireTrainee = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    const token = readBearer(req);
+
     if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. No token provided.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
       });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'Trainee') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Trainee role required.'
+      });
+    }
+
+    const trainee = await Trainee.findById(decoded.id);
+
+    if (!trainee) {
+      return res.status(401).json({
+        success: false,
+        message: 'Trainee not found.'
+      });
+    }
+
+    req.user = {
+      id: trainee._id,
+      _id: trainee._id,
+      email: trainee.loginEmail,
+      role: decoded.role,
+      ObjectGroupID: trainee.ObjectGroupID,
+      EmpObjectUserID: trainee.EmpObjectUserID
+    };
+
+    next();
+  } catch (error) {
+    console.error('Authentication error (Trainee):', error.name, error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
+    });
+  }
+};
+
+// ===================== GENERAL AUTHENTICATION =====================
+// General authentication middleware for any authenticated user (Admin, Supervisor, Trainee, etc.)
+export const authenticate = async (req, res, next) => {
+  try {
+    const token = readBearer(req);
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
+    }
+
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Add basic user info to request object
     req.user = {
       id: decoded.id,
       role: decoded.role
@@ -179,107 +280,10 @@ export const authenticate = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token.' 
-    });
-  }
-};
-
-// Middleware to authenticate Admin requests (alternative naming)
-export const authenticateAdmin = async (req, res, next) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. No token provided.' 
-      });
-    }
-
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Check if the user is an Admin
-    if (decoded.role !== 'Admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied. Admin role required.' 
-      });
-    }
-
-    // Find the Admin to ensure they still exist
-    const admin = await Admin.findById(decoded.id);
-    if (!admin) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Admin not found.' 
-      });
-    }
-
-    // Add Admin info to request object
-    req.admin = {
-      id: admin._id,
-      email: admin.loginEmail
-    };
-
-    next();
-  } catch (error) {
-    console.error('Admin authentication error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token.' 
-    });
-  }
-};
-
-// Middleware to authenticate WebOwner requests
-export const authenticateWebOwner = async (req, res, next) => {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Access denied. No token provided.' 
-      });
-    }
-
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Check if the user is a WebOwner
-    if (decoded.role !== 'WebOwner') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied. WebOwner role required.' 
-      });
-    }
-
-    // Find the WebOwner to ensure they still exist
-    const webOwner = await WebOwner.findById(decoded.id);
-    if (!webOwner) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'WebOwner not found.' 
-      });
-    }
-
-    // Add WebOwner info to request object
-    req.webOwner = {
-      id: webOwner._id,
-      email: webOwner.loginEmail,
-      name: `${webOwner.fname} ${webOwner.lname}`
-    };
-
-    next();
-  } catch (error) {
-    console.error('Authentication error:', error);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Invalid token.' 
+    console.error('Authentication error (General):', error.name, error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
     });
   }
 };

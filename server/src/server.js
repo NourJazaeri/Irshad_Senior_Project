@@ -4,6 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import adminGroupsRouter from './routes/adminGroups.js';
 import connectDB from './config/db.js';
 
@@ -18,9 +20,16 @@ import adminUserManagement from './routes/adminUserManagement.js';
 import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groups.js";
 import supervisorGroupsRouter from './routes/supervisorGroups.js';
+import supervisorProfileRouter from './routes/supervisorProfile.js';
+import traineeProfileRouter from './routes/traineeProfile.js';
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import employeesRouter from './routes/employees.js';
 import content from './routes/content.js';
+import todoRouter from './routes/todo.js';
+import profileRouter from './routes/profile.js';
+import chatRoutes from './routes/chat.js'; // Chat routes
+import notificationRoutes from './routes/notifications.js'; // Notification routes
+import Chat from './models/Chat.js'; // For Socket.io chat handling
 
 console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
 
@@ -28,6 +37,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const httpServer = createServer(app); // Create HTTP server for Socket.io
 const PORT = process.env.PORT || 5000;
 
 // Allow setting multiple origins via comma-separated env var, fallback to localhost
@@ -41,6 +51,127 @@ const buildAllowedOrigins = (raw) =>
 const allowedOrigins = buildAllowedOrigins(CLIENT_ORIGIN);
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Socket.io Setup
+// ───────────────────────────────────────────────────────────────────────────────
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('✅ User connected:', socket.id);
+  console.log('📋 Socket auth:', socket.handshake.auth);
+  console.log('📋 Socket query:', socket.handshake.query);
+
+  // Join a room for a specific conversation (supervisorId-traineeId)
+  socket.on('join-chat', ({ supervisorId, traineeId }) => {
+    if (!supervisorId || !traineeId) {
+      console.error('❌ Missing supervisorId or traineeId in join-chat');
+      return;
+    }
+
+    // Normalize IDs to strings and create consistent room ID
+    const normalizedSupervisorId = String(supervisorId).trim();
+    const normalizedTraineeId = String(traineeId).trim();
+    const roomId = `${normalizedSupervisorId}-${normalizedTraineeId}`;
+    
+    socket.join(roomId);
+    console.log(`👥 User ${socket.id} joined room: ${roomId}`);
+    console.log(`   supervisorId: ${normalizedSupervisorId}`);
+    console.log(`   traineeId: ${normalizedTraineeId}`);
+    
+    // Confirm room join
+    socket.emit('room-joined', { roomId });
+  });
+
+  // Handle sending a message
+  socket.on('send-message', async (data) => {
+    try {
+      const { supervisorId, traineeId, message, senderRole } = data;
+      
+      if (!supervisorId || !traineeId || !message) {
+        console.error('❌ Missing required fields in send-message');
+        socket.emit('message-error', { error: 'Missing required fields' });
+        return;
+      }
+
+      // Normalize IDs
+      const normalizedSupervisorId = String(supervisorId).trim();
+      const normalizedTraineeId = String(traineeId).trim();
+      const normalizedMessage = String(message).trim();
+      const normalizedSenderRole = senderRole || 'supervisor';
+
+      console.log('💾 [Socket.io] Saving message to database:');
+      console.log('  supervisorId:', normalizedSupervisorId);
+      console.log('  traineeId:', normalizedTraineeId);
+      console.log('  message:', normalizedMessage);
+      console.log('  senderRole:', normalizedSenderRole);
+
+      // Save message to database
+      const newMessage = await Chat.create({
+        messagesText: normalizedMessage,
+        supervisorID: normalizedSupervisorId,
+        traineeID: normalizedTraineeId,
+        senderRole: normalizedSenderRole,
+        timestamp: new Date(),
+        isRead: false
+      });
+
+      console.log('✅ [Socket.io] Message saved with ID:', newMessage._id);
+
+      // Create room ID (must match the format used in join-chat)
+      const roomId = `${normalizedSupervisorId}-${normalizedTraineeId}`;
+      
+      // Prepare message data
+      const messageData = {
+        _id: newMessage._id,
+        messagesText: newMessage.messagesText,
+        timestamp: newMessage.timestamp,
+        supervisorID: newMessage.supervisorID,
+        traineeID: newMessage.traineeID,
+        senderRole: newMessage.senderRole,
+        isRead: newMessage.isRead
+      };
+
+      console.log(`💬 Broadcasting message to room: ${roomId}`);
+      console.log(`📊 Room clients:`, await io.in(roomId).fetchSockets().then(sockets => sockets.map(s => s.id)));
+      
+      // Emit to everyone in the room (including sender) - this ensures real-time delivery
+      io.to(roomId).emit('receive-message', messageData);
+
+      console.log(`✅ Message broadcasted to room ${roomId}`);
+    } catch (error) {
+      console.error('❌ Error saving/broadcasting message:', error);
+      console.error('❌ Error stack:', error.stack);
+      socket.emit('message-error', { error: error.message || 'Failed to send message' });
+    }
+  });
+
+  // Handle typing indicator
+  socket.on('typing', ({ supervisorId, traineeId, isTyping }) => {
+    if (!supervisorId || !traineeId) return;
+    
+    const normalizedSupervisorId = String(supervisorId).trim();
+    const normalizedTraineeId = String(traineeId).trim();
+    const roomId = `${normalizedSupervisorId}-${normalizedTraineeId}`;
+    
+    socket.to(roomId).emit('user-typing', { isTyping });
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log(`❌ User disconnected: ${socket.id}, reason: ${reason}`);
+  });
+
+  socket.on('error', (error) => {
+    console.error('❌ Socket error:', error);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
 // Middleware
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -52,7 +183,7 @@ app.use(cors({
     return callback(new Error(`CORS policy: origin ${origin} is not allowed`), false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -86,13 +217,24 @@ app.use('/api/company-profile', companyProfile);
 app.use('/api/admin/users', adminUserManagement);
 app.use('/api/admin/groups', adminGroupsRouter);
 
-// NEW: Supervisor routes (overview + my-groups, etc.)
+// Supervisor routes (overview + my-groups, etc.)
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
+app.use('/api/supervisor', supervisorProfileRouter);
 
+// Trainee routes
+app.use('/api/trainee', traineeProfileRouter);
+
+// Chat routes
+app.use('/api/chat', chatRoutes);
+
+// Other routes
 app.use("/api/departments", departmentRoutes);
 app.use("/api/groups", groupRoutes);
 app.use('/api/employees', employeesRouter);
 app.use('/api/content', content);
+app.use('/api/todos', todoRouter);
+app.use('/api/profile', profileRouter);
+app.use('/api/notifications', notificationRoutes);
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Frontend static (if built)
@@ -145,6 +287,16 @@ if (fs.existsSync(clientDist)) {
           overview: '/api/supervisor/overview',
           myGroups: '/api/supervisor/my-groups',
         },
+        chat: {
+          conversation: '/api/chat/conversation/:traineeId',
+          send: '/api/chat/send',
+          conversations: '/api/chat/conversations',
+          unreadCount: '/api/chat/unread-count/:traineeId',
+          traineeConversation: '/api/chat/trainee/conversation',
+          traineeSend: '/api/chat/trainee/send',
+          traineeUnreadCount: '/api/chat/trainee/unread-count',
+          traineeMarkRead: '/api/chat/trainee/mark-read',
+        },
       },
     });
   });
@@ -189,10 +341,11 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not fo
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);
       console.log(`🌐 CORS allowed origins: ${allowedOrigins.join(', ') || '(none)'}`);
       console.log(`📁 Uploads directory: ${uploadsDir}`);
+      console.log(`💬 Socket.io enabled for real-time chat`);
       console.log(fs.existsSync(clientDist)
         ? '🎨 Serving frontend from client/dist'
         : '🔧 Dev mode - Run frontend with: cd client && npm run dev');
@@ -223,6 +376,19 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not fo
       console.log('   GET  /api/admin/users/employee-type/:id');
       console.log('   GET  /api/supervisor/overview');
       console.log('   GET  /api/supervisor/my-groups');
+      console.log('   GET  /api/chat/conversation/:traineeId');
+      console.log('   POST /api/chat/send');
+      console.log('   GET  /api/chat/conversations');
+      console.log('   GET  /api/chat/unread-count/:traineeId');
+      console.log('   GET  /api/chat/trainee/conversation');
+      console.log('   POST /api/chat/trainee/send');
+      console.log('   GET  /api/chat/trainee/unread-count');
+      console.log('   PATCH /api/chat/trainee/mark-read');
+      console.log('   GET  /api/notifications/trainee');
+      console.log('   GET  /api/notifications/unread-count');
+      console.log('   PATCH /api/notifications/:id/read');
+      console.log('   PATCH /api/notifications/mark-all-read');
+      console.log('   DELETE /api/notifications/:id');
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

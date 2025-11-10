@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "migrate:chat": "node src/scripts/migrate-chat.js",
+    "migrate:todos": "node src/scripts/migrate-todos.js"
   },
   "keywords": [],
   "author": "",
@@ -14,17 +16,22 @@
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.75.0",
+    "axios": "^1.13.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "firebase-admin": "^13.5.0",
+    "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.2",
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^7.0.9"
+    "nodemailer": "^7.0.9",
+    "puppeteer": "^24.26.1",
+    "socket.io": "^4.8.1"
   }
 }

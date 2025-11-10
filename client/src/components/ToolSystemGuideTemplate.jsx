@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
 import '../styles/ToolSystemGuideTemplate.css';
@@ -232,8 +233,14 @@ const ToolSystemGuideTemplate = ({ onClose, onTemplateSaved }) => {
 
   return (
     <div className="template-form-overlay">
-      <div className="tool-guide-container">
-        <button className="close-btn" onClick={onClose}>✕</button>
+      <div className="tool-guide-container" style={{ overflowY: 'auto', maxHeight: '90vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <button 
+          className="close-btn" 
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
         
         <div className="tool-guide-header">
           <h1>{templateData.title}</h1>

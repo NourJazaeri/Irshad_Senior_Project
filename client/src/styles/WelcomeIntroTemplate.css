@@ -23,6 +23,12 @@
   position: relative;
   overflow-y: auto;
   padding: 30px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.welcome-intro-modal::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .close-btn {

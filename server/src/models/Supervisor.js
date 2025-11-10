@@ -16,6 +16,10 @@ const SupervisorSchema = new Schema(
     passwordHash: { type: String, required: true },
     // Must match the actual model name exported in Employees.js ("Employee")
     EmpObjectUserID: { type: Types.ObjectId, ref: "Employee", required: true, unique: true },
+
+     // Reset password fields
+    resetToken: { type: String, default: null },
+    resetTokenExpiry: { type: Date, default: null },
   },
   { collection: "Supervisor", timestamps: true }
 );

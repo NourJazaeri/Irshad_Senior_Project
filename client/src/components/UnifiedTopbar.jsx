@@ -11,11 +11,18 @@ import {
   Building,
   Bell,
   UserCog,
-  Building2 as BuildingOffice
+  Building2 as BuildingOffice,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from './NotificationBell';
+
+// Waving hand icon - simple and clear
+const WavingHand = ({ className }) => (
+  <span className={className} style={{ fontSize: '1.1em', lineHeight: '1' }}>👋</span>
+);
 
 // Page title mapping
 const getPageTitle = (pathname, userType) => {
@@ -33,6 +40,8 @@ const getPageTitle = (pathname, userType) => {
         return 'Content Library';
       case '/admin/profile':
         return 'Company Profile';
+      case '/admin/my-profile':
+        return 'My Profile';
       default:
         // Check if it's a group detail page
         if (pathname.match(/^\/admin\/groups\/\d+$/)) {
@@ -67,6 +76,8 @@ const getPageTitle = (pathname, userType) => {
         return 'Registrations';
       case '/owner/settings':
         return 'Settings';
+      case '/owner/my-profile':
+        return 'My Profile';
       default:
         return 'Platform Management';
     }
@@ -84,17 +95,38 @@ const getPageTitle = (pathname, userType) => {
   } else if (userType === 'supervisor') {
     switch (pathname) {
       case '/supervisor':
-        return 'Groups';
+        return 'Dashboard';
       case '/supervisor/groups':
         return 'Groups';
       case '/supervisor/content':
         return 'Content Library';
       case '/supervisor/templates':
         return 'Templates';
+      case '/supervisor/profile':
+        return 'My Profile';
+      case '/supervisor/my-profile':
+        return 'My Profile';
       default:
         // Check if it's a group detail page
         if (pathname.startsWith('/supervisor/groups/')) {
           return 'Group Details';
+        }
+        return 'Dashboard';
+    }
+  } else if (userType === 'trainee') {
+    switch (pathname) {
+      case '/trainee':
+      case '/trainee/':
+        return 'Dashboard';
+      case '/trainee/todo':
+        return 'To Do List';
+      case '/trainee/profile':
+        return 'My Profile';
+      case '/trainee/my-profile':
+        return 'My Profile';
+      default:
+        if (pathname.startsWith('/trainee/content/')) {
+          return 'Content';
         }
         return 'Dashboard';
     }
@@ -117,6 +149,8 @@ const getPageIcon = (pathname, userType) => {
         return Library;
       case '/admin/profile':
         return Building;
+      case '/admin/my-profile':
+        return User;
       default:
         // Check if it's a group detail page
         if (pathname.match(/^\/admin\/groups\/\d+$/)) {
@@ -136,20 +170,57 @@ const getPageIcon = (pathname, userType) => {
         }
         return Home;
     }
+  } else if (userType === 'webOwner') {
+    switch (pathname) {
+      case '/owner':
+      case '/owner/dashboard':
+        return Home;
+      case '/owner/companies':
+        return Building2;
+      case '/owner/registrations':
+        return UserCog;
+      case '/owner/settings':
+        return UserCog;
+      case '/owner/my-profile':
+        return User;
+      default:
+        return Home;
+    }
   } else if (userType === 'supervisor') {
     switch (pathname) {
       case '/supervisor':
-        return Users;
+        return Home;
       case '/supervisor/groups':
         return Users;
       case '/supervisor/content':
         return Library;
       case '/supervisor/templates':
         return Library;
+      case '/supervisor/profile':
+        return User;
+      case '/supervisor/my-profile':
+        return User;
       default:
         // Check if it's a group detail page
         if (pathname.startsWith('/supervisor/groups/')) {
           return Users;
+        }
+        return Home;
+    }
+  } else if (userType === 'trainee') {
+    switch (pathname) {
+      case '/trainee':
+      case '/trainee/':
+        return Home;
+      case '/trainee/todo':
+        return ClipboardList;
+      case '/trainee/profile':
+        return User;
+      case '/trainee/my-profile':
+        return User;
+      default:
+        if (pathname.startsWith('/trainee/content/')) {
+          return Library;
         }
         return Home;
     }
@@ -172,11 +243,68 @@ export const UnifiedTopbar = ({
     email: 'admin@company.com',
     companyName: 'Your Company'
   });
+  const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const logoImgRef = useRef(null);
 
   const pageTitle = getPageTitle(location.pathname, userType);
   const PageIcon = getPageIcon(location.pathname, userType);
+
+  // Get username for trainee from localStorage and API
+  useEffect(() => {
+    if (userType === 'trainee') {
+      const fetchTraineeName = async () => {
+        try {
+          // First try to get from localStorage for immediate display
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            if (userData.firstName) {
+              setUserName(userData.firstName);
+            } else if (userData.email) {
+              // Format email into display name: "ziad.alotaibi@..." -> "Ziad Alotaibi"
+              const namePart = userData.email.split('@')[0];
+              const formattedName = namePart.split('.')
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
+              setUserName(formattedName);
+            }
+          }
+
+          // Then fetch from API for more accurate data
+          const token = localStorage.getItem('token');
+          const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+          
+          const response = await fetch(`${API_BASE}/api/trainee/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.trainee) {
+              const traineeName = data.trainee.firstName || 
+                (data.trainee.email ? data.trainee.email.split('@')[0].split('.').map(part => 
+                  part.charAt(0).toUpperCase() + part.slice(1)
+                ).join(' ') : 'Trainee');
+              setUserName(traineeName);
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching trainee name:', e);
+          // Keep localStorage value if API fails, or set default
+          const storedUser = localStorage.getItem('user');
+          if (!storedUser) {
+            setUserName('Trainee');
+          }
+        }
+      };
+
+      fetchTraineeName();
+    }
+  }, [userType]);
 
   // Fetch admin data from employee table
   useEffect(() => {
@@ -294,23 +422,43 @@ export const UnifiedTopbar = ({
     )}>
       <div className="flex items-center justify-between px-12 py-4">
         {/* Left: Page Title with Icon */}
-        <div className="flex items-center gap-4">
-          <PageIcon className="w-8 h-8 text-primary" />
-          <h1 className="text-4xl font-bold tracking-wide text-foreground leading-tight m-0">
-            {pageTitle}
-          </h1>
+        <div className="flex gap-4 items-start">
+          <PageIcon className="w-8 h-8 text-primary flex-shrink-0" style={{ 
+            marginTop: '0.5rem'
+          }} />
+          <div className="flex flex-col">
+            <h1 className="text-4xl font-bold tracking-wide text-foreground leading-tight m-0">
+              {pageTitle}
+            </h1>
+            {userType === 'trainee' && userName && pageTitle === 'Dashboard' && (
+              <p className="text-sm text-gray-600 mt-1 font-medium flex items-center gap-1.5">
+                <span>Welcome, {userName}</span>
+                <WavingHand style={{ display: 'inline-block', marginLeft: '2px' }} />
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Company Logo at far right (bigger, crisper) */}
-        <div className="h-24 w-auto flex items-center justify-center overflow-visible">
-          <img
-            ref={logoImgRef}
-            src="/logos/majestic-logo.png"
-            alt="Company"
-            className="h-24 w-56 object-contain drop-shadow-sm"
-            onLoad={handleLogoLoad}
-            onError={(e)=>{ e.currentTarget.style.display='none'; }}
-          />
+        {/* Right: Notification Bell (for trainees) and Company Logo */}
+        <div className="flex items-center gap-4">
+          {/* Notification Bell for Trainees */}
+          {userType === 'trainee' && (
+            <div>
+              <NotificationBell />
+            </div>
+          )}
+
+          {/* Company Logo (bigger, crisper) */}
+          <div className="h-24 w-auto flex items-center justify-center overflow-visible">
+            <img
+              ref={logoImgRef}
+              src="/logos/majestic-logo.png"
+              alt="Company"
+              className="h-24 w-56 object-contain drop-shadow-sm"
+              onLoad={handleLogoLoad}
+              onError={(e)=>{ e.currentTarget.style.display='none'; }}
+            />
+          </div>
         </div>
       </div>
     </header>

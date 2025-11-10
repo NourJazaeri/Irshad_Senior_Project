@@ -1,5 +1,59 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
+// Global function to handle session expiration
+export const handleSessionExpired = () => {
+  // Clear all auth data
+  localStorage.removeItem('token');
+  localStorage.removeItem('sessionId');
+  localStorage.removeItem('userRole');
+  
+  // Show alert
+  alert('⏰ Your session has expired. Please log in again.');
+  
+  // Redirect to login
+  window.location.href = '/login';
+};
+
+// Enhanced fetch wrapper that handles authentication errors
+export const authenticatedFetch = async (url, options = {}) => {
+  const token = localStorage.getItem('token');
+  
+  // Add authorization header if token exists
+  if (token && !options.headers?.Authorization) {
+    options.headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+  }
+  
+  try {
+    const response = await fetch(url, options);
+    
+    // Handle 401 Unauthorized (token expired or invalid)
+    if (response.status === 401) {
+      handleSessionExpired();
+      throw new Error('Session expired');
+    }
+    
+    return response;
+  } catch (error) {
+    // If it's a network error and we have a token, check if it's expired
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentTime = Date.now() / 1000;
+        if (payload.exp && payload.exp < currentTime) {
+          handleSessionExpired();
+        }
+      } catch {
+        // Token is malformed, clear it
+        handleSessionExpired();
+      }
+    }
+    throw error;
+  }
+};
+
 // Utility functions for user authentication and session management
 export const getCurrentUser = () => {
   try {
@@ -233,7 +287,7 @@ async function httpGet(url) {
 }
 
 // Helper function for auth headers
-function getAuthHeaders(token = null) {
+export function getAuthHeaders(token = null) {
   const authToken = token || localStorage.getItem("token");
   return {
     "Content-Type": "application/json",
@@ -313,12 +367,12 @@ export async function fetchEmployees() {
 
     console.log("Fetching employees...");
     
-    const response = await fetch(`${API_BASE}/api/admin/users/employees`, {
+    // Use authenticatedFetch instead of fetch - it handles 401 automatically
+    const response = await authenticatedFetch(`${API_BASE}/api/admin/users/employees`, {
       method: "GET",
       headers: { 
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Accept": "application/json"
       }
     });
 
@@ -334,6 +388,10 @@ export async function fetchEmployees() {
     return data;
   } catch (error) {
     console.error("Error fetching employees:", error);
+    // Don't return error if session expired (user already redirected)
+    if (error.message === 'Session expired') {
+      return null;
+    }
     return { 
       success: false, 
       message: error.message || "Cannot fetch employees.",
@@ -729,5 +787,292 @@ export async function getContent(params = {}) {
       success: false, 
       message: error.message || "Cannot connect to server to fetch content." 
     };
+  }
+}
+
+// --------------------------- Todo API ---------------------------
+
+export async function deleteAllCompletedTodos(traineeId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(
+    `${API_BASE}/api/todos/completed/${traineeId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete all completed todos');
+  }
+  return res.json();
+}
+
+export async function fetchTodos(traineeId) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${traineeId}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to fetch todos');
+  }
+  return res.json();
+}
+
+export async function addTodo({ traineeId, day, title }) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ traineeId, day, title }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to add todo');
+  }
+  return res.json();
+}
+
+export async function updateTodo(id, title) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to update todo');
+  }
+  return res.json();
+}
+
+export async function completeTodo(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}/complete`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to complete todo');
+  }
+  return res.json();
+}
+
+export async function deleteTodo(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE}/api/todos/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || 'Failed to delete todo');
+  }
+  return res.json().catch(() => ({}));
+}
+
+// --------------------------- Chat API ---------------------------
+
+export async function getSupervisorUnreadCount(traineeId) {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/unread-count/${traineeId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch unread count: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.unreadCount || 0;
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    return 0;
+  }
+}
+
+export async function getTraineeSupervisor() {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/trainee/my-supervisor`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch supervisor: ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.error || 'Failed to fetch supervisor');
+    }
+    return {
+      supervisor: data.supervisor,
+      unreadCount: data.unreadCount || 0
+    };
+  } catch (error) {
+    console.error('Error fetching supervisor:', error);
+    throw error;
+  }
+}
+
+export async function getTraineeUnreadCount() {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/trainee/unread-count`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch unread count: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.unreadCount || 0;
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    return 0;
+  }
+}
+
+export async function getChatConversation(traineeId) {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/conversation/${traineeId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch conversation: ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.error || 'Failed to fetch conversation');
+    }
+    return {
+      messages: data.messages || [],
+      trainee: data.trainee || null
+    };
+  } catch (error) {
+    console.error('Error fetching conversation:', error);
+    throw error;
+  }
+}
+
+export async function getTraineeConversation() {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/trainee/conversation`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch conversation: ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.error || 'Failed to fetch conversation');
+    }
+    return {
+      messages: data.messages || [],
+      supervisor: data.supervisor || null
+    };
+  } catch (error) {
+    console.error('Error fetching conversation:', error);
+    throw error;
+  }
+}
+
+export async function markTraineeMessagesRead() {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/trainee/mark-read`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to mark messages as read: ${res.status}`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    throw error;
+  }
+}
+
+export async function sendSupervisorMessage(traineeId, message) {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ traineeId, message }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to send message: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.message;
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
+  }
+}
+
+export async function sendTraineeMessage(message) {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/trainee/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to send message: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.message;
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
   }
 }

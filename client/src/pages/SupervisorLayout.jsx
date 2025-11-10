@@ -5,23 +5,9 @@ import { UnifiedTopbar } from '../components/UnifiedTopbar.jsx';
 
 const SupervisorLayout = () => {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   
-  // Reset sidebar to collapsed on mount and whenever path changes
-  useEffect(() => {
-    setCollapsed(true);
-  }, [location.pathname]);
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      // Use setTimeout to ensure this runs after React state updates
-      setTimeout(() => setCollapsed(true), 0);
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  // Removed auto-collapse on navigation - sidebar only collapses when user clicks the toggle button
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -36,7 +22,7 @@ const SupervisorLayout = () => {
       {/* MAIN */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <UnifiedTopbar userType="supervisor" companyName="Irshad Company" />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50" style={{ padding: '1.5rem' }}>
           <Outlet />
         </main>
       </div>

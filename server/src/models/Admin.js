@@ -17,6 +17,10 @@ const AdminSchema = new Schema(
     // IMPORTANT: The referenced model name must match the actual Mongoose model export (Employee)
     EmpObjectUserID: { type: Types.ObjectId, ref: "Employee", required: true, unique: true },
     // EmpObjectUserID: { type: Types.ObjectId, ref: "Employees" }
+
+     // Reset password fields
+    resetToken: { type: String, default: null },
+    resetTokenExpiry: { type: Date, default: null },
   },
   
   { collection: "Admin", timestamps: true }

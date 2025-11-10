@@ -1,4 +1,5 @@
 import React from "react";
+import ToastPortal from "./components/ToastPortal.jsx";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
@@ -8,9 +9,11 @@ import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
+import SupervisorHome from "./pages/SupervisorHome.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
+import TraineeLayout from "./pages/TraineeLayout.jsx";
 import WebOwnerDashboard from "./pages/WebOwnerDashboard.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 
@@ -56,22 +59,38 @@ import "./styles/Registration.css";
 import "./styles/login.css"; // Import last to override other styles
 import "./styles/owner-components.css";
 import './styles/supervisor.css';
+import TodoList from "./pages/TodoList.jsx";
+
+// ✅ Import Forgot & Reset Password pages
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
+
+// ✅ Import Profile pages for all user types
+import TraineeProfile from "./pages/TraineeProfile.jsx";
+import SupervisorProfile from "./pages/SupervisorProfile.jsx";
+import AdminProfile from "./pages/AdminProfile.jsx";
+import WebOwnerProfile from "./pages/WebOwnerProfile.jsx";
+
+// ✅ Import Chat pages
+import SupervisorChat from "./pages/SupervisorChat.jsx";
+import TraineeChat from "./pages/TraineeChat.jsx";
 
 export default function App() {
   const location = useLocation();
   
   // Define routes that should NOT have Navbar and Footer
-  const loginRoutes = ['/', '/login', '/auth'];
+  const loginRoutes = ['/', '/login', '/auth', '/forgot-password', '/reset-password'];
   const dashboardRoutes = ['/supervisor', '/trainee', '/webowner'];
   const adminRoutes = ['/admin'];
   const ownerRoutes = ['/owner'];
   const isLoginRoute = loginRoutes.includes(location.pathname);
-  const isDashboardRoute = dashboardRoutes.includes(location.pathname) || location.pathname.startsWith('/supervisor');
+  const isDashboardRoute = dashboardRoutes.includes(location.pathname) || location.pathname.startsWith('/supervisor') || location.pathname.startsWith('/trainee');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isOwnerRoute = location.pathname.startsWith('/owner');
 
   return (
     <>
+      <ToastPortal />
       {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
       <Routes>
 
@@ -80,6 +99,12 @@ export default function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth" element={<LoginPage />} />
+
+        {/* Forgot Password Route */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        
+        {/* Reset Password Route */}
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Company Registration Routes */}
         <Route path="/registration" element={<CompanyRegistration />} />
@@ -93,9 +118,11 @@ export default function App() {
           <Route path="content/:id" element={<ContentDetails />} />
           <Route path="content/:id/view" element={<ContentView />} />
           <Route path="profile" element={<CompanyProfile />} />
+          <Route path="my-profile" element={<AdminProfile />} />
           <Route path="departments/:departmentName/details" element={<DepartmentDetails />} />
           <Route path="departments/:departmentName/assign-members" element={<AssignMembers />} />
           <Route path="groups/:id" element={<AdminGroupDetails />} />
+          <Route path="groups/:id/templates" element={<AdminTemplateManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="employees/:id" element={<EmployeeDetails />} />
           <Route path="trainees/:id" element={<TraineeDetails />} />
@@ -105,17 +132,26 @@ export default function App() {
 
         {/* Supervisor Routes */}
         <Route path="/supervisor" element={<SupervisorLayout />}>
-          <Route index element={<SupervisorDashboard />} />
-          <Route path="empty" element={<div style={{padding: '20px'}}><h2>Dashboard</h2><p>This page is intentionally left empty.</p></div>} />
+          <Route index element={<SupervisorHome />} />
+          <Route path="groups" element={<SupervisorDashboard />} />
           <Route path="content" element={<SupervisorContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />
           <Route path="content/:id/view" element={<ContentView />} />
+          <Route path="my-profile" element={<SupervisorProfile />} />
           <Route path="templates" element={<SupervisorTemplateManagement />} />
           <Route path="groups/:id" element={<SupervisorGroupDetails />} />
+          <Route path="groups/:id/templates" element={<SupervisorTemplateManagement />} />
+          <Route path="chat/:traineeId" element={<SupervisorChat />} />
         </Route>
 
-        {/* Dashboard Routes */}
-        <Route path="/trainee" element={<TraineeDashboard />} />
+        {/* Trainee Routes */}
+        <Route path="/trainee" element={<TraineeLayout />}>
+          <Route index element={<TraineeDashboard />} />
+          <Route path="todo" element={<TodoList />} />
+          <Route path="my-profile" element={<TraineeProfile />} />
+          <Route path="content/:id" element={<ContentView />} />
+          <Route path="chat" element={<TraineeChat />} />
+        </Route>
         <Route path="/webowner" element={<Navigate to="/owner/dashboard" replace />} />
 
         {/* WebOwner Layout Routes (from ActiveCompaniesFeature) */}
@@ -126,6 +162,7 @@ export default function App() {
           <Route path="companies/:id" element={<CompanyDetails />} />
           <Route path="registrations" element={<Registrations />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="my-profile" element={<WebOwnerProfile />} />
           <Route path="settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain platform settings.</p></div>} />
         </Route>
 
