@@ -7,7 +7,8 @@ import "../styles/department-details.css";
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 function DepartmentDetails() {
-  const { departmentName } = useParams();
+  const { departmentName: rawDepartmentName } = useParams();
+  const departmentName = decodeURIComponent(rawDepartmentName || '');
   const navigate = useNavigate();
   const [department, setDepartment] = useState(null);
   const [groups, setGroups] = useState([]);

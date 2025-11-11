@@ -2595,10 +2595,26 @@ router.put('/trainee/view/:contentId', requireTrainee, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
-    // Validate trainee exists
-    const trainee = await Trainee.findById(req.user.id);
+    // Validate trainee exists and get group/supervisor info
+    const trainee = await Trainee.findById(req.user.id).populate('ObjectGroupID');
     if (!trainee) {
       return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    // Get group and supervisor IDs
+    const groupId = trainee.ObjectGroupID?._id || trainee.ObjectGroupID;
+    let supervisorId = null;
+    
+    if (groupId) {
+      const group = await Group.findById(groupId);
+      supervisorId = group?.SupervisorObjectUserID;
+    }
+
+    if (!groupId || !supervisorId) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'Trainee must be assigned to a group with a supervisor to track progress' 
+      });
     }
 
     // Check if content has an associated quiz
@@ -2617,6 +2633,8 @@ router.put('/trainee/view/:contentId', requireTrainee, async (req, res) => {
         TraineeObjectUserID: trainee._id,
         ObjectContentID: content._id,
         ObjectQuizID: quizId,
+        groupID: groupId,
+        supervisorID: supervisorId,
         status: 'in progress',
         viewedAt: new Date()
       });
@@ -2670,10 +2688,26 @@ router.put('/trainee/progress/:contentId', requireTrainee, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
-    // Validate trainee exists
-    const trainee = await Trainee.findById(req.user.id);
+    // Validate trainee exists and get group/supervisor info
+    const trainee = await Trainee.findById(req.user.id).populate('ObjectGroupID');
     if (!trainee) {
       return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    // Get group and supervisor IDs
+    const groupId = trainee.ObjectGroupID?._id || trainee.ObjectGroupID;
+    let supervisorId = null;
+    
+    if (groupId) {
+      const group = await Group.findById(groupId);
+      supervisorId = group?.SupervisorObjectUserID;
+    }
+
+    if (!groupId || !supervisorId) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: 'Trainee must be assigned to a group with a supervisor to track progress' 
+      });
     }
 
     // Check if content has an associated quiz
@@ -2691,7 +2725,9 @@ router.put('/trainee/progress/:contentId', requireTrainee, async (req, res) => {
       progress = new Progress({
         TraineeObjectUserID: trainee._id,
         ObjectContentID: content._id,
-        ObjectQuizID: quizId
+        ObjectQuizID: quizId,
+        groupID: groupId,
+        supervisorID: supervisorId
       });
     } else {
       // Update quiz ID if it wasn't set before

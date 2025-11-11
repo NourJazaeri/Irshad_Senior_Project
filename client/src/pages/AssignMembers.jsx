@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { getEmployeesByDepartment, finalizeGroup } from "../services/api.js";
+import { getEmployeesByDepartment, finalizeGroup, getCurrentUser } from "../services/api.js";
 import { Building2, UserCog, Users, UserCheck, Search, Loader2 } from "lucide-react";
 import "../styles/assign-members.css";
 
@@ -13,9 +13,14 @@ export default function AssignMembers() {
   const navigate = useNavigate();
   const { state } = useLocation() || {};
 
+  // Get current user info
+  const currentUser = getCurrentUser();
+
   // From the previous step (CreateGroupButton navigate state)
   const groupName = state?.groupName || "";
-  const adminId = state?.adminId || localStorage.getItem("userId");
+  const adminId = state?.adminId || currentUser?.id;
+  const isEditMode = state?.isEditMode || false;
+  const existingGroupId = state?.existingGroupId || null;
   const [departmentId, setDepartmentId] = useState(null);
   
   // Fix for URL parameter issue - if departmentNameParam is :departmentName, extract from URL
@@ -135,13 +140,66 @@ export default function AssignMembers() {
   };
 
   // Guard: if user refreshes and there was no state, push them back to Dept page
+  // Only redirect if state was expected but completely missing (page refresh scenario)
   useEffect(() => {
-    // If required information is missing and there's no way to proceed, redirect back
-    // but only when we have an identifier to go back to. Otherwise show an error.
-    if ((!groupName || !departmentName || !adminId) && departmentNameParam) {
-      navigate(`/departments/${encodeURIComponent(departmentNameParam)}/details`);
+    // Check if we came here via navigation (state exists) but is incomplete
+    // OR if there's no state at all (direct URL access/refresh) and we're missing required info
+    const hasNoState = !state || Object.keys(state).length === 0;
+    const missingCriticalInfo = !groupName || !departmentName;
+    
+    // Only redirect if page was refreshed/accessed directly AND missing info
+    if (hasNoState && missingCriticalInfo && departmentNameParam) {
+      console.log('Redirecting: missing state after refresh');
+      navigate(`/admin/departments/${encodeURIComponent(departmentNameParam)}/details`);
     }
-  }, [groupName, departmentName, adminId, navigate, departmentNameParam]);
+  }, [state, groupName, departmentName, navigate, departmentNameParam]);
+
+  // Load existing group data if in edit mode
+  useEffect(() => {
+    const loadExistingGroup = async () => {
+      if (isEditMode && existingGroupId) {
+        try {
+          const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${API_BASE}/api/groups/${existingGroupId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          const data = await response.json();
+          
+          if (data.ok) {
+            // Set existing supervisor - use employeeId for checkbox matching
+            if (data.supervisor) {
+              setSelectedSupervisor({
+                _id: data.supervisor.employeeId || data.supervisor.supervisorId, // Use Employee ID for matching with employee list
+                fname: data.supervisor.name.split(' ')[0],
+                lname: data.supervisor.name.split(' ')[1] || '',
+                email: data.supervisor.email,
+                supervisorId: data.supervisor.supervisorId // Keep supervisor ID for reference
+              });
+            }
+            
+            // Set existing trainees - use employeeId for checkbox matching
+            if (data.members && data.members.length > 0) {
+              const traineesList = data.members.map(member => ({
+                _id: member.employeeId || member.traineeId, // Use Employee ID for matching with employee list
+                fname: member.name.split(' ')[0],
+                lname: member.name.split(' ')[1] || '',
+                email: member.email,
+                traineeId: member.traineeId // Keep trainee ID for reference
+              }));
+              setSelectedTrainees(traineesList);
+            }
+          }
+        } catch (err) {
+          console.error('Error loading existing group:', err);
+        }
+      }
+    };
+    
+    loadExistingGroup();
+  }, [isEditMode, existingGroupId]);
 
   // Load employees of this department
   useEffect(() => {
@@ -219,40 +277,87 @@ export default function AssignMembers() {
   const handleSubmitGroup = async () => {
     setErrorMsg("");
 
+    console.log("📋 Current state:", {
+      groupName,
+      departmentName,
+      adminId,
+      selectedSupervisor,
+      selectedTraineesCount: selectedTrainees.length
+    });
+
     if (!groupName?.trim()) {
       setErrorMsg("Please provide a group name.");
       return;
     }
+    if (!departmentName) {
+      setErrorMsg("Department name is missing. Please go back and try again.");
+      return;
+    }
+    if (!adminId) {
+      setErrorMsg("Admin ID is missing. Please log in again.");
+      return;
+    }
     if (!selectedSupervisor?._id) {
-      setErrorMsg("Please assign a supervisor.");
+      setErrorMsg("Please click '+ Assign Supervisor' button and select a supervisor before finalizing the group.");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      const payload = {
-        groupName,
-        departmentName,          // using department name as required by groups.js
-        adminId,
-        supervisorId: selectedSupervisor._id,
-        traineeIds: selectedTrainees.map(t => t._id),
-      };
+      if (isEditMode && existingGroupId) {
+        // Update existing group - only add new trainees
+        const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+        const token = localStorage.getItem('token');
+        
+        const payload = {
+          traineeIds: selectedTrainees.map(t => t._id),
+        };
 
-      console.log("🔍 Sending payload to finalizeGroup:", payload);
-      const res = await finalizeGroup(payload);
-      
-      // Show success popup with email information
-      if (res.emailResults && res.emailResults.length > 0) {
-        setEmailResults(res.emailResults);
-        setShowSuccessPopup(true);
+        console.log("🔍 Updating group with trainees:", payload);
+        
+        const response = await fetch(`${API_BASE}/api/groups/${existingGroupId}/add-trainees`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to update group');
+        }
+
+        // Navigate back to group details
+        navigate(`/admin/groups/${existingGroupId}`);
       } else {
-        setEmailResults([]);
-        setShowSuccessPopup(true);
+        // Create new group
+        const payload = {
+          groupName,
+          departmentName,
+          adminId,
+          supervisorId: selectedSupervisor._id,
+          traineeIds: selectedTrainees.map(t => t._id),
+        };
+
+        console.log("🔍 Sending payload to finalizeGroup:", payload);
+        const res = await finalizeGroup(payload);
+        
+        // Show success popup with email information
+        if (res.emailResults && res.emailResults.length > 0) {
+          setEmailResults(res.emailResults);
+          setShowSuccessPopup(true);
+        } else {
+          setEmailResults([]);
+          setShowSuccessPopup(true);
+        }
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err?.message || "Failed to create group");
+      setErrorMsg(err?.message || "Failed to " + (isEditMode ? "update" : "create") + " group");
     } finally {
       setSubmitting(false);
     }
@@ -281,16 +386,18 @@ export default function AssignMembers() {
             <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
             <span style={{ color: '#111827', fontWeight: '700' }}>{groupName}</span>
           </div>
-          <h2 className="assign-title mt-2">{groupName || "New Group"}</h2>
+          <h2 className="assign-title mt-2">{isEditMode ? `Edit: ${groupName}` : (groupName || "New Group")}</h2>
         </div>
 
         <div className="assign-actions flex gap-3">
-          <button
-            className={`bg-white hover:bg-blue-50 text-gray-700 border-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105 ${mode === "supervisor" ? "border-blue-600 text-blue-600 hover:border-blue-700" : "border-gray-300 hover:border-blue-400"}`}
-            onClick={() => setMode(mode === "supervisor" ? null : "supervisor")}
-          >
-            + Assign Supervisor
-          </button>
+          {!isEditMode && (
+            <button
+              className={`bg-white hover:bg-blue-50 text-gray-700 border-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105 ${mode === "supervisor" ? "border-blue-600 text-blue-600 hover:border-blue-700" : "border-gray-300 hover:border-blue-400"}`}
+              onClick={() => setMode(mode === "supervisor" ? null : "supervisor")}
+            >
+              + Assign Supervisor
+            </button>
+          )}
           <button
             className={`bg-white hover:bg-blue-50 text-gray-700 border-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105 ${mode === "trainees" ? "border-blue-600 text-blue-600 hover:border-blue-700" : "border-gray-300 hover:border-blue-400"}`}
             onClick={() => setMode(mode === "trainees" ? null : "trainees")}
@@ -302,10 +409,10 @@ export default function AssignMembers() {
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2 hover:shadow-lg hover:scale-105"
             onClick={handleSubmitGroup}
             disabled={submitting}
-            title="Creates the group with selected supervisor & trainees"
+            title={isEditMode ? "Update group members" : "Creates the group with selected supervisor & trainees"}
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-            {submitting ? "Submitting..." : "Submit Group"}
+            {submitting ? "Updating..." : (isEditMode ? "Update Group" : "Finalize Group")}
           </button>
         </div>
       </div>

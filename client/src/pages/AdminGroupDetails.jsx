@@ -135,7 +135,7 @@ export default function AdminGroupDetails() {
         <div style={{ fontSize: '18px', display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
           <span style={{ color: '#6b7280', cursor: 'pointer' }} onClick={() => navigate('/admin')}>Departments</span>
           <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
-          <span style={{ color: '#6b7280', cursor: 'pointer' }} onClick={() => navigate(`/admin/departments/${group.departmentName}/details`)}>
+          <span style={{ color: '#6b7280', cursor: 'pointer' }} onClick={() => navigate(`/admin/departments/${encodeURIComponent(group.departmentName)}/details`)}>
             {group.departmentName}
           </span>
           <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
@@ -224,7 +224,18 @@ export default function AdminGroupDetails() {
           <div className="sv-table-card">
           <div className="sv-table-header">
               <p className="sv-table-caption" style={{ fontSize: '20px', fontWeight: '700', color: '#111827' }}>Group Trainees</p>
-              <button className="sv-button-primary sv-button-icon">
+              <button 
+                className="sv-button-primary sv-button-icon"
+                onClick={() => navigate(`/admin/departments/${encodeURIComponent(group.departmentName)}/assign-members`, {
+                  state: { 
+                    groupName: group.groupName,
+                    departmentName: group.departmentName,
+                    adminId: null, // Will be fetched from getCurrentUser in AssignMembers
+                    isEditMode: true,
+                    existingGroupId: id
+                  }
+                })}
+              >
                   <Edit size={16} /> Assign Trainee
               </button>
           </div>

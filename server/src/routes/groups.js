@@ -22,16 +22,24 @@ router.get("/by-department/:departmentId", requireAdmin, async (req, res) => {
       .populate("SupervisorObjectUserID", "fname lname")
       .sort({ createdAt: -1 });
 
+    // Count actual trainees for each group
+    const groupsWithTraineeCount = await Promise.all(
+      groups.map(async (g) => {
+        const traineeCount = await Trainee.countDocuments({ ObjectGroupID: g._id });
+        return {
+          _id: g._id,
+          groupName: g.groupName,
+          numOfMembers: traineeCount, // Now this is the actual trainee count
+          supervisorName: g.SupervisorObjectUserID
+            ? `${g.SupervisorObjectUserID.fname} ${g.SupervisorObjectUserID.lname}`
+            : "N/A",
+        };
+      })
+    );
+
     res.json({
       ok: true,
-      groups: groups.map((g) => ({
-        _id: g._id,
-        groupName: g.groupName,
-        numOfMembers: g.numOfMembers || 0,
-        supervisorName: g.SupervisorObjectUserID
-          ? `${g.SupervisorObjectUserID.fname} ${g.SupervisorObjectUserID.lname}`
-          : "N/A",
-      })),
+      groups: groupsWithTraineeCount,
     });
   } catch (err) {
     console.error("❌ Error fetching groups:", err);
@@ -335,6 +343,107 @@ router.post("/test-email", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("❌ Error testing email configuration:", err);
     res.status(500).json({ ok: false, message: "Failed to test email configuration" });
+  }
+});
+
+/* ============================================================
+   ➕ Add trainees to existing group
+   ============================================================ */
+// PUT /api/groups/:groupId/add-trainees
+router.put("/:groupId/add-trainees", requireAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { traineeIds } = req.body;
+
+    console.log("📝 Adding trainees to group:", { groupId, traineeIds });
+
+    if (!traineeIds || !Array.isArray(traineeIds) || traineeIds.length === 0) {
+      return res.status(400).json({ message: "No trainees provided" });
+    }
+
+    // Get the group
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    console.log("📋 Group found:", {
+      id: group._id,
+      name: group.groupName,
+      hasAdminId: !!group.AdminObjectUserID,
+      hasSupervisorId: !!group.SupervisorObjectUserID,
+      hasDepartmentId: !!group.ObjectDepartmentID
+    });
+
+    const Employee = (await import("../models/Employees.js")).default;
+    let addedTrainees = [];
+
+    // Process each trainee
+    for (const traineeId of traineeIds) {
+      // Check if it's an Employee ID
+      const employeeTrainee = await Employee.findById(traineeId);
+      if (!employeeTrainee) {
+        continue; // Skip if employee not found
+      }
+
+      // Find or create Trainee record
+      let existingTrainee = await Trainee.findOne({
+        EmpObjectUserID: employeeTrainee._id
+      });
+
+      if (existingTrainee) {
+        // Check if already in THIS group
+        if (existingTrainee.ObjectGroupID && existingTrainee.ObjectGroupID.toString() === groupId) {
+          console.log(`Trainee ${employeeTrainee.fname} ${employeeTrainee.lname} already in this group`);
+          continue; // Skip, already in this group
+        }
+        
+        // Check if in ANOTHER group
+        if (existingTrainee.ObjectGroupID && existingTrainee.ObjectGroupID.toString() !== groupId) {
+          return res.status(400).json({
+            message: `Trainee ${employeeTrainee.fname} ${employeeTrainee.lname} is already assigned to another group`,
+            traineeName: `${employeeTrainee.fname} ${employeeTrainee.lname}`,
+            traineeEmail: employeeTrainee.email
+          });
+        }
+
+        // Assign to this group
+        existingTrainee.ObjectGroupID = group._id;
+        await existingTrainee.save();
+        addedTrainees.push(existingTrainee);
+      } else {
+        // Create new Trainee record
+        const traineePassword = generateRandomPassword();
+        const bcrypt = await import('bcryptjs');
+        const hashedPassword = await bcrypt.default.hash(traineePassword, 10);
+
+        const newTrainee = await Trainee.create({
+          loginEmail: employeeTrainee.email,
+          passwordHash: hashedPassword,
+          EmpObjectUserID: employeeTrainee._id,
+          ObjectGroupID: group._id
+        });
+
+        addedTrainees.push(newTrainee);
+        console.log(`✅ Created new trainee for ${employeeTrainee.fname} ${employeeTrainee.lname}`);
+      }
+    }
+
+    // Update group member count using findByIdAndUpdate to avoid validation issues
+    const totalTrainees = await Trainee.countDocuments({ ObjectGroupID: group._id });
+    await Group.findByIdAndUpdate(group._id, {
+      numOfMembers: totalTrainees + 1 // +1 for supervisor
+    });
+
+    res.json({
+      ok: true,
+      message: `Successfully added ${addedTrainees.length} trainee(s) to the group`,
+      addedCount: addedTrainees.length
+    });
+  } catch (err) {
+    console.error("❌ Error adding trainees to group:", err);
+    console.error("❌ Full error stack:", err.stack);
+    res.status(500).json({ ok: false, message: err.message || "Failed to add trainees to group" });
   }
 });
 
@@ -698,12 +807,13 @@ function mapSupervisor(supervisorDoc) {
   
   // This logic is crucial: supervisor data relies on the Employee document being populated
   if (!employee) {
-      return { id: supervisorDoc._id, name: '—', email: '', empId: '' };
+      return { supervisorId: supervisorDoc._id, employeeId: null, name: '—', email: '', empId: '' };
   }
   
   const name = [employee.fname, employee.lname].filter(Boolean).join(' ') || '—';
   return {
-    id: supervisorDoc._id,
+    supervisorId: supervisorDoc._id,
+    employeeId: employee._id, // Add Employee ObjectId for checkbox matching
     name,
     email: employee.email || '',
     empId: employee.EmpID || '', 
@@ -757,6 +867,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
         {
           $project: {
             traineeId: '$_id',
+            employeeId: '$emp._id', // Add Employee ObjectId for checkbox matching
             // Access employee fields. Use $ifNull to replace nulls with a dash.
             empId: { $ifNull: ['$emp.EmpID', '—'] }, 
             email: { $ifNull: ['$emp.email', '—'] },
@@ -826,6 +937,12 @@ router.delete('/:id/trainees/:traineeId', requireAdmin, async (req, res) => {
         .status(404)
         .json({ ok: false, error: 'Trainee not found in this group' });
     }
+
+    // Update group member count
+    const totalTrainees = await Trainee.countDocuments({ ObjectGroupID: id });
+    await Group.findByIdAndUpdate(id, {
+      numOfMembers: totalTrainees + 1 // +1 for supervisor
+    });
 
     res.json({ ok: true, message: 'Trainee removed from group' });
   } catch (err) {

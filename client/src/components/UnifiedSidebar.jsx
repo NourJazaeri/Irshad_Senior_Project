@@ -59,7 +59,7 @@ const navigationConfigs = {
     brand: { name: 'Irshad', subtitle: 'Supervisor Portal' },
     user: { name: 'Supervisor', role: 'supervisor@company.com', avatar: 'S' },
     items: [
-      { name: 'Dashboard', href: '/supervisor', icon: Home },
+  { name: 'Dashboard', href: '/supervisor/charts', icon: Home },
       { name: 'Groups', href: '/supervisor/groups', icon: Users },
       { name: 'Content Library', href: '/supervisor/content', icon: FolderOpen },
       { name: 'My Profile', href: '/supervisor/my-profile', icon: User },
