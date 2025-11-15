@@ -49,12 +49,44 @@ const ProgressSchema = new Schema(
       default: null,
     },
 
-    // Store individual task completion statuses for template content
+    // Store individual task completion statuses for Steps template content
     taskCompletions: {
       type: Map,
       of: Boolean,
       default: new Map(),
     },
+      // New fields for supervisor dashboard analytics
+      groupID: {
+        type: Types.ObjectId,
+        ref: "Group",
+        required: true,
+        index: true,
+      },
+      supervisorID: {
+        type: Types.ObjectId,
+        ref: "Supervisor",
+        required: true,
+        index: true,
+      },
+      startDate: {
+        type: Date,
+        default: null,
+      },
+      dueDate: {
+        type: Date,
+        default: null,
+      },
+      progressPercentage: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0,
+      },
+      statusCategory: {
+        type: String,
+        enum: ["Good", "On track", "At risk"],
+        default: "On track",
+      },
   },
   {
     collection: "Progress",

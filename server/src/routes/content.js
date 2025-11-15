@@ -319,6 +319,19 @@ async function createInitialProgressRecords(content) {
 
     // Create progress records for all assigned trainees
     if (traineesToAssign.length > 0) {
+      // Get group and supervisor info for progress records
+      let groupId = null;
+      let supervisorId = null;
+      
+      if (content.assignedTo_GroupID) {
+        groupId = content.assignedTo_GroupID;
+        // Fetch supervisor from group
+        const group = await Group.findById(groupId);
+        if (group) {
+          supervisorId = group.SupervisorObjectUserID;
+        }
+      }
+      
       const progressRecords = traineesToAssign.map(traineeId => ({
         _id: new mongoose.Types.ObjectId(),
         TraineeObjectUserID: traineeId,
@@ -326,12 +339,18 @@ async function createInitialProgressRecords(content) {
         status: 'not started',
         acknowledged: false,
         score: null,
+        groupID: groupId,
+        supervisorID: supervisorId,
+        startDate: null,
+        dueDate: content.deadline || null,
+        progressPercentage: 0,
+        statusCategory: 'On track',
         createdAt: new Date(),
         updatedAt: new Date()
       }));
 
       const result = await Progress.insertMany(progressRecords);
-      console.log('✅ Created', result.length, 'progress records');
+      console.log('✅ Created', result.length, 'progress records with groupID:', groupId, 'supervisorID:', supervisorId);
 
       // Create notifications for all assigned trainees
       try {
@@ -2595,10 +2614,19 @@ router.put('/trainee/view/:contentId', requireTrainee, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
-    // Validate trainee exists
-    const trainee = await Trainee.findById(req.user.id);
+    // Validate trainee exists and get group/supervisor info
+    const trainee = await Trainee.findById(req.user.id).populate('ObjectGroupID');
     if (!trainee) {
       return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    // Get group and supervisor IDs
+    const groupId = trainee.ObjectGroupID?._id || trainee.ObjectGroupID;
+    let supervisorId = null;
+    
+    if (groupId) {
+      const group = await Group.findById(groupId);
+      supervisorId = group?.SupervisorObjectUserID;
     }
 
     // Check if content has an associated quiz
@@ -2617,8 +2645,13 @@ router.put('/trainee/view/:contentId', requireTrainee, async (req, res) => {
         TraineeObjectUserID: trainee._id,
         ObjectContentID: content._id,
         ObjectQuizID: quizId,
+        groupID: groupId,
+        supervisorID: supervisorId,
         status: 'in progress',
-        viewedAt: new Date()
+        viewedAt: new Date(),
+        dueDate: content.deadline || null,
+        progressPercentage: 0,
+        statusCategory: 'On track'
       });
     } else {
       // Update quiz ID if it wasn't set before
@@ -2670,10 +2703,19 @@ router.put('/trainee/progress/:contentId', requireTrainee, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
-    // Validate trainee exists
-    const trainee = await Trainee.findById(req.user.id);
+    // Validate trainee exists and get group/supervisor info
+    const trainee = await Trainee.findById(req.user.id).populate('ObjectGroupID');
     if (!trainee) {
       return res.status(404).json({ ok: false, error: 'Trainee not found' });
+    }
+
+    // Get group and supervisor IDs
+    const groupId = trainee.ObjectGroupID?._id || trainee.ObjectGroupID;
+    let supervisorId = null;
+    
+    if (groupId) {
+      const group = await Group.findById(groupId);
+      supervisorId = group?.SupervisorObjectUserID;
     }
 
     // Check if content has an associated quiz
@@ -2691,7 +2733,12 @@ router.put('/trainee/progress/:contentId', requireTrainee, async (req, res) => {
       progress = new Progress({
         TraineeObjectUserID: trainee._id,
         ObjectContentID: content._id,
-        ObjectQuizID: quizId
+        ObjectQuizID: quizId,
+        groupID: groupId,
+        supervisorID: supervisorId,
+        dueDate: content.deadline || null,
+        progressPercentage: 0,
+        statusCategory: 'On track'
       });
     } else {
       // Update quiz ID if it wasn't set before
@@ -2881,6 +2928,19 @@ router.post('/trainee/content/:contentId/quiz/submit', requireTrainee, async (re
 
     const score = Math.round((correctCount / totalQuestions) * 100);
 
+    // Get trainee's group and supervisor info
+    const trainee = await Trainee.findById(traineeId).populate('ObjectGroupID');
+    const groupId = trainee?.ObjectGroupID?._id || trainee?.ObjectGroupID;
+    let supervisorId = null;
+    
+    if (groupId) {
+      const group = await Group.findById(groupId);
+      supervisorId = group?.SupervisorObjectUserID;
+    }
+
+    // Get content for deadline info
+    const content = await Content.findById(contentId);
+
     // Update or create progress record
     let progress = await Progress.findOne({
       TraineeObjectUserID: traineeId,
@@ -2893,12 +2953,19 @@ router.post('/trainee/content/:contentId/quiz/submit', requireTrainee, async (re
         TraineeObjectUserID: traineeId,
         ObjectContentID: contentId,
         ObjectQuizID: quiz._id,
-        score: score
+        score: score,
+        groupID: groupId,
+        supervisorID: supervisorId,
+        dueDate: content?.deadline || null,
+        progressPercentage: score,
+        statusCategory: score >= 70 ? 'Good' : score >= 50 ? 'On track' : 'At risk'
       });
     } else {
       console.log('📝 Updating existing progress record with quiz results');
       progress.score = score;
       progress.ObjectQuizID = quiz._id;
+      progress.progressPercentage = score;
+      progress.statusCategory = score >= 70 ? 'Good' : score >= 50 ? 'On track' : 'At risk';
     }
     
     await progress.save();

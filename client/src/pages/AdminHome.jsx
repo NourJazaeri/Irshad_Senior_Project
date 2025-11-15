@@ -227,7 +227,7 @@ export default function AdminHome() {
                 <Card
                   key={dept._id}
                   onClick={() =>
-                    window.location.assign(`/admin/departments/${dept.departmentName}/details`)
+                    window.location.assign(`/admin/departments/${encodeURIComponent(dept.departmentName)}/details`)
                   }
                   className="cursor-pointer relative"
                   style={{

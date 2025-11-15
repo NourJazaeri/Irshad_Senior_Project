@@ -218,8 +218,10 @@ app.use('/api/admin/users', adminUserManagement);
 app.use('/api/admin/groups', adminGroupsRouter);
 
 // Supervisor routes (overview + my-groups, etc.)
+import supervisorDashboardRouter from './routes/supervisorDashboard.js';
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
 app.use('/api/supervisor', supervisorProfileRouter);
+app.use('/api/supervisor', supervisorDashboardRouter);
 
 // Trainee routes
 app.use('/api/trainee', traineeProfileRouter);

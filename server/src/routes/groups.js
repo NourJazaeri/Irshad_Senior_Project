@@ -834,4 +834,47 @@ router.delete('/:id/trainees/:traineeId', requireAdmin, async (req, res) => {
   }
 });
 
+/* ============================================================
+   🎯 Get all groups assigned to a supervisor (For Supervisor Dashboard)
+   ============================================================ */
+router.get("/supervisor/:supervisorId", async (req, res) => {
+  try {
+    const { supervisorId } = req.params;
+
+    console.log('🔍 Fetching groups for supervisor:', supervisorId);
+
+    // Find all groups where this supervisor is assigned
+    const groups = await Group.find({ SupervisorObjectUserID: supervisorId })
+      .populate("ObjectDepartmentID", "departmentName")
+      .sort({ createdAt: -1 });
+
+    console.log('📊 Found', groups.length, 'groups for supervisor');
+
+    // Count actual trainees for each group
+    const groupsWithDetails = await Promise.all(
+      groups.map(async (g) => {
+        const traineeCount = await Trainee.countDocuments({ ObjectGroupID: g._id });
+        return {
+          _id: g._id,
+          groupName: g.groupName,
+          departmentName: g.ObjectDepartmentID?.departmentName || "N/A",
+          traineeCount: traineeCount, // Only trainees (not including supervisor)
+          numOfMembers: g.numOfMembers || 0, // Total members including supervisor
+          createdAt: g.createdAt
+        };
+      })
+    );
+
+    res.json({
+      ok: true,
+      groups: groupsWithDetails,
+      totalGroups: groupsWithDetails.length,
+      totalTrainees: groupsWithDetails.reduce((sum, g) => sum + g.traineeCount, 0)
+    });
+  } catch (err) {
+    console.error("❌ Error fetching supervisor groups:", err);
+    res.status(500).json({ ok: false, message: "Failed to fetch groups" });
+  }
+});
+
 export default router;

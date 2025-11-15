@@ -9,7 +9,7 @@ import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
-import SupervisorHome from "./pages/SupervisorHome.jsx";
+import SupervisorCharts from "./pages/SupervisorCharts.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
@@ -132,8 +132,9 @@ export default function App() {
 
         {/* Supervisor Routes */}
         <Route path="/supervisor" element={<SupervisorLayout />}>
-          <Route index element={<SupervisorHome />} />
+          <Route index element={<SupervisorCharts />} />
           <Route path="groups" element={<SupervisorDashboard />} />
+          <Route path="charts" element={<SupervisorCharts />} />
           <Route path="content" element={<SupervisorContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />
           <Route path="content/:id/view" element={<ContentView />} />
