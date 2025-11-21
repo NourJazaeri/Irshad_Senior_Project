@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function CompanyRegistration() {
+  const navigate = useNavigate();
   const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) || 'http://localhost:5000';
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -195,7 +197,7 @@ export default function CompanyRegistration() {
     });
     setCurrentStep(1);
     // Redirect to login page
-    window.location.href = '/auth';
+    navigate('/auth');
   };
 
   const SuccessMessage = () => (

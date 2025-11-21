@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { loginUser } from "../services/api.js";
 
 function LoginCard({ onLogin }) {
+  const navigate = useNavigate();
   const [role, setRole] = useState("Admin"); // Default to Admin for testing
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +26,7 @@ function LoginCard({ onLogin }) {
         localStorage.setItem("user", JSON.stringify(res.user)); // Save user data for TodoList
 
         if (res.redirectTo) {
-          window.location.href = res.redirectTo;
+          navigate(res.redirectTo);
         } else {
           const redirectMap = {
             Admin: "/admin/dashboard",
@@ -32,7 +34,7 @@ function LoginCard({ onLogin }) {
             Trainee: "/trainee",
             WebOwner: "/webowner",
           };
-          window.location.href = redirectMap[res.user.role] || "/";
+          navigate(redirectMap[res.user.role] || "/");
         }
       } else {
         setErrorMsg(res.message || "Login failed");

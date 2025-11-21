@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Users, Building2, Briefcase, Code, Palette, BarChart, Headphones, Cog } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,7 @@ const getDepartmentIcon = (departmentName) => {
 };
 
 export default function AdminHome() {
+  const navigate = useNavigate();
   const [departments, setDepartments] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newDeptName, setNewDeptName] = useState("");
@@ -233,7 +235,7 @@ export default function AdminHome() {
                 <Card
                   key={dept._id}
                   onClick={() =>
-                    window.location.assign(`/admin/departments/${dept.departmentName}/details`)
+                    navigate(`/admin/departments/${dept.departmentName}/details`)
                   }
                   className="cursor-pointer relative"
                   style={{

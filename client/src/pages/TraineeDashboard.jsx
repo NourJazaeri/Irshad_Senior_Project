@@ -8,18 +8,11 @@ import "../styles/chat.css";
 import TraineeContentCard from "../components/TraineeContentCard";
 import { fetchTraineeAssignedContent } from "../services/content";
 
-// Import the ContentView component for inline viewing
-const ContentView = React.lazy(() => import('./ContentView'));
-
 function TraineeDashboard() {
   const navigate = useNavigate();
   
   // Tab state for onboarding content
   const [activeTab, setActiveTab] = useState('all');
-  
-  // Content viewing state
-  const [selectedContent, setSelectedContent] = useState(null);
-  const [showContentView, setShowContentView] = useState(false);
   
   // Data state
   const [loading, setLoading] = useState(true);
@@ -44,24 +37,11 @@ function TraineeDashboard() {
   const [supervisorError, setSupervisorError] = useState(null);
 
 
-  // Handle content card click to show inline content
+  // Handle content card click - navigate to content details page
   const handleContentSelect = (content) => {
-    setSelectedContent(content);
-    setShowContentView(true);
+    navigate(`/trainee/content/${content._id}`);
   };
 
-  // Handle progress update callback from ContentView
-  const handleProgressUpdate = () => {
-    loadAssignedContent(); // Refresh the dashboard data
-  };
-
-  // Handle back to dashboard
-  const handleBackToDashboard = () => {
-    setShowContentView(false);
-    setSelectedContent(null);
-    // Reload content to refresh any progress updates
-    loadAssignedContent();
-  };
 
   // Fetch assigned content on component mount
   useEffect(() => {
@@ -285,18 +265,7 @@ function TraineeDashboard() {
 
   return (
     <div className="w-full p-6">
-      {showContentView && selectedContent ? (
-        // Show inline content view
-        <React.Suspense fallback={<div className="flex items-center justify-center py-12"><div className="text-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div><p className="text-gray-600">Loading content...</p></div></div>}>
-          <ContentView 
-            contentId={selectedContent._id} 
-            onBack={handleBackToDashboard}
-            onProgressUpdate={handleProgressUpdate}
-            inlineMode={true}
-          />
-        </React.Suspense>
-      ) : (
-        // Show dashboard
+      {/* Show dashboard */}
         <>
           {/* Supervisor Card for Chat */}
           {supervisorLoading ? (

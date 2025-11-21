@@ -256,8 +256,16 @@ export async function finalizeGroup(payload) {
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || "Failed to create group");
+      // Try to parse as JSON first, fall back to text
+      let errorMessage = "Failed to create group";
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
+      } catch {
+        const text = await res.text();
+        errorMessage = text || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await res.json();

@@ -91,6 +91,7 @@ export const UnifiedSidebar = ({
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const logoImgRef = React.useRef(null);
   
   // Initialize from localStorage immediately to prevent flash
   const getInitialUserData = () => {
@@ -275,6 +276,63 @@ export const UnifiedSidebar = ({
     }
   };
 
+  // Trim transparent padding from Irshad logo once it loads
+  const handleLogoLoad = () => {
+    const img = logoImgRef.current;
+    if (!img) return;
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+      const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      let top = 0, left = 0, right = width, bottom = height;
+      const TRANSPARENCY_THRESHOLD = 10; // Consider pixels with alpha < 10 as transparent
+      
+      const isRowTransparent = (y) => {
+        for (let x = 0; x < width; x++) {
+          const alpha = data[(y * width + x) * 4 + 3];
+          if (alpha > TRANSPARENCY_THRESHOLD) return false; // alpha channel
+        }
+        return true;
+      };
+      const isColTransparent = (x) => {
+        for (let y = 0; y < height; y++) {
+          const alpha = data[(y * width + x) * 4 + 3];
+          if (alpha > TRANSPARENCY_THRESHOLD) return false;
+        }
+        return true;
+      };
+
+      // More aggressive trimming - remove all transparent rows/cols
+      while (top < bottom && isRowTransparent(top)) top++;
+      while (bottom - 1 > top && isRowTransparent(bottom - 1)) bottom--;
+      while (left < right && isColTransparent(left)) left++;
+      while (right - 1 > left && isColTransparent(right - 1)) right--;
+
+      // Add small padding back (optional - comment out for maximum trimming)
+      // const padding = 2;
+      // top = Math.max(0, top - padding);
+      // left = Math.max(0, left - padding);
+      // bottom = Math.min(height, bottom + padding);
+      // right = Math.min(width, right + padding);
+
+      const cropW = Math.max(1, right - left);
+      const cropH = Math.max(1, bottom - top);
+      const out = document.createElement('canvas');
+      out.width = cropW;
+      out.height = cropH;
+      out.getContext('2d').drawImage(canvas, left, top, cropW, cropH, 0, 0, cropW, cropH);
+      img.src = out.toDataURL('image/png');
+    } catch (e) {
+      // If cross-origin or other errors happen, silently ignore
+      // and keep original image
+      console.error('Logo trimming error:', e);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const sessionId = localStorage.getItem('sessionId');
@@ -329,30 +387,40 @@ export const UnifiedSidebar = ({
       {/* Sidebar */}
       <aside className={cn(
         'flex flex-col transition-all duration-300 ease-in-out',
-        collapsed ? 'w-16' : 'w-72',
+        collapsed ? 'w-16' : 'w-64',
         'fixed lg:relative h-screen z-40',
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         'bg-[#0A2C5C] text-[#e6eef5u ]',
         className
       )}>
         {/* Brand Section with Collapse Arrow */}
-        <div className="p-4 border-b border-[#1e3a52] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logos/irshad-logo.png"
-              alt="Irshad"
-              className={cn('object-contain', collapsed ? 'h-8 w-8' : 'h-9 w-auto')}
-              onError={(e)=>{ e.currentTarget.style.display='none'; }}
-            />
-            {!collapsed && (
-              <span className="text-lg font-bold tracking-wide text-[#e6eef5]">Irshad</span>
-            )}
+        <div className="border-b border-[#1e3a52] flex items-center justify-between" style={{ minHeight: '64px', paddingTop: '16px', paddingBottom: '22px', paddingLeft: '16px', paddingRight: '16px', boxSizing: 'border-box' }}>
+          <div className="flex items-center justify-center w-full">
+            <div className="flex items-center justify-center overflow-visible">
+              <img
+                ref={logoImgRef}
+                src="/logos/irshad-logo2.png"
+                alt="Irshad"
+                className={cn('drop-shadow-sm object-contain h-12 w-auto', collapsed && 'opacity-0 pointer-events-none')}
+                onLoad={handleLogoLoad}
+                onError={(e)=>{ 
+                  // If logo not found, hide image and show text fallback
+                  e.currentTarget.style.display='none';
+                  if (!e.currentTarget.parentElement.querySelector('.logo-fallback')) {
+                    const textFallback = document.createElement('span');
+                    textFallback.className = 'logo-fallback text-lg font-bold tracking-wide text-[#e6eef5]';
+                    textFallback.textContent = 'Irshad';
+                    e.currentTarget.parentElement.appendChild(textFallback);
+                  }
+                }}
+              />
+            </div>
           </div>
           {/* Desktop Collapse Toggle - Three Dashes */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:block p-0 border-0 bg-transparent text-[#e6eef5] hover:text-white transition-colors"
-            style={{ background: 'none' }}
+            className="hidden lg:block p-0 border-0 bg-transparent text-[#e6eef5] hover:text-white transition-colors flex items-center"
+            style={{ background: 'none', alignSelf: 'flex-start', transform: 'translateY(16px)' }}
             title={collapsed ? 'Expand' : 'Collapse'}
           >
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" style={{ background: 'transparent' }}>
@@ -377,21 +445,10 @@ export const UnifiedSidebar = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log(`🔄 Button clicked! Navigating to: ${item.href} (${item.name})`);
-                  console.log('🔍 Current location:', location.pathname);
-                  console.log('🎯 Target href:', item.href);
                   setIsMobileMenuOpen(false);
                   
-                  // For trainee dashboard, ensure we go to the correct route
-                  if (item.name === 'Dashboard' && userType === 'trainee') {
-                    console.log('🏠 Navigating to Trainee Dashboard with content cards');
-                    navigate('/trainee', { replace: true });
-                    // Force a page refresh to ensure the dashboard loads properly
-                    window.location.reload();
-                  } else {
-                    navigate(item.href);
-                  }
-                  console.log('✅ Navigation command sent');
+                  // Navigate to the route
+                  navigate(item.href);
                 }}
                 className={cn(
                   'flex items-center rounded-lg transition-all duration-200 group text-[#e6eef5] no-underline border-none bg-transparent cursor-pointer w-full text-left',

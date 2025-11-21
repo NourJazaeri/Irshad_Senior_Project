@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchEmployees, fetchTrainees, fetchSupervisors } from '../services/api';
 
 export default function UserManagement() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('employees');
   const [data, setData] = useState({
     employees: [],
@@ -323,7 +324,7 @@ export default function UserManagement() {
                   key={employeeId || index} 
                   onClick={() => {
                     if (employeeId) {
-                      window.location.href = `/admin/employees/${employeeId}?from=${type}`;
+                      navigate(`/admin/employees/${employeeId}?from=${type}`);
                     }
                   }}
                   style={{ 

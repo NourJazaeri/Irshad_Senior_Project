@@ -1938,11 +1938,18 @@ Your unique skills and perspective will be invaluable as we work towards our sha
         <div className="bg-white border border-gray-200 px-6 py-4 mb-6 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => inlineMode && onBack ? onBack() : navigate('/trainee')}
+              onClick={() => {
+                if (inlineMode && onBack) {
+                  onBack();
+                } else {
+                  // Use browser history to go back to previous page
+                  navigate(-1);
+                }
+              }}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
-              Back to My Content
+              Back
             </button>
           </div>
         </div>

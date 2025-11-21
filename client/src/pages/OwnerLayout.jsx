@@ -30,8 +30,7 @@ export default function OwnerLayout() {
         </div>
 
         <footer className="wo-footer">
-          © {new Date().getFullYear()} Platform Owner. All rights reserved.
-          <div className="wo-footer__icons">⚙️ 🔒 🛈</div>
+          © 2025 Irshad — Your Digital Onboarding and Training Platform
         </footer>
       </main>
     </div>

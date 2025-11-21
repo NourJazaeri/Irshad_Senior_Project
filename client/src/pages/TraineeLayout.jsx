@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { UnifiedSidebar } from '../components/UnifiedSidebar.jsx';
 import { UnifiedTopbar } from '../components/UnifiedTopbar.jsx';
@@ -7,22 +7,12 @@ const TraineeLayout = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false); // false = expanded by default
 
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      // Use setTimeout to ensure this runs after React state updates
-      setTimeout(() => setCollapsed(true), 0);
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  // Removed auto-collapse on navigation - sidebar only collapses when user clicks the toggle button
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* LEFT SIDEBAR */}
       <UnifiedSidebar 
-        key={location.pathname}
         userType="trainee" 
         collapsed={collapsed}
         setCollapsed={setCollapsed}

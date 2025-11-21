@@ -474,7 +474,7 @@ router.post("/finalize", requireAdmin, async (req, res) => {
             const employeeInfo = await Employee.findById(existingTrainee.EmpObjectUserID);
             const traineeName = employeeInfo ? `${employeeInfo.fname} ${employeeInfo.lname}` : existingTrainee.loginEmail;
             return res.status(400).json({ 
-              message: `Trainee ${traineeName} is already assigned to another group`,
+              message: `Unable to assign ${traineeName} to this group. They are already assigned to another group. Each trainee can only be assigned to one group at a time.`,
               traineeName: traineeName,
               traineeEmail: existingTrainee.loginEmail
             });

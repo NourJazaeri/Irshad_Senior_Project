@@ -36,8 +36,7 @@ export default function AdminLayout() {
         </div>
 
         <footer className="admin-footer">
-          © {new Date().getFullYear()} Company Management Platform. All rights reserved.
-          <div className="admin-footer__icons">⚙️ 🔒 🛈</div>
+          © 2025 Irshad — Your Digital Onboarding and Training Platform
         </footer>
       </main>
     </div>
