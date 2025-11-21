@@ -25,6 +25,9 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       localStorage.removeItem("token");
       localStorage.removeItem("sessionId");
       localStorage.removeItem("user");
+      
+      // Clear chatbot conversation from sessionStorage
+      sessionStorage.removeItem("chatbot_conversation");
 
       // Redirect to login
       navigate("/login");
@@ -34,6 +37,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       localStorage.removeItem("token");
       localStorage.removeItem("sessionId");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("chatbot_conversation");
       navigate("/login");
     }
   };

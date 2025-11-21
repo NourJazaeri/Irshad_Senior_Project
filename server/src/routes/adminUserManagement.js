@@ -74,8 +74,10 @@ router.get('/employees', requireAdmin, async (req, res) => {
     // Find employees from admin's company only
     const employees = await Employee.find({ ObjectCompanyID: companyId })
       .populate('ObjectCompanyID', 'name CRN')
-      .select('fname lname email position phone ObjectCompanyID createdAt')
-      .sort({ createdAt: -1 });
+      .populate('ObjectDepartmentID', 'departmentName')
+      .select('fname lname email position phone ObjectCompanyID ObjectDepartmentID createdAt')
+      .sort({ createdAt: -1 })
+      .lean(); // Convert to plain objects for proper JSON serialization
     
     console.log(`Found ${employees.length} employees for company ${companyId}`);
     console.log('Employee details:', employees.map(emp => ({
@@ -139,7 +141,8 @@ router.get('/trainees', requireAdmin, async (req, res) => {
           }
         ]
       })
-      .select('loginEmail passwordHash EmpObjectUserID');
+      .select('loginEmail passwordHash EmpObjectUserID')
+      .lean(); // Convert to plain objects for proper JSON serialization
     
     // Filter out trainees with no employee match (different company)
     const filteredTrainees = trainees.filter(t => t.EmpObjectUserID !== null);
@@ -149,7 +152,8 @@ router.get('/trainees', requireAdmin, async (req, res) => {
       email: t.loginEmail,
       hasPassword: t.passwordHash ? 'Yes' : 'No',
       empName: t.EmpObjectUserID ? `${t.EmpObjectUserID.fname} ${t.EmpObjectUserID.lname}` : 'No Employee Link',
-      company: t.EmpObjectUserID?.ObjectCompanyID?.name || 'No Company'
+      company: t.EmpObjectUserID?.ObjectCompanyID?.name || 'No Company',
+      department: t.EmpObjectUserID?.ObjectDepartmentID?.departmentName || t.EmpObjectUserID?.ObjectDepartmentID || 'No Department'
     })));
     
     console.log('=== COMPANY TRAINEES FETCH COMPLETE ===\n');
@@ -199,7 +203,8 @@ router.get('/supervisors', requireAdmin, async (req, res) => {
           }
         ]
       })
-      .select('loginEmail passwordHash EmpObjectUserID');
+      .select('loginEmail passwordHash EmpObjectUserID')
+      .lean(); // Convert to plain objects for proper JSON serialization
     
     // Filter out supervisors with no employee match (different company)
     const filteredSupervisors = supervisors.filter(s => s.EmpObjectUserID !== null);
@@ -209,7 +214,8 @@ router.get('/supervisors', requireAdmin, async (req, res) => {
       email: s.loginEmail,
       hasPassword: s.passwordHash ? 'Yes' : 'No',
       empName: `${s.EmpObjectUserID?.fname} ${s.EmpObjectUserID?.lname}`,
-      company: s.EmpObjectUserID?.ObjectCompanyID?.name
+      company: s.EmpObjectUserID?.ObjectCompanyID?.name,
+      department: s.EmpObjectUserID?.ObjectDepartmentID?.departmentName || s.EmpObjectUserID?.ObjectDepartmentID || 'No Department'
     })));
     
     console.log('=== COMPANY SUPERVISORS FETCH COMPLETE ===\n');

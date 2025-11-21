@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate:chat": "node src/scripts/migrate-chat.js",
-    "migrate:todos": "node src/scripts/migrate-todos.js"
+    "migrate:todos": "node src/scripts/migrate-todos.js",
+    "update:department-members": "node src/scripts/update-department-members.js"
   },
   "keywords": [],
   "author": "",

@@ -6,6 +6,7 @@ import Trainee from '../models/Trainee.js';
 import Supervisor from '../models/Supervisor.js';
 import Employees from '../models/Employees.js';
 import Group from '../models/Group.js';
+import { createTraineeMessageNotification, createSupervisorMessageNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -103,6 +104,13 @@ router.post('/send', requireSupervisor, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Trainee not found' });
     }
 
+    // Get supervisor employee details for notification
+    const supervisor = await Supervisor.findById(supervisorId);
+    const supervisorEmployee = supervisor ? await Employees.findById(supervisor.EmpObjectUserID) : null;
+    const supervisorName = supervisorEmployee 
+      ? `${supervisorEmployee.fname} ${supervisorEmployee.lname}`.trim()
+      : 'Supervisor';
+
     // Create new chat message
     const newMessage = await Chat.create({
       messagesText: message.trim(),
@@ -112,6 +120,14 @@ router.post('/send', requireSupervisor, async (req, res) => {
       timestamp: new Date(),
       isRead: false
     });
+
+    // Create notification for trainee (non-blocking)
+    try {
+      await createTraineeMessageNotification(traineeId, supervisorName, message.trim(), newMessage._id);
+    } catch (notifError) {
+      console.error('❌ Failed to create notification for trainee:', notifError);
+      // Don't fail the message send if notification fails
+    }
 
     res.status(201).json({
       ok: true,
@@ -171,6 +187,36 @@ router.get('/unread-count/:traineeId', requireSupervisor, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error fetching unread count:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
+// PATCH /api/chat/supervisor/mark-read/:traineeId
+// Mark all messages from a specific trainee as read (for supervisor)
+// ───────────────────────────────────────────────────────────────────────────────
+router.patch('/supervisor/mark-read/:traineeId', requireSupervisor, async (req, res) => {
+  try {
+    const supervisorId = req.user._id;
+    const { traineeId } = req.params;
+
+    // Mark all unread messages from trainee to supervisor as read
+    const result = await Chat.updateMany(
+      {
+        supervisorID: supervisorId,
+        traineeID: traineeId,
+        isRead: false,
+        senderRole: 'trainee' // Only mark messages sent by trainee
+      },
+      { isRead: true }
+    );
+
+    res.json({
+      ok: true,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('❌ Error marking messages as read:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -362,6 +408,13 @@ router.post('/trainee/send', requireTrainee, async (req, res) => {
 
     const supervisorId = group.SupervisorObjectUserID;
 
+    // Get trainee employee details for notification
+    const trainee = await Trainee.findById(traineeId);
+    const traineeEmployee = trainee ? await Employees.findById(trainee.EmpObjectUserID) : null;
+    const traineeName = traineeEmployee 
+      ? `${traineeEmployee.fname} ${traineeEmployee.lname}`.trim()
+      : 'Trainee';
+
     // Create new chat message
     const newMessage = await Chat.create({
       messagesText: message.trim(),
@@ -371,6 +424,14 @@ router.post('/trainee/send', requireTrainee, async (req, res) => {
       timestamp: new Date(),
       isRead: false
     });
+
+    // Create notification for supervisor (non-blocking)
+    try {
+      await createSupervisorMessageNotification(supervisorId, traineeName, message.trim(), newMessage._id);
+    } catch (notifError) {
+      console.error('❌ Failed to create notification for supervisor:', notifError);
+      // Don't fail the message send if notification fails
+    }
 
     res.status(201).json({
       ok: true,

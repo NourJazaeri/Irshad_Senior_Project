@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMessageCircle, FiUser, FiMail } from "react-icons/fi";
+import { Building2 } from "lucide-react";
 import { getTraineeSupervisor, getTraineeUnreadCount } from "../services/api";
 import "../styles/login.css";
 import "../styles/chat.css";
@@ -41,6 +42,7 @@ function TraineeDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [supervisorLoading, setSupervisorLoading] = useState(true);
   const [supervisorError, setSupervisorError] = useState(null);
+
 
   // Handle content card click to show inline content
   const handleContentSelect = (content) => {
@@ -307,32 +309,151 @@ function TraineeDashboard() {
               <h3>Supervisor Information</h3>
               <p className="error-text">{supervisorError}</p>
             </div>
-          ) : supervisorInfo ? (
-            <div className="trainee-card supervisor-card" style={{ marginBottom: '24px' }}>
-              <div className="card-icon">
-                <FiUser size={32} />
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              gap: '20px', 
+              marginBottom: '24px',
+              flexWrap: 'wrap'
+            }}>
+              {/* Department Card */}
+              {assignedData.traineeInfo?.department && (
+                <div className="trainee-card" style={{ 
+                  padding: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  flex: 1,
+                  minWidth: '280px'
+                }}>
+                  <div className="card-icon" style={{ 
+                    width: '64px', 
+                    height: '64px', 
+                    margin: 0,
+                    flexShrink: 0,
+                    background: '#DBEAFE',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Building2 size={32} color="#2563eb" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ 
+                      fontSize: '0.95rem', 
+                      marginBottom: '6px',
+                      color: '#64748b',
+                      marginTop: 0
+                    }}>
+                      Your Department
+                    </p>
+                    <p style={{ 
+                      fontSize: '1.125rem', 
+                      margin: 0,
+                      color: '#0b2f55',
+                      fontWeight: '600'
+                    }}>
+                      {assignedData.traineeInfo.department}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Supervisor Card */}
+              {supervisorInfo && (
+                <div className="trainee-card supervisor-card" style={{ 
+                  padding: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  flex: 1,
+                  minWidth: '320px'
+                }}>
+                  <div className="card-icon" style={{ 
+                    width: '64px', 
+                    height: '64px', 
+                    margin: 0,
+                    flexShrink: 0,
+                    background: '#DBEAFE',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <FiUser size={32} color="#2563eb" />
               </div>
-              <h3>Your Supervisor</h3>
-              <div className="supervisor-info">
-                <p className="supervisor-name">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ 
+                      fontSize: '0.95rem', 
+                      marginBottom: '8px',
+                      color: '#64748b',
+                      marginTop: 0
+                    }}>
+                      Your Supervisor
+                    </p>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <p style={{ 
+                        fontSize: '1.125rem', 
+                        margin: 0,
+                        color: '#0b2f55',
+                        fontWeight: '600'
+                      }}>
                   {supervisorInfo.fname} {supervisorInfo.lname}
                 </p>
                 {supervisorInfo.email && (
-                  <p className="supervisor-email">
-                    <FiMail size={16} /> {supervisorInfo.email}
+                        <p className="supervisor-email" style={{ 
+                          fontSize: '0.875rem', 
+                          margin: 0,
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <FiMail size={14} /> {supervisorInfo.email}
                   </p>
                 )}
               </div>
-              {/* Chat Button with Notification Badge */}
-              <button className="trainee-chat-btn" onClick={handleChatClick}>
-                <FiMessageCircle size={20} />
-                <span>Chat with Supervisor</span>
+                  </div>
+                  <button className="trainee-chat-btn" onClick={handleChatClick} style={{
+                    padding: '8px 16px',
+                    background: '#2563EB',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'background-color 0.2s',
+                    color: '#FFFFFF',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    flexShrink: 0,
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = '#1D4ED8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = '#2563EB';
+                  }}
+                  >
+                    <FiMessageCircle size={18} color="white" />
+                    <span>Chat</span>
                 {unreadCount > 0 && (
                   <span className="unread-badge">{unreadCount}</span>
                 )}
               </button>
             </div>
-          ) : null}
+              )}
+            </div>
+          )}
 
           {/* Loading State */}
           {loading && (
@@ -555,6 +676,7 @@ function TraineeDashboard() {
             )}
         </>
       )}
+
     </div>
   );
 }

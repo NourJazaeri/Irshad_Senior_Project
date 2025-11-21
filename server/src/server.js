@@ -21,6 +21,7 @@ import departmentRoutes from "./routes/departments.js";
 import groupRoutes from "./routes/groups.js";
 import supervisorGroupsRouter from './routes/supervisorGroups.js';
 import supervisorProfileRouter from './routes/supervisorProfile.js';
+import supervisorDashboardRouter from './routes/supervisorDashboard.js';
 import traineeProfileRouter from './routes/traineeProfile.js';
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import employeesRouter from './routes/employees.js';
@@ -28,8 +29,13 @@ import content from './routes/content.js';
 import todoRouter from './routes/todo.js';
 import profileRouter from './routes/profile.js';
 import chatRoutes from './routes/chat.js'; // Chat routes
+import chatbotRoutes from './routes/chatbot.js'; // Chatbot routes
 import notificationRoutes from './routes/notifications.js'; // Notification routes
 import Chat from './models/Chat.js'; // For Socket.io chat handling
+import { createTraineeMessageNotification, createSupervisorMessageNotification } from './services/notificationService.js';
+import Supervisor from './models/Supervisor.js';
+import Trainee from './models/Trainee.js';
+import Employees from './models/Employees.js';
 
 console.log('JWT_SECRET present?', !!process.env.JWT_SECRET, 'PORT', process.env.PORT);
 
@@ -122,6 +128,49 @@ io.on('connection', (socket) => {
       });
 
       console.log('✅ [Socket.io] Message saved with ID:', newMessage._id);
+
+      // Create notifications (non-blocking)
+      try {
+        if (normalizedSenderRole === 'supervisor') {
+          // Supervisor sent message to trainee - create notification for trainee
+          const supervisor = await Supervisor.findById(normalizedSupervisorId);
+          const supervisorEmployee = supervisor ? await Employees.findById(supervisor.EmpObjectUserID) : null;
+          const supervisorName = supervisorEmployee 
+            ? `${supervisorEmployee.fname} ${supervisorEmployee.lname}`.trim()
+            : 'Supervisor';
+          
+          await createTraineeMessageNotification(
+            normalizedTraineeId, 
+            supervisorName, 
+            normalizedMessage, 
+            newMessage._id
+          );
+          console.log(`📬 Notification created for trainee ${normalizedTraineeId}`);
+        } else if (normalizedSenderRole === 'trainee') {
+          // Trainee sent message to supervisor - create notification for supervisor
+          const trainee = await Trainee.findById(normalizedTraineeId);
+          const traineeEmployee = trainee ? await Employees.findById(trainee.EmpObjectUserID) : null;
+          const traineeName = traineeEmployee 
+            ? `${traineeEmployee.fname} ${traineeEmployee.lname}`.trim()
+            : 'Trainee';
+          
+          await createSupervisorMessageNotification(
+            normalizedSupervisorId, 
+            traineeName, 
+            normalizedMessage, 
+            newMessage._id
+          );
+          console.log(`📬 Notification created for supervisor ${normalizedSupervisorId}`);
+        }
+      } catch (notifError) {
+        console.error('❌ Failed to create notification:', notifError);
+        console.error('❌ Notification error details:', {
+          message: notifError.message,
+          name: notifError.name,
+          stack: notifError.stack
+        });
+        // Don't fail the message send if notification fails
+      }
 
       // Create room ID (must match the format used in join-chat)
       const roomId = `${normalizedSupervisorId}-${normalizedTraineeId}`;
@@ -220,12 +269,16 @@ app.use('/api/admin/groups', adminGroupsRouter);
 // Supervisor routes (overview + my-groups, etc.)
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
 app.use('/api/supervisor', supervisorProfileRouter);
+app.use('/api/supervisor', supervisorDashboardRouter);
 
 // Trainee routes
 app.use('/api/trainee', traineeProfileRouter);
 
 // Chat routes
 app.use('/api/chat', chatRoutes);
+
+// Chatbot routes
+app.use('/api/chatbot', chatbotRoutes);
 
 // Other routes
 app.use("/api/departments", departmentRoutes);

@@ -73,7 +73,7 @@ export default function SupervisorDashboard() {
                   <div className="sv-group-name">{g.groupName}</div>
                   <div className="sv-group-sub">
                     {g.departmentName ? `${g.departmentName} • ` : ''}
-                    {g.traineesCount} {g.traineesCount === 1 ? 'Trainee' : 'Trainees'}
+                    {g.traineesCount} {g.traineesCount === 1 ? 'Member' : 'Members'}
                   </div>
                 </Link>
               ))}

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import ChatMessage from '../components/ChatMessage.jsx';
-import { getChatConversation, getCurrentUser } from '../services/api';
+import { getChatConversation, getCurrentUser, markSupervisorMessagesRead } from '../services/api';
 import { FiArrowLeft, FiSend, FiMessageCircle } from 'react-icons/fi';
 import '../styles/chat.css';
 
@@ -165,6 +165,17 @@ export default function SupervisorChat() {
         setMessages(data.messages || []);
         setTraineeInfo(data.trainee);
         console.log('✨ State updated with messages');
+
+        // Mark messages as read when opening chat (non-blocking)
+        if (traineeId) {
+          markSupervisorMessagesRead(traineeId)
+            .then(result => {
+              console.log('✅ Messages marked as read:', result);
+            })
+            .catch(err => {
+              console.error('❌ Could not mark messages as read:', err.message);
+            });
+        }
       } catch (error) {
         console.error('❌ Failed to load conversation:', error);
         console.error('❌ Error details:', error.message);
@@ -280,36 +291,6 @@ export default function SupervisorChat() {
         </button>
       </div>
 
-      {/* Chat Header */}
-      <div className="chat-page-header" style={{ 
-        padding: '1.5rem', 
-        background: 'linear-gradient(135deg, #0b2b5a 0%, #173a72 100%)',
-        borderRadius: '0.75rem',
-        marginBottom: '1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 4px 20px rgba(11, 43, 90, 0.2)'
-      }}>
-        <div className="chat-header-info" style={{ flex: 1 }}>
-          <h1 className="chat-page-title" style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600', color: '#ffffff', marginBottom: '0.5rem' }}>
-            {traineeInfo ? `${traineeInfo.fname} ${traineeInfo.lname}` : 'Trainee'}
-          </h1>
-          {traineeInfo?.email && (
-            <p className="chat-header-email" style={{ margin: 0, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-              {traineeInfo.email}
-            </p>
-          )}
-        </div>
-        <div className="chat-connection-status">
-          {socketConnected ? (
-            <span className="status-indicator status-connected" title="Connected" style={{ color: '#10b981', fontSize: '1.25rem' }}>●</span>
-          ) : (
-            <span className="status-indicator status-disconnected" title="Disconnected" style={{ color: '#ef4444', fontSize: '1.25rem' }}>○</span>
-          )}
-        </div>
-      </div>
-
       {/* Chat Container */}
       <div className="chat-container-full" style={{ 
         display: 'flex', 
@@ -322,6 +303,46 @@ export default function SupervisorChat() {
         overflow: 'hidden',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
       }}>
+        {/* Trainee Name Header inside chat card */}
+        <div style={{ 
+          padding: '1.5rem 1.5rem 1rem 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #e2e8f0',
+          background: '#ffffff',
+          margin: '-1px -1px 0 -1px',
+          borderRadius: '0.75rem 0.75rem 0 0'
+        }}>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '1.5rem', 
+              fontWeight: '600', 
+              color: '#0b2f55', 
+              marginBottom: '0.25rem' 
+            }}>
+              {traineeInfo ? `${traineeInfo.fname} ${traineeInfo.lname}` : 'Trainee'}
+            </h1>
+            {traineeInfo?.email && (
+              <p style={{ 
+                margin: 0, 
+                fontSize: '0.875rem', 
+                color: '#475569' 
+              }}>
+                {traineeInfo.email}
+              </p>
+            )}
+          </div>
+          <div className="chat-connection-status">
+            {socketConnected ? (
+              <span className="status-indicator status-connected" title="Connected" style={{ color: '#10b981', fontSize: '1.25rem' }}>●</span>
+            ) : (
+              <span className="status-indicator status-disconnected" title="Disconnected" style={{ color: '#ef4444', fontSize: '1.25rem' }}>○</span>
+            )}
+          </div>
+        </div>
+
           {/* Messages Area */}
           <div className="chat-messages" style={{
             flex: 1,
@@ -329,7 +350,8 @@ export default function SupervisorChat() {
             padding: '1.5rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1rem'
+          gap: '1rem',
+          backgroundColor: '#f8fafc'
           }}>
             {messages.length === 0 ? (
               <div className="chat-empty" style={{
@@ -391,23 +413,35 @@ export default function SupervisorChat() {
               disabled={!newMessage.trim() || sending || loading}
               title="Send message"
             style={{
-              padding: '0.75rem 1.5rem',
-              background: 'linear-gradient(135deg, #0b2b5a 0%, #173a72 100%)',
-              color: '#ffffff',
-              border: 'none',
+                padding: '0.75rem',
+                background: 'transparent',
+                border: '2px solid #e0f2fe',
               borderRadius: '0.5rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1rem',
+                width: '48px',
+                height: '48px',
               transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(11, 43, 90, 0.2)'
+                color: '#0b2f55'
             }}
-            onMouseEnter={(e) => !e.target.disabled && (e.target.style.background = 'linear-gradient(135deg, #173a72 0%, #1e4a8a 100%)')}
-            onMouseLeave={(e) => !e.target.disabled && (e.target.style.background = 'linear-gradient(135deg, #0b2b5a 0%, #173a72 100%)')}
+              onMouseEnter={(e) => {
+                if (!e.target.disabled) {
+                  e.target.style.borderColor = '#60a5fa';
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(96, 165, 250, 0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!e.target.disabled) {
+                  e.target.style.borderColor = '#e0f2fe';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }
+              }}
             >
-              <FiSend />
+              <FiSend size={20} />
             </button>
           </form>
         </div>

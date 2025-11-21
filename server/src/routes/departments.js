@@ -1,8 +1,6 @@
 import express from "express";
 import Department from "../models/Department.js";
 import Employee from "../models/Employees.js";
-import Trainee from "../models/Trainee.js";
-import Supervisor from "../models/Supervisor.js";
 import { requireAdmin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -20,46 +18,15 @@ router.get("/", requireAdmin, async (req, res) => {
     // Calculate member counts for each department
     const departmentsWithCounts = await Promise.all(
       departments.map(async (dept) => {
-        // Get all employees in this department
-        const employees = await Employee.find({ ObjectDepartmentID: dept._id });
-        const employeeIds = employees.map(emp => emp._id);
+        // Count all employees in this department directly from Employee table
+        // This counts all employees with this department ID, regardless of whether they are trainees, supervisors, or regular employees
+        const totalMembers = await Employee.countDocuments({ ObjectDepartmentID: dept._id });
 
-        // Count trainees in this department directly from Trainee table
-        const traineeCount = await Trainee.countDocuments({
-          EmpObjectUserID: { $in: employeeIds }
-        });
+        const deptObj = dept.toObject();
+        // Override the stored numOfMembers with the calculated value from Employee table
+        deptObj.numOfMembers = totalMembers;
 
-        // Count supervisors in this department directly from Supervisor table
-        const supervisorCount = await Supervisor.countDocuments({
-          EmpObjectUserID: { $in: employeeIds }
-        });
-
-        // Debug logging
-        console.log(`Department: ${dept.departmentName}`);
-        console.log(`Department ID: ${dept._id}`);
-        console.log(`Employees in department: ${employees.length}`);
-        console.log(`Employee IDs:`, employeeIds);
-        
-        // Check if there are any employees at all
-        if (employees.length > 0) {
-          console.log(`First employee:`, employees[0]);
-        }
-        
-        console.log(`Trainee count: ${traineeCount}`);
-        console.log(`Supervisor count: ${supervisorCount}`);
-        console.log(`Total members: ${traineeCount + supervisorCount}`);
-        console.log('---');
-
-        // Total members (trainees + supervisors)
-        const totalMembers = traineeCount + supervisorCount;
-
-        return {
-          ...dept.toObject(),
-          numOfMembers: totalMembers,
-          numOfTrainees: traineeCount,
-          numOfSupervisors: supervisorCount,
-          numOfGroups: 0 // Groups count will be calculated separately if needed
-        };
+        return deptObj;
       })
     );
 
@@ -83,7 +50,15 @@ router.get("/:id", requireAdmin, async (req, res) => {
       return res.status(404).json({ ok: false, error: "Department not found" });
     }
 
-    res.json({ ok: true, department });
+    // Calculate member count directly from Employee table
+    // This counts all employees with this department ID, regardless of whether they are trainees, supervisors, or regular employees
+    const numOfMembers = await Employee.countDocuments({ ObjectDepartmentID: id });
+
+    // Return department with calculated member count (override stored value)
+    const departmentObj = department.toObject();
+    departmentObj.numOfMembers = numOfMembers;
+
+    res.json({ ok: true, department: departmentObj });
   } catch (err) {
     console.error("Error fetching department:", err);
     res.status(500).json({ ok: false, error: "Failed to fetch department" });
@@ -159,6 +134,76 @@ router.delete("/:id", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Error deleting department:", err);
     res.status(500).json({ ok: false, error: "Failed to delete department" });
+  }
+});
+
+/* ======================================
+   ✅ Update all department member counts in database
+   POST /api/departments/update-member-counts
+====================================== */
+router.post("/update-member-counts", requireAdmin, async (req, res) => {
+  try {
+    console.log('🔄 Updating all department member counts...');
+    
+    // Get all departments
+    const departments = await Department.find({});
+    console.log(`📊 Found ${departments.length} departments to update`);
+    
+    const results = [];
+    
+    // Update each department's numOfMembers based on Employee table
+    for (const dept of departments) {
+      try {
+        // Count all employees in this department
+        const actualCount = await Employee.countDocuments({ ObjectDepartmentID: dept._id });
+        
+        // Update the stored value in database
+        await Department.findByIdAndUpdate(dept._id, {
+          numOfMembers: actualCount
+        });
+        
+        results.push({
+          departmentId: dept._id,
+          departmentName: dept.departmentName,
+          oldCount: dept.numOfMembers || 0,
+          newCount: actualCount,
+          updated: true
+        });
+        
+        console.log(`✅ Updated ${dept.departmentName}: ${dept.numOfMembers || 0} → ${actualCount}`);
+      } catch (err) {
+        console.error(`❌ Error updating department ${dept.departmentName}:`, err);
+        results.push({
+          departmentId: dept._id,
+          departmentName: dept.departmentName,
+          oldCount: dept.numOfMembers || 0,
+          error: err.message,
+          updated: false
+        });
+      }
+    }
+    
+    const successCount = results.filter(r => r.updated).length;
+    const failCount = results.filter(r => !r.updated).length;
+    
+    console.log(`✅ Successfully updated ${successCount} departments`);
+    if (failCount > 0) {
+      console.log(`❌ Failed to update ${failCount} departments`);
+    }
+    
+    res.json({
+      ok: true,
+      message: `Updated ${successCount} out of ${departments.length} departments`,
+      results,
+      summary: {
+        total: departments.length,
+        success: successCount,
+        failed: failCount
+      }
+    });
+  } catch (err) {
+    console.error("Error updating department member counts:", err);
+    res.status(500).json({ ok: false, error: "Failed to update department member counts" });
   }
 });
 

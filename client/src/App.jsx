@@ -10,6 +10,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
 import SupervisorHome from "./pages/SupervisorHome.jsx";
+import SupervisorCharts from "./pages/SupervisorCharts.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
 import TraineeDashboard from "./pages/TraineeDashboard.jsx";
@@ -34,6 +35,7 @@ import DepartmentDetails from "./pages/DepartmentDetails.jsx";
 import AssignMembers from "./pages/AssignMembers.jsx";
 import AdminGroupDetails from "./pages/AdminGroupDetails.jsx";
 import SupervisorGroupDetails from './pages/SupervisorGroupDetails.jsx';
+import SupervisorTraineeDetails from './pages/SupervisorTraineeDetails.jsx';
 
 // Import Admin layout and pages
 import AdminLayout from "./pages/AdminLayout.jsx";
@@ -52,7 +54,6 @@ import Reports from "./pages/Reports.jsx";
 // Import UsageReport pages
 import ActivityLog from "./pages/ActivityLog.jsx";
 import ReportCompanyDetails from "./pages/ReportCompanyDetails.jsx";
-
 
 import "./App.css";
 import "./styles/Registration.css";
@@ -74,6 +75,7 @@ import WebOwnerProfile from "./pages/WebOwnerProfile.jsx";
 // ✅ Import Chat pages
 import SupervisorChat from "./pages/SupervisorChat.jsx";
 import TraineeChat from "./pages/TraineeChat.jsx";
+import TraineeChatbot from "./pages/TraineeChatbot.jsx";
 
 export default function App() {
   const location = useLocation();
@@ -132,8 +134,10 @@ export default function App() {
 
         {/* Supervisor Routes */}
         <Route path="/supervisor" element={<SupervisorLayout />}>
-          <Route index element={<SupervisorHome />} />
+          <Route index element={<SupervisorCharts />} />
           <Route path="groups" element={<SupervisorDashboard />} />
+          <Route path="charts" element={<SupervisorCharts />} />
+          <Route path="home" element={<SupervisorHome />} />
           <Route path="content" element={<SupervisorContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />
           <Route path="content/:id/view" element={<ContentView />} />
@@ -141,12 +145,14 @@ export default function App() {
           <Route path="templates" element={<SupervisorTemplateManagement />} />
           <Route path="groups/:id" element={<SupervisorGroupDetails />} />
           <Route path="groups/:id/templates" element={<SupervisorTemplateManagement />} />
+          <Route path="trainees/:traineeId" element={<SupervisorTraineeDetails />} />
           <Route path="chat/:traineeId" element={<SupervisorChat />} />
         </Route>
 
         {/* Trainee Routes */}
         <Route path="/trainee" element={<TraineeLayout />}>
           <Route index element={<TraineeDashboard />} />
+          <Route path="chatbot" element={<TraineeChatbot />} />
           <Route path="todo" element={<TodoList />} />
           <Route path="my-profile" element={<TraineeProfile />} />
           <Route path="content/:id" element={<ContentView />} />

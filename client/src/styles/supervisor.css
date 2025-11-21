@@ -80,7 +80,7 @@
 /* fixed column widths for alignment on wide screens */
 .sv-col-name{width:40%;}
 .sv-col-email{width:45%;}
-.sv-col-id{width:15%;font-feature-settings:"tnum";font-variant-numeric:tabular-nums;color:#111827;}
+.sv-col-id{width:15%;font-feature-settings:"tnum";font-variant-numeric:tabular-nums;color:#111827;text-align:left;}
 
 /* zebra + hover */
 .sv-table tbody tr:nth-child(odd){background:#fff;}

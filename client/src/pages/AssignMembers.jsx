@@ -3,7 +3,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getEmployeesByDepartment, finalizeGroup } from "../services/api.js";
-import { Building2, UserCog, Users, UserCheck, Search, Loader2 } from "lucide-react";
+import { 
+  Building2, 
+  UserCog, 
+  Users, 
+  UserCheck, 
+  Search, 
+  Loader2, 
+  Lightbulb, 
+  User, 
+  Briefcase, 
+  Phone, 
+  Mail, 
+  Building, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  AlertTriangle,
+  CheckCircle,
+  UserRound,
+  UsersRound
+} from "lucide-react";
+import { showToast } from "../utils/toast.js";
 import "../styles/assign-members.css";
 
 export default function AssignMembers() {
@@ -60,11 +81,11 @@ export default function AssignMembers() {
   // Temporary fallback for testing - if still no valid department name, use a default
   if (!departmentName || departmentName === ":departmentName" || departmentName.includes(":")) {
     departmentName = "Human Resources"; // Default for testing
-    console.log("⚠️ Using fallback department name:", departmentName);
+    console.log("Using fallback department name:", departmentName);
   }
   
   // Debug logging
-  console.log("🔍 AssignMembers Debug:", {
+  console.log("AssignMembers Debug:", {
     params,
     departmentNameParam,
     state,
@@ -153,19 +174,27 @@ export default function AssignMembers() {
         
         // Check if departmentName is valid
         if (!departmentName || departmentName === ":departmentName" || departmentName.includes(":")) {
-          setErrorMsg("Invalid department name. Please navigate to this page from the department list.");
+          const errorMessage = "Invalid department name. Please navigate to this page from the department list.";
+          if (active) {
+            setErrorMsg(errorMessage);
+            showToast(errorMessage, 'error');
+          }
           setLoading(false);
           return;
         }
         
-        console.log("🔍 Making API call with departmentName:", departmentName);
+        console.log("Making API call with departmentName:", departmentName);
         const data = await getEmployeesByDepartment({
           departmentName,
           search,
         });
         if (active) setEmployees(data || []);
       } catch (err) {
-        if (active) setErrorMsg(err?.message || "Failed to load employees");
+        const errorMessage = err?.message || "Failed to load employees";
+        if (active) {
+          setErrorMsg(errorMessage);
+          showToast(errorMessage, 'error');
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -220,11 +249,15 @@ export default function AssignMembers() {
     setErrorMsg("");
 
     if (!groupName?.trim()) {
-      setErrorMsg("Please provide a group name.");
+      const errorMessage = "Please provide a group name.";
+      setErrorMsg(errorMessage);
+      showToast(errorMessage, 'error');
       return;
     }
     if (!selectedSupervisor?._id) {
-      setErrorMsg("Please assign a supervisor.");
+      const errorMessage = "Please assign a supervisor.";
+      setErrorMsg(errorMessage);
+      showToast(errorMessage, 'error');
       return;
     }
 
@@ -239,7 +272,7 @@ export default function AssignMembers() {
         traineeIds: selectedTrainees.map(t => t._id),
       };
 
-      console.log("🔍 Sending payload to finalizeGroup:", payload);
+      console.log("Sending payload to finalizeGroup:", payload);
       const res = await finalizeGroup(payload);
       
       // Show success popup with email information
@@ -252,7 +285,9 @@ export default function AssignMembers() {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err?.message || "Failed to create group");
+      const errorMessage = err?.message || "Failed to create group";
+      setErrorMsg(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -324,8 +359,9 @@ export default function AssignMembers() {
           <div>
             <b>Supervisor:</b>{" "}
             {selectedSupervisor ? (
-              <span style={{ color: '#dc2626', fontWeight: '600' }}>
-                👨‍💼 {selectedSupervisor.fname} {selectedSupervisor.lname}
+              <span style={{ color: '#dc2626', fontWeight: '600' }} className="flex items-center gap-2">
+                <UserCog className="w-4 h-4" />
+                {selectedSupervisor.fname} {selectedSupervisor.lname}
               </span>
             ) : (
               <span style={{ color: '#dc2626' }}>None selected</span>
@@ -334,8 +370,9 @@ export default function AssignMembers() {
           <div>
             <b>Trainees:</b>{" "}
             {selectedTrainees.length ? (
-              <span style={{ color: '#059669', fontWeight: '600' }}>
-                👥 {selectedTrainees.length} selected: {selectedTrainees.map(t => `${t.fname} ${t.lname}`).join(", ")}
+              <span style={{ color: '#059669', fontWeight: '600' }} className="flex items-center gap-2">
+                <UsersRound className="w-4 h-4" />
+                {selectedTrainees.length} selected: {selectedTrainees.map(t => `${t.fname} ${t.lname}`).join(", ")}
               </span>
             ) : (
               <span style={{ color: '#dc2626' }}>None selected</span>
@@ -366,36 +403,81 @@ export default function AssignMembers() {
               Selecting: <b>{mode === "supervisor" ? "Supervisor (1)" : "Trainees (multi)"}</b>
             </div>
           ) : (
-            <div className="muted">💡 Choose an action above to start selecting</div>
+            <div className="muted flex items-center gap-2">
+              <Lightbulb className="w-4 h-4" />
+              <span>Choose an action above to start selecting</span>
+            </div>
           )}
         </div>
 
         {errorMsg && (
-          <div className="error-banner">{errorMsg}</div>
+          <div className="error-banner flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
         )}
 
         {loading ? (
-          <div className="loading">Loading employees…</div>
+          <div className="loading">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <span>Loading employees…</span>
+          </div>
         ) : (
           <div className="table-wrapper">
             <table className="emp-table">
               <thead>
                 <tr>
                   <th style={{width: 50}}>Select</th>
-                  <th>👤 Name</th>
-                  <th>💼 Position</th>
-                  <th>📞 Phone</th>
-                  <th>📧 Email</th>
-                  <th>🏢 Department</th>
+                  <th>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Name
+                    </div>
+                  </th>
+                  <th>
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-4 h-4" />
+                      Position
+                    </div>
+                  </th>
+                  <th>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      Phone
+                    </div>
+                  </th>
+                  <th>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </div>
+                  </th>
+                  <th>
+                    <div className="flex items-center gap-2">
+                      <Building className="w-4 h-4" />
+                      Department
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={6} className="empty-state">
-                      <div>
-                        <h3>{loading ? '⏳ Loading employees...' : '🔍 No employees found'}</h3>
-                        <p>{loading ? 'Please wait while we fetch the employee list' : 'Try adjusting your search criteria'}</p>
+                      <div className="flex flex-col items-center justify-center gap-4">
+                        {loading ? (
+                          <>
+                            <Clock className="w-12 h-12 text-gray-400" />
+                            <h3>Loading employees...</h3>
+                            <p>Please wait while we fetch the employee list</p>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-12 h-12 text-gray-400" />
+                            <h3>No employees found</h3>
+                            <p>Try adjusting your search criteria</p>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -434,7 +516,9 @@ export default function AssignMembers() {
         <div className="success-popup-overlay">
           <div className="success-popup">
             <div className="success-popup-header">
-              <div className="success-icon">✅</div>
+              <div className="success-icon">
+                <CheckCircle className="w-12 h-12 text-green-600" />
+              </div>
               <h3>Group Created Successfully!</h3>
             </div>
             
@@ -443,35 +527,57 @@ export default function AssignMembers() {
               
               {emailResults && emailResults.length > 0 ? (
                 <div className="email-status">
-                  <h4>📧 Email Status:</h4>
+                  <h4 className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    Email Status:
+                  </h4>
                   <div className="email-list">
                     {emailResults.map((result, index) => (
                       <div key={index} className={`email-item ${result.success ? 'success' : 'failed'}`}>
                         <span className="email-type">
-                          {result.type === 'supervisor' ? '👨‍💼 Supervisor' : '👥 Trainee'}
+                          {result.type === 'supervisor' ? (
+                            <>
+                              <UserCog className="w-4 h-4" />
+                              Supervisor
+                            </>
+                          ) : (
+                            <>
+                              <UsersRound className="w-4 h-4" />
+                              Trainee
+                            </>
+                          )}
                         </span>
                         <span className="email-address">{result.email}</span>
                         <span className="email-status-icon">
-                          {result.success ? '✅' : '❌'}
+                          {result.success ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-red-600" />
+                          )}
                         </span>
                       </div>
                     ))}
                   </div>
                   
                   <div className="email-summary">
-                    <p>
-                      📧 Login credentials sent to <strong>{emailResults.filter(r => r.success).length}</strong> out of <strong>{emailResults.length}</strong> members.
+                    <p className="flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Login credentials sent to <strong>{emailResults.filter(r => r.success).length}</strong> out of <strong>{emailResults.length}</strong> members.
                     </p>
                     {emailResults.some(r => !r.success) && (
-                      <p className="warning">
-                        ⚠️ Some emails failed to send. Members can still log in with their assigned credentials.
+                      <p className="warning flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Some emails failed to send. Members can still log in with their assigned credentials.
                       </p>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="email-status">
-                  <p>📧 No new credentials were generated (existing members were assigned).</p>
+                  <p className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    No new credentials were generated (existing members were assigned).
+                  </p>
                 </div>
               )}
             </div>

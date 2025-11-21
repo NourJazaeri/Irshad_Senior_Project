@@ -71,8 +71,11 @@ router.post("/login", async (req, res) => {
     }
 
     // JWT Token
-    console.log("Creating JWT token...");
-    const token = jwt.sign({ id: user._id, role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    // Token expiration can be configured via JWT_EXPIRES_IN environment variable
+    // Default: 24h (24 hours), can be set to "1h", "24h", "7d", "30d", etc.
+    const tokenExpiration = process.env.JWT_EXPIRES_IN || "24h";
+    console.log(`Creating JWT token (expires in: ${tokenExpiration})...`);
+    const token = jwt.sign({ id: user._id, role }, process.env.JWT_SECRET, { expiresIn: tokenExpiration });
     console.log("Token created successfully");
 
     // Create session - ADD ERROR HANDLING HERE

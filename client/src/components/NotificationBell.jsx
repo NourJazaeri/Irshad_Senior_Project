@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell } from 'react-icons/fi';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '../services/notifications';
 import '../styles/chat.css';
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ userType = 'trainee' }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -12,33 +12,49 @@ export const NotificationBell = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
       const [notifResponse, countResponse] = await Promise.all([
-        getNotifications(),
-        getUnreadCount()
+        getNotifications(userType),
+        getUnreadCount(userType)
       ]);
 
       if (notifResponse.success) {
-        setNotifications(notifResponse.notifications);
+        const notifications = notifResponse.notifications || [];
+        setNotifications(notifications);
+        console.log(`📬 [NotificationBell] Fetched ${notifications.length} notifications for ${userType}`, {
+          total: notifications.length,
+          unread: notifications.filter(n => !n.isRead).length,
+          types: notifications.map(n => n.type)
+        });
+      } else {
+        console.warn('⚠️ [NotificationBell] Failed to fetch notifications:', notifResponse);
       }
 
       if (countResponse.success) {
-        setUnreadCount(countResponse.count);
+        const count = countResponse.count || 0;
+        setUnreadCount(count);
+        console.log(`📬 [NotificationBell] Unread count for ${userType}:`, count);
+      } else {
+        console.warn('⚠️ [NotificationBell] Failed to fetch unread count:', countResponse);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('❌ [NotificationBell] Error fetching notifications:', error);
+      // Set defaults on error
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userType]);
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll every 10 seconds for faster updates
+    const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -53,16 +69,31 @@ export const NotificationBell = () => {
   const handleNotificationClick = async (notification) => {
     try {
       if (!notification.isRead) {
-        await markAsRead(notification._id);
+        await markAsRead(notification._id, userType);
         setUnreadCount(prev => Math.max(0, prev - 1));
         setNotifications(prev => prev.map(n =>
           n._id === notification._id ? { ...n, isRead: true } : n
         ));
       }
 
-      // Navigate to the specific content if refId is available
-      if (notification.refId && notification.refType === 'Content') {
-        navigate(`/trainee/content/${notification.refId}`);
+      // Navigate based on notification type and user type
+      if (notification.refId) {
+        if (notification.refType === 'Content') {
+          const contentPath = userType === 'supervisor' 
+            ? `/supervisor/content/${notification.refId}` 
+            : `/trainee/content/${notification.refId}`;
+          navigate(contentPath);
+        } else if (notification.refType === 'Chat') {
+          // Navigate to chat - for trainee, go to their chat page
+          // For supervisor, we'd need the traineeId from the chat message
+          if (userType === 'trainee') {
+            navigate('/trainee/chat');
+          } else if (userType === 'supervisor') {
+            // For supervisor, we'd need to extract traineeId from the chat message
+            // For now, just navigate to groups page
+            navigate('/supervisor/groups');
+          }
+        }
       }
 
       setShowDropdown(false);
@@ -73,7 +104,7 @@ export const NotificationBell = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllAsRead();
+      await markAllAsRead(userType);
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (error) {
@@ -84,9 +115,9 @@ export const NotificationBell = () => {
   const getNotificationIconClass = (type) => {
     const classes = {
       'NEW_CONTENT': 'notification-icon-new-content',
-      'DEADLINE_SOON': 'notification-icon-deadline-soon',
       'CONTENT_UPDATED': 'notification-icon-content-updated',
-      'QUIZ_ASSIGNED': 'notification-icon-quiz-assigned'
+      'QUIZ_ASSIGNED': 'notification-icon-quiz-assigned',
+      'NEW_MESSAGE': 'notification-icon-new-message'
     };
     return classes[type] || 'notification-icon-default';
   };

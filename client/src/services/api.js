@@ -289,10 +289,24 @@ async function httpGet(url) {
 // Helper function for auth headers
 export function getAuthHeaders(token = null) {
   const authToken = token || localStorage.getItem("token");
-  return {
+  
+  // Validate token exists and is not empty
+  if (!authToken || authToken === 'null' || authToken === 'undefined' || authToken.trim() === '') {
+    console.error('⚠️ No valid token found. User needs to log in again.');
+    // Don't throw here - let the request fail naturally with 401
+    // But ensure we don't send a malformed Authorization header
+  }
+  
+  const headers = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${authToken}`,
   };
+  
+  // Only add Authorization header if we have a valid token
+  if (authToken && authToken !== 'null' && authToken !== 'undefined' && authToken.trim() !== '') {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  
+  return headers;
 }
 
 /** Groups for a department (cards) */
@@ -317,6 +331,188 @@ export async function adminRemoveSupervisor(groupId) {
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(text || `Failed to remove supervisor`);
+  }
+  return res.json();
+}
+
+/** Get available trainees for a group */
+export async function getAvailableTraineesForGroup(groupId) {
+  // Check if token exists before making request
+  const token = localStorage.getItem("token");
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    handleSessionExpired();
+    throw new Error('No authentication token found. Please log in again.');
+  }
+
+  const res = await fetch(`${API_BASE}/api/groups/${groupId}/trainees/available`, {
+    method: 'GET',
+    headers: getAuthHeaders(null),
+  });
+  if (!res.ok) {
+    let errorMessage = `Failed to load available trainees`;
+    try {
+      const errorData = await res.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsed = JSON.parse(text);
+          errorMessage = parsed.message || parsed.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    
+    // If it's an authentication error, redirect to login
+    if (res.status === 401) {
+      errorMessage = 'Your session has expired. Please log in again.';
+      handleSessionExpired();
+    }
+    
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
+
+/** Get available employees for supervisor assignment */
+export async function getAvailableSupervisorsForGroup(groupId) {
+  // Check if token exists before making request
+  const token = localStorage.getItem("token");
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    handleSessionExpired();
+    throw new Error('No authentication token found. Please log in again.');
+  }
+
+  const res = await fetch(`${API_BASE}/api/groups/${groupId}/supervisors/available`, {
+    method: 'GET',
+    headers: getAuthHeaders(null),
+  });
+  if (!res.ok) {
+    let errorMessage = `Failed to load available employees`;
+    try {
+      const errorData = await res.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsed = JSON.parse(text);
+          errorMessage = parsed.message || parsed.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+
+    // If it's an authentication error, redirect to login
+    if (res.status === 401) {
+      errorMessage = 'Your session has expired. Please log in again.';
+      handleSessionExpired();
+    }
+
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
+
+/** Assign supervisor to a group */
+export async function adminAssignSupervisorToGroup(groupId, supervisorId) {
+  // Check if token exists before making request
+  const token = localStorage.getItem("token");
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    handleSessionExpired();
+    throw new Error('No authentication token found. Please log in again.');
+  }
+
+  const res = await fetch(`${API_BASE}/api/groups/${groupId}/supervisor`, {
+    method: 'POST',
+    headers: getAuthHeaders(null),
+    body: JSON.stringify({ supervisorId }),
+  });
+  if (!res.ok) {
+    let errorMessage = `Failed to assign supervisor`;
+    try {
+      const errorData = await res.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsed = JSON.parse(text);
+          errorMessage = parsed.message || parsed.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+
+    // If it's an authentication error, redirect to login
+    if (res.status === 401) {
+      errorMessage = 'Your session has expired. Please log in again.';
+      handleSessionExpired();
+    }
+
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
+
+/** Add trainees to a group */
+export async function adminAddTraineesToGroup(groupId, traineeIds) {
+  // Check if token exists before making request
+  const token = localStorage.getItem("token");
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    handleSessionExpired();
+    throw new Error('No authentication token found. Please log in again.');
+  }
+
+  const res = await fetch(`${API_BASE}/api/groups/${groupId}/trainees`, {
+    method: 'POST',
+    headers: getAuthHeaders(null),
+    body: JSON.stringify({ traineeIds }),
+  });
+  if (!res.ok) {
+    let errorMessage = `Failed to add trainees`;
+    try {
+      const errorData = await res.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch {
+      const text = await res.text().catch(() => '');
+      if (text) {
+        try {
+          const parsed = JSON.parse(text);
+          errorMessage = parsed.message || parsed.error || errorMessage;
+        } catch {
+          errorMessage = text || errorMessage;
+        }
+      }
+    }
+    
+    // If it's an authentication error, redirect to login
+    if (res.status === 401) {
+      errorMessage = 'Your session has expired. Please log in again.';
+      handleSessionExpired();
+    }
+    
+    throw new Error(errorMessage);
   }
   return res.json();
 }
@@ -894,6 +1090,29 @@ export async function deleteTodo(id) {
 
 // --------------------------- Chat API ---------------------------
 
+/** Get trainee details for supervisor (only trainees they supervise) */
+export async function getSupervisorTraineeDetails(traineeId) {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/supervisor/trainees/${traineeId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: 'Failed to fetch trainee details' }));
+      throw new Error(errorData.message || `Failed to fetch trainee details: ${res.status}`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching trainee details:', error);
+    throw error;
+  }
+}
+
 export async function getSupervisorUnreadCount(traineeId) {
   try {
     const token = localStorage.getItem('token');
@@ -1016,6 +1235,27 @@ export async function markTraineeMessagesRead() {
   try {
     const token = localStorage.getItem('token');
     const res = await fetch(`${API_BASE}/api/chat/trainee/mark-read`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to mark messages as read: ${res.status}`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    throw error;
+  }
+}
+
+export async function markSupervisorMessagesRead(traineeId) {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/api/chat/supervisor/mark-read/${traineeId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

@@ -112,14 +112,28 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     setCustomAlert({ show: false, title: '', message: '', icon: '' });
   };
 
-  // Function to get steps based on user role
-  const getSteps = () => [
-    { number: 1, label: 'Upload/Select Content', icon: Upload },
-    { number: 2, label: userRole === 'Supervisor' ? 'Assign to Groups' : 'Assign Departments', icon: Users },
-    { number: 3, label: 'Set Deadline', icon: Clock },
-    { number: 4, label: 'Add MCQs', icon: CheckCircle },
-    { number: 5, label: 'Publish', icon: Bell },
-  ];
+  // Function to get steps based on user role and edit mode
+  const getSteps = () => {
+    const baseSteps = [
+      { number: 1, label: 'Upload/Select Content', icon: Upload },
+      { number: 2, label: userRole === 'Supervisor' ? 'Assign to Groups' : 'Assign Departments', icon: Users },
+      { number: 3, label: 'Set Deadline', icon: Clock },
+    ];
+    
+    // In edit mode, exclude "Add MCQs" step
+    if (!editMode) {
+      baseSteps.push({ number: 4, label: 'Add MCQs', icon: CheckCircle });
+    }
+    
+    // Add Publish step (step 4 in edit mode, step 5 in create mode)
+    baseSteps.push({ 
+      number: editMode ? 4 : 5, 
+      label: 'Publish', 
+      icon: Bell 
+    });
+    
+    return baseSteps;
+  };
   
   const steps = getSteps();
 
@@ -598,8 +612,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       }
     }
 
-    // Validation for step 4 (MCQ step)
-    if (currentStep === 4) {
+    // Validation for step 4 (MCQ step) - only in create mode
+    if (currentStep === 4 && !editMode) {
       // Only validate if user has added questions
       if (formData.mcqs && formData.mcqs.length > 0) {
         const validation = validateQuestions();
@@ -610,7 +624,10 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       }
     }
 
-    if (currentStep < 5) {
+    // In edit mode, skip from step 3 directly to step 4 (Publish)
+    // In create mode, go from step 4 (MCQ) to step 5 (Publish)
+    const maxStep = editMode ? 4 : 5;
+    if (currentStep < maxStep) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -630,8 +647,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     console.log('🚀 Form data MCQs:', formData.mcqs);
     console.log('🚀 Full Form data:', formData);
     
-    // Validate questions before publishing if they exist
-    if (formData.mcqs && formData.mcqs.length > 0) {
+    // Validate questions before publishing if they exist - only in create mode
+    // In edit mode, quizzes cannot be updated, so skip validation
+    if (!editMode && formData.mcqs && formData.mcqs.length > 0) {
       const validation = validateQuestions();
       if (!validation.valid) {
         showAlert('Some Quiz Questions Are Incomplete', 'Please fix the following issues with your quiz questions:\n\n' + validation.errors.join('\n\n'), '⚠️');
@@ -751,15 +769,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
           console.log('✅ Update successful - Response content:', responseData.content);
           console.log('✅ Updated content type:', responseData.content?.contentType);
           console.log('✅ Updated content URL:', responseData.content?.contentUrl);
-          // Only save quiz if there are questions
-          const contentId = responseData.content?._id || editContent._id;
-          if (formData.mcqs && formData.mcqs.length > 0 && contentId) {
-            try { 
-              await saveQuizForContent(contentId); 
-            } catch (quizError) {
-              console.error('Quiz save failed but content was updated:', quizError);
-            }
-          }
+          // Don't save quiz in edit mode - quizzes can only be added during content creation
+          // Quiz updates are not allowed when editing content
           showAlert('Success!', 'Content updated successfully!', '✅');
           setTimeout(() => {
             closeAlert();
@@ -2017,8 +2028,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
           </div>
         )}
 
-        {/* Step 4: Add MCQs */}
-        {currentStep === 4 && (
+        {/* Step 4: Add MCQs - Only show in create mode, not edit mode */}
+        {currentStep === 4 && !editMode && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -2262,8 +2273,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                         </div>
         )}
 
-        {/* Step 5: Publish */}
-        {currentStep === 5 && (
+        {/* Step 5 (or 4 in edit mode): Publish */}
+        {((!editMode && currentStep === 5) || (editMode && currentStep === 4)) && (
           <div className="space-y-6">
             <div className="text-center py-6">
               <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
@@ -2357,10 +2368,13 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                   {formData.ackRequired ? 'Yes' : 'No'}
                 </p>
               </div>
-              <div>
-                <p className="text-base text-gray-600">Quiz Questions</p>
-                <p className="font-medium text-lg text-gray-900">{formData.mcqs.length} question(s)</p>
-              </div>
+              {/* Only show quiz questions in create mode, not edit mode */}
+              {!editMode && (
+                <div>
+                  <p className="text-base text-gray-600">Quiz Questions</p>
+                  <p className="font-medium text-lg text-gray-900">{formData.mcqs.length} question(s)</p>
+                </div>
+              )}
             </div>
                     </div>
         )}
@@ -2376,7 +2390,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
               Back
             </Button>
           )}
-          {currentStep < 5 ? (
+          {((!editMode && currentStep < 5) || (editMode && currentStep < 4)) ? (
             <Button 
               onClick={handleNext}
               className="px-8 py-2.5 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"

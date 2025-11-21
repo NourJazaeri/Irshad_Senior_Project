@@ -49,6 +49,22 @@ const ProgressSchema = new Schema(
       default: null,
     },
 
+    // Optional fields for supervisor dashboard optimization
+    // These are NOT required - system works without them
+    groupID: {
+      type: Types.ObjectId,
+      ref: "Group",
+      default: null,
+      index: true,
+    },
+
+    supervisorID: {
+      type: Types.ObjectId,
+      ref: "Supervisor",
+      default: null,
+      index: true,
+    },
+
     // Store individual task completion statuses for template content
     taskCompletions: {
       type: Map,
@@ -68,5 +84,11 @@ ProgressSchema.index({
   ObjectQuizID: 1,
 });
 
-const Progress = models.Progress || model("Progress", ProgressSchema);
+// Delete existing model from cache to force reload with new schema
+if (models.Progress) {
+  delete models.Progress;
+}
+
+const Progress = model("Progress", ProgressSchema);
+
 export default Progress;

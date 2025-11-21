@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+const { Schema } = mongoose;
 
-const quizSchema = new mongoose.Schema(
+const quizSchema = new Schema(
   {
     isAiGenerated: {
       type: Boolean,
@@ -21,7 +22,7 @@ const quizSchema = new mongoose.Schema(
           validate: [arr => arr.length >= 2, "At least two options required"]
         },
         correctAnswer: {
-          type: String,
+          type: Schema.Types.Mixed, // Can be Number (index) or String (text for backward compatibility)
           required: true
         },
         createdAt: {

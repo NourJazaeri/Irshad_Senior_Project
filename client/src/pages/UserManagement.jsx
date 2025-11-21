@@ -71,10 +71,33 @@ export default function UserManagement() {
       console.log('Employees data:', employeesRes?.data);
       console.log('Employees count:', employeesRes?.count);
 
+      const employeesData = employeesRes.success ? employeesRes.data || [] : [];
+      const traineesData = traineesRes.success ? traineesRes.data || [] : [];
+      const supervisorsData = supervisorsRes.success ? supervisorsRes.data || [] : [];
+      
+      // Debug: Log department information
+      console.log('=== DEBUGGING DEPARTMENT DATA ===');
+      if (traineesData.length > 0) {
+        console.log('Sample trainee:', {
+          email: traineesData[0].loginEmail,
+          empObjectUserID: traineesData[0].EmpObjectUserID?._id,
+          department: traineesData[0].EmpObjectUserID?.ObjectDepartmentID,
+          departmentName: traineesData[0].EmpObjectUserID?.ObjectDepartmentID?.departmentName
+        });
+      }
+      if (supervisorsData.length > 0) {
+        console.log('Sample supervisor:', {
+          email: supervisorsData[0].loginEmail,
+          empObjectUserID: supervisorsData[0].EmpObjectUserID?._id,
+          department: supervisorsData[0].EmpObjectUserID?.ObjectDepartmentID,
+          departmentName: supervisorsData[0].EmpObjectUserID?.ObjectDepartmentID?.departmentName
+        });
+      }
+
       setData({
-        employees: employeesRes.success ? employeesRes.data || [] : [],
-        trainees: traineesRes.success ? traineesRes.data || [] : [],
-        supervisors: supervisorsRes.success ? supervisorsRes.data || [] : []
+        employees: employeesData,
+        trainees: traineesData,
+        supervisors: supervisorsData
       });
 
       // Check for any errors
@@ -111,17 +134,19 @@ export default function UserManagement() {
     const filteredUsers = users.filter(user => {
       if (!currentSearchTerm) return true;
       
-      let name, position;
+      let name, position, department;
       if (type === 'employees') {
         name = `${user.fname || ''} ${user.lname || ''}`.toLowerCase();
         position = (user.position || '').toLowerCase();
+        department = (user.ObjectDepartmentID?.departmentName || user.ObjectDepartmentID || '').toString().toLowerCase();
       } else {
         name = `${user.EmpObjectUserID?.fname || ''} ${user.EmpObjectUserID?.lname || ''}`.toLowerCase();
         position = (user.EmpObjectUserID?.position || '').toLowerCase();
+        department = (user.EmpObjectUserID?.ObjectDepartmentID?.departmentName || user.EmpObjectUserID?.ObjectDepartmentID || '').toString().toLowerCase();
       }
       
       const searchLower = currentSearchTerm.toLowerCase();
-      return name.includes(searchLower) || position.includes(searchLower);
+      return name.includes(searchLower) || position.includes(searchLower) || department.includes(searchLower);
     });
 
     // Pagination logic
@@ -179,7 +204,7 @@ export default function UserManagement() {
         <div style={{ marginBottom: '20px', marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <input
             type="text"
-            placeholder={`Search ${type} by name or position...`}
+            placeholder={`Search ${type} by name, position, or department...`}
             value={searchTerm[type] || ''}
             onChange={(e) => {
               setSearchTerm(prev => ({ ...prev, [type]: e.target.value }));
@@ -257,23 +282,41 @@ export default function UserManagement() {
               <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Name</th>
               <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Email</th>
               <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Position</th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Department</th>
             </tr>
           </thead>
           <tbody style={tbodyStyle}>
             {pagedUsers.map((user, index) => {
-              let employeeId, fname, lname, email, position;
+              let employeeId, fname, lname, email, position, department;
               if (type === 'employees') {
                 employeeId = user._id;
                 fname = user.fname;
                 lname = user.lname;
                 email = user.email;
                 position = user.position;
+                // Get department from ObjectDepartmentID (can be populated object or just ID)
+                if (user.ObjectDepartmentID) {
+                  department = typeof user.ObjectDepartmentID === 'object' 
+                    ? user.ObjectDepartmentID.departmentName 
+                    : user.ObjectDepartmentID;
+                } else {
+                  department = null;
+                }
               } else {
                 employeeId = user.EmpObjectUserID?._id || user.EmpObjectUserID;
                 fname = user.EmpObjectUserID?.fname || 'N/A';
                 lname = user.EmpObjectUserID?.lname || '';
                 email = user.loginEmail || user.EmpObjectUserID?.email || 'N/A';
                 position = user.EmpObjectUserID?.position || 'N/A';
+                // Get department from EmpObjectUserID.ObjectDepartmentID (can be populated object or just ID)
+                if (user.EmpObjectUserID?.ObjectDepartmentID) {
+                  const dept = user.EmpObjectUserID.ObjectDepartmentID;
+                  department = typeof dept === 'object' && dept !== null
+                    ? dept.departmentName 
+                    : dept;
+                } else {
+                  department = null;
+                }
               }
               return (
                 <tr 
@@ -315,6 +358,9 @@ export default function UserManagement() {
                   </td>
                   <td style={{ padding: '12px', color: '#333', transition: 'color 0.2s ease' }}>{email}</td>
                   <td style={{ padding: '12px', color: '#333', transition: 'color 0.2s ease' }}>{position}</td>
+                  <td style={{ padding: '12px', color: '#333', transition: 'color 0.2s ease' }}>
+                    {department || <span style={{ color: '#999', fontStyle: 'italic' }}>null</span>}
+                  </td>
                 </tr>
               );
             })}

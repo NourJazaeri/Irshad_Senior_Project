@@ -122,7 +122,17 @@ export const sendLoginCredentials = async (email, name, password, role, groupNam
       command: error.command,
       response: error.response
     });
-    return { success: false, error: error.message };
+    // Return a clean error message without stack traces or file paths
+    let errorMessage = error.message || 'Unknown error occurred';
+    // Clean up error messages that contain file paths or stack traces
+    if (errorMessage.includes('Cannot find module')) {
+      errorMessage = 'Email service configuration error. Please check server configuration and ensure all dependencies are installed.';
+    } else if (errorMessage.includes('imported from') || errorMessage.length > 200) {
+      // If error message is too long or contains file paths, provide a generic message
+      const firstLine = errorMessage.split('\n')[0];
+      errorMessage = firstLine.substring(0, 150) || 'Email sending failed. Please check server logs.';
+    }
+    return { success: false, error: errorMessage };
   }
 };
 

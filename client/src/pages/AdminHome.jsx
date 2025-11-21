@@ -80,7 +80,13 @@ export default function AdminHome() {
       });
       
       console.log('Departments response:', res.data);
-      setDepartments(res.data.departments || []);
+      const departmentsData = res.data.departments || [];
+      console.log('Departments with numOfMembers:', departmentsData.map(d => ({
+        name: d.departmentName,
+        numOfMembers: d.numOfMembers,
+        _id: d._id
+      })));
+      setDepartments(departmentsData);
     } catch (err) {
       console.error('Departments fetch error:', err);
       console.error('Error response:', err.response?.data);

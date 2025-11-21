@@ -225,7 +225,7 @@ function DepartmentDetails() {
                   <span className="text-2xl font-bold text-blue-600">
                     {group.numOfMembers || 0}
                   </span>
-                  <span className="text-sm">{group.numOfMembers === 1 ? 'Trainee' : 'Trainees'}</span>
+                  <span className="text-sm">{group.numOfMembers === 1 ? 'Member' : 'Members'}</span>
                 </div>
 
                 {/* Dropdown Menu */}

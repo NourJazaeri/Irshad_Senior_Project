@@ -16,6 +16,9 @@ export default function Topbar() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     
+    // Clear chatbot conversation from sessionStorage
+    sessionStorage.removeItem("chatbot_conversation");
+    
     // Navigate back to login page
     navigate('/');
   };

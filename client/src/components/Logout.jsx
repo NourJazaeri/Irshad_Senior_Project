@@ -12,11 +12,16 @@ function LogoutButton({ sessionId }) {
 
       // Clear JWT from localStorage (stateless logout)
       localStorage.removeItem("token");
+      
+      // Clear chatbot conversation from sessionStorage
+      sessionStorage.removeItem("chatbot_conversation");
 
       // Redirect to login
       navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
+      // Clear chatbot conversation even if backend call fails
+      sessionStorage.removeItem("chatbot_conversation");
     }
   };
 

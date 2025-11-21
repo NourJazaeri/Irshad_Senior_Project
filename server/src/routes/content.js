@@ -15,7 +15,7 @@ import Employee from '../models/Employees.js';
 import Progress from '../models/Progress.js';
 import Quiz from '../models/Quiz.js';
 import { requireAdmin, requireAdminOrSupervisor, requireTrainee, authenticate } from '../middleware/authMiddleware.js';
-import { createBulkContentNotifications } from '../services/notificationService.js';
+import { createBulkContentNotifications, createBulkContentUpdateNotifications } from '../services/notificationService.js';
 import axios from 'axios';
 import FormData from 'form-data';
 
@@ -319,16 +319,44 @@ async function createInitialProgressRecords(content) {
 
     // Create progress records for all assigned trainees
     if (traineesToAssign.length > 0) {
-      const progressRecords = traineesToAssign.map(traineeId => ({
-        _id: new mongoose.Types.ObjectId(),
-        TraineeObjectUserID: traineeId,
-        ObjectContentID: content._id,
-        status: 'not started',
-        acknowledged: false,
-        score: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }));
+      // Fetch all trainees to get their group and supervisor info
+      const trainees = await Trainee.find({ _id: { $in: traineesToAssign } }).populate('ObjectGroupID');
+      
+      // Build a map: traineeId -> { groupID, supervisorID }
+      const traineeInfoMap = new Map();
+      for (const trainee of trainees) {
+        const groupId = trainee.ObjectGroupID?._id || trainee.ObjectGroupID;
+        let supervisorId = null;
+        
+        if (groupId) {
+          // Fetch group to get supervisor
+          const group = await Group.findById(groupId);
+          if (group) {
+            supervisorId = group.SupervisorObjectUserID;
+          }
+        }
+        
+        traineeInfoMap.set(trainee._id.toString(), {
+          groupID: groupId,
+          supervisorID: supervisorId
+        });
+      }
+      
+      const progressRecords = traineesToAssign.map(traineeId => {
+        const info = traineeInfoMap.get(traineeId.toString()) || {};
+        return {
+          _id: new mongoose.Types.ObjectId(),
+          TraineeObjectUserID: traineeId,
+          ObjectContentID: content._id,
+          groupID: info.groupID || null,
+          supervisorID: info.supervisorID || null,
+          status: 'not started',
+          acknowledged: false,
+          score: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      });
 
       const result = await Progress.insertMany(progressRecords);
       console.log('✅ Created', result.length, 'progress records');
@@ -508,28 +536,29 @@ router.get('/departments', requireAdminOrSupervisor, async (req, res) => {
   try {
     console.log('🔍 Fetching departments for admin:', req.user.id);
     
-    // First, let's check if there are any departments at all
-    const allDepartments = await Department.find({})
-      .select('_id departmentName numOfMembers numOfGroups AdminObjectUserID')
-      .sort({ departmentName: 1 });
-    
-    console.log('📊 Total departments in database:', allDepartments.length);
-    console.log('📋 All departments:', allDepartments.map(d => ({
-      id: d._id,
-      name: d.departmentName,
-      adminId: d.AdminObjectUserID
-    })));
-    
     // Fetch all departments where this admin is the admin
     const departments = await Department.find({ AdminObjectUserID: req.user.id })
-      .select('_id departmentName numOfMembers numOfGroups')
+      .select('_id departmentName numOfGroups')
       .sort({ departmentName: 1 });
 
-    console.log('📊 Found departments for this admin:', departments.length);
-    console.log('📋 Admin departments data:', departments);
+    // Calculate member counts for each department dynamically from Employee table
+    const departmentsWithCounts = await Promise.all(
+      departments.map(async (dept) => {
+        // Count all employees in this department directly from Employee table
+        const numOfMembers = await Employee.countDocuments({ ObjectDepartmentID: dept._id });
+        
+        const deptObj = dept.toObject();
+        // Override the stored numOfMembers with the calculated value from Employee table
+        deptObj.numOfMembers = numOfMembers;
+        
+        return deptObj;
+      })
+    );
+
+    console.log('📊 Found departments for this admin:', departmentsWithCounts.length);
 
     // If no departments found, let's try a different approach - check if admin has a company
-    if (departments.length === 0) {
+    if (departmentsWithCounts.length === 0) {
       console.log('🔍 No departments found for admin, checking company relationship...');
       
       // Try to find departments by company relationship
@@ -537,16 +566,26 @@ router.get('/departments', requireAdminOrSupervisor, async (req, res) => {
       if (adminEmployee && adminEmployee.ObjectCompanyID) {
         console.log('🏢 Found admin employee with company:', adminEmployee.ObjectCompanyID);
         
-        const companyDepartments = await Department.find({ ObjectCompanyID: adminEmployee.ObjectCompanyID })
-          .select('_id departmentName numOfMembers numOfGroups')
+        const companyDepartmentsRaw = await Department.find({ ObjectCompanyID: adminEmployee.ObjectCompanyID })
+          .select('_id departmentName numOfGroups')
           .sort({ departmentName: 1 });
+        
+        // Calculate member counts for company departments
+        const companyDepartments = await Promise.all(
+          companyDepartmentsRaw.map(async (dept) => {
+            const numOfMembers = await Employee.countDocuments({ ObjectDepartmentID: dept._id });
+            const deptObj = dept.toObject();
+            deptObj.numOfMembers = numOfMembers;
+            return deptObj;
+          })
+        );
           
         console.log('📊 Found departments for company:', companyDepartments.length);
         return res.json({ ok: true, departments: companyDepartments });
       }
     }
 
-    res.json({ ok: true, departments });
+    res.json({ ok: true, departments: departmentsWithCounts });
   } catch (error) {
     console.error('❌ Error fetching departments:', error);
     res.status(500).json({ ok: false, error: error.message });
@@ -1851,6 +1890,99 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
         contentUrl: content.contentUrl,
         title: content.title
       });
+
+      // Create update notifications for all assigned trainees (non-blocking)
+      try {
+        console.log('📬 Creating update notifications for assigned trainees...');
+        const traineesToNotify = [];
+
+        // Get trainees from direct assignment
+        if (content.assignedTo_traineeID) {
+          if (Array.isArray(content.assignedTo_traineeID)) {
+            traineesToNotify.push(...content.assignedTo_traineeID);
+          } else {
+            traineesToNotify.push(content.assignedTo_traineeID);
+          }
+        }
+
+        // Get trainees from group assignment
+        if (content.assignedTo_GroupID) {
+          let groupIdForQuery;
+          try {
+            if (content.assignedTo_GroupID instanceof mongoose.Types.ObjectId) {
+              groupIdForQuery = content.assignedTo_GroupID;
+            } else if (typeof content.assignedTo_GroupID === 'string') {
+              groupIdForQuery = new mongoose.Types.ObjectId(content.assignedTo_GroupID);
+            } else {
+              groupIdForQuery = content.assignedTo_GroupID;
+            }
+          } catch (err) {
+            groupIdForQuery = content.assignedTo_GroupID;
+          }
+          
+          const groupTrainees = await Trainee.find({ ObjectGroupID: groupIdForQuery }).select('_id');
+          if (groupTrainees && groupTrainees.length > 0) {
+            const traineeIds = groupTrainees.map(t => t._id);
+            traineesToNotify.push(...traineeIds);
+          }
+        }
+
+        // Get trainees from department assignment
+        if (content.assignedTo_depID) {
+          let departmentIds = [];
+          if (Array.isArray(content.assignedTo_depID)) {
+            departmentIds = content.assignedTo_depID.map(depId => {
+              const id = depId._id || depId;
+              if (id instanceof mongoose.Types.ObjectId) {
+                return id;
+              } else if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+                return new mongoose.Types.ObjectId(id);
+              }
+              return id;
+            }).filter(Boolean);
+          } else {
+            const depId = content.assignedTo_depID._id || content.assignedTo_depID;
+            if (depId instanceof mongoose.Types.ObjectId) {
+              departmentIds = [depId];
+            } else if (typeof depId === 'string' && mongoose.Types.ObjectId.isValid(depId)) {
+              departmentIds = [new mongoose.Types.ObjectId(depId)];
+            } else {
+              departmentIds = [depId];
+            }
+          }
+
+          if (departmentIds.length > 0) {
+            const employees = await Employee.find({ ObjectDepartmentID: { $in: departmentIds } }).select('_id');
+            const employeeIds = employees.map(emp => emp._id);
+            
+            if (employeeIds.length > 0) {
+              const deptTrainees = await Trainee.find({ EmpObjectUserID: { $in: employeeIds } }).select('_id');
+              if (deptTrainees && deptTrainees.length > 0) {
+                const traineeIds = deptTrainees.map(t => t._id);
+                traineesToNotify.push(...traineeIds);
+              }
+            }
+          }
+        }
+
+        // Remove duplicates
+        const uniqueTraineeIds = [...new Set(traineesToNotify.map(id => String(id)))].map(id => 
+          typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) 
+            ? new mongoose.Types.ObjectId(id) 
+            : id
+        );
+
+        if (uniqueTraineeIds.length > 0) {
+          await createBulkContentUpdateNotifications(uniqueTraineeIds, content);
+          console.log(`✅ Created update notifications for ${uniqueTraineeIds.length} trainees`);
+        } else {
+          console.log('⚠️ No trainees assigned to this content, skipping notifications');
+        }
+      } catch (notifError) {
+        console.error('❌ Failed to create update notifications:', notifError);
+        // Don't fail the content update if notification fails
+      }
+
       res.json({ ok: true, message: 'Content updated successfully', content });
     } catch (dbError) {
       console.error('❌ Database update error:', dbError);
@@ -2234,33 +2366,58 @@ router.post('/:id/quiz', requireAdminOrSupervisor, upload.none(), async (req, re
       return res.status(400).json({ ok: false, error: 'questions array required with at least one question' });
     }
 
-    // Normalize questions
+    // Normalize questions - store correctAnswer as INDEX (number), not text
     const normalized = questions.map((q, idx) => {
       const options = Array.isArray(q.options) ? q.options.map(String) : [];
-      let correct = q.correctAnswerText;
       
-      // If correctAnswerText is not provided, use correctAnswer index to get the text
-      if ((correct === undefined || correct === null || correct === '') && 
-          typeof q.correctAnswer === 'number' && 
-          options[q.correctAnswer] !== undefined) {
-        correct = options[q.correctAnswer];
+      // Determine correct answer INDEX (not text) - we store and compare by index
+      let correctAnswerIndex = null;
+      
+      // If correctAnswer is already a number (index), use it
+      if (typeof q.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer < options.length) {
+        correctAnswerIndex = q.correctAnswer;
+      }
+      // If correctAnswerText is provided, find its index in options array
+      else if (q.correctAnswerText !== undefined && q.correctAnswerText !== null && q.correctAnswerText !== '') {
+        const correctText = String(q.correctAnswerText).trim();
+        correctAnswerIndex = options.findIndex(opt => String(opt).trim() === correctText);
+        if (correctAnswerIndex === -1) {
+          // If text not found, default to 0
+          console.warn(`⚠️ Correct answer text "${correctText}" not found in options for question ${idx + 1}, defaulting to index 0`);
+          correctAnswerIndex = 0;
+        }
+      }
+      // If correctAnswer is a string (text), find its index
+      else if (typeof q.correctAnswer === 'string' && q.correctAnswer.trim() !== '') {
+        const correctText = String(q.correctAnswer).trim();
+        correctAnswerIndex = options.findIndex(opt => String(opt).trim() === correctText);
+        if (correctAnswerIndex === -1) {
+          console.warn(`⚠️ Correct answer text "${correctText}" not found in options for question ${idx + 1}, defaulting to index 0`);
+          correctAnswerIndex = 0;
+        }
+      }
+      // Default to 0 if nothing provided
+      else {
+        console.warn(`⚠️ No valid correct answer provided for question ${idx + 1}, defaulting to index 0`);
+        correctAnswerIndex = 0;
       }
       
       const normalized = {
         questionText: String(q.question || q.questionText || '').trim(),
         options: options,
-        correctAnswer: String(correct || '').trim(),
+        correctAnswer: correctAnswerIndex, // Store as NUMBER (index), not text
       };
       
       console.log(`📝 Question ${idx + 1}:`, {
         questionText: normalized.questionText.substring(0, 50),
         optionsCount: normalized.options.length,
-        correctAnswer: normalized.correctAnswer.substring(0, 30)
+        correctAnswerIndex: normalized.correctAnswer,
+        correctAnswerText: normalized.options[normalized.correctAnswer] || 'N/A'
       });
       
       return normalized;
     }).filter((q, idx) => {
-      const isValid = q.questionText && q.options.length >= 2 && q.correctAnswer;
+      const isValid = q.questionText && q.options.length >= 2 && (q.correctAnswer !== null && q.correctAnswer !== undefined);
       if (!isValid) {
         console.warn(`⚠️ Question ${idx + 1} filtered out - invalid:`, {
           hasQuestionText: !!q.questionText,
@@ -2700,6 +2857,32 @@ router.put('/trainee/progress/:contentId', requireTrainee, async (req, res) => {
       }
     }
 
+    // Validate: Cannot mark as complete without acknowledging if acknowledgment is required
+    // AND cannot mark as complete without taking quiz if quiz is assigned
+    if (status === 'completed') {
+      // Check acknowledgment requirement
+      if (content.ackRequired && !progress.acknowledged) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: 'You must acknowledge this content before marking it as complete.',
+          requiresAcknowledgment: true
+        });
+      }
+      
+      // Check quiz requirement
+      if (quiz) {
+        // Quiz is taken if score is not null and not undefined (even if score is 0)
+        const quizTaken = progress.score !== null && progress.score !== undefined;
+        if (!quizTaken) {
+          return res.status(400).json({ 
+            ok: false, 
+            error: 'You must take the quiz before marking this content as complete.',
+            requiresQuiz: true
+          });
+        }
+      }
+    }
+
     // Update fields if provided
     if (status) progress.status = status;
     if (score !== undefined) progress.score = score;
@@ -2835,9 +3018,10 @@ router.post('/trainee/content/:contentId/quiz/submit', requireTrainee, async (re
   try {
     const traineeId = req.user.id;
     const { contentId } = req.params;
-    const { answers } = req.body; // answers: { questionIndex: selectedAnswer }
+    const { answers } = req.body; // answers: { questionIndex: selectedAnswer } or array
 
     console.log('📝 Submitting quiz:', { contentId, traineeId, answers });
+    console.log('📝 Answers type:', Array.isArray(answers) ? 'array' : 'object', 'Keys:', Object.keys(answers || {}));
 
     // Find the quiz for this content
     const quiz = await Quiz.findOne({ ObjectContentID: contentId });
@@ -2851,7 +3035,8 @@ router.post('/trainee/content/:contentId/quiz/submit', requireTrainee, async (re
       ObjectContentID: contentId
     });
 
-    if (existingProgress && existingProgress.score !== undefined && existingProgress.score !== null && existingProgress.score !== 0) {
+    // Check if quiz was already taken (score is not null and not undefined, even if it's 0)
+    if (existingProgress && existingProgress.score !== null && existingProgress.score !== undefined) {
       console.log('⚠️ Quiz already taken by this trainee');
       return res.status(400).json({ 
         success: false, 
@@ -2865,21 +3050,83 @@ router.post('/trainee/content/:contentId/quiz/submit', requireTrainee, async (re
     let correctCount = 0;
     const totalQuestions = quiz.questions.length;
     
-    const results = quiz.questions.map((question, index) => {
-      const userAnswer = answers[index];
-      const isCorrect = userAnswer === question.correctAnswer;
+    // Frontend sends answers as object with indices: { "0": 1, "1": 0 } (questionIndex: optionIndex)
+    // We compare INDICES, not text values
+    // This ensures that even if two options have the same text, they're compared by position
+    const results = quiz.questions.map((question, questionIndex) => {
+      // Access user's selected option INDEX
+      const userAnswerIndex = answers[questionIndex] ?? answers[String(questionIndex)] ?? answers[questionIndex.toString()] ?? null;
+      const userAnswerIndexNum = userAnswerIndex !== null ? parseInt(userAnswerIndex) : null;
+      
+      // Get the correct answer INDEX from the question
+      // correctAnswer can be stored as:
+      // 1. Number (index) - new format
+      // 2. String (text) - old format, need to find index
+      let correctAnswerIndex = null;
+      
+      if (typeof question.correctAnswer === 'number') {
+        // Already stored as index
+        correctAnswerIndex = question.correctAnswer;
+      } else if (typeof question.correctAnswer === 'string') {
+        // Stored as text, find the index
+        const correctAnswerText = question.correctAnswer.trim();
+        correctAnswerIndex = question.options.findIndex(opt => String(opt).trim() === correctAnswerText);
+      }
+      
+      // Compare INDICES (not text)
+      const isCorrect = userAnswerIndexNum !== null && 
+                       correctAnswerIndex !== null && 
+                       correctAnswerIndex !== -1 &&
+                       userAnswerIndexNum === correctAnswerIndex;
+      
+      console.log(`📝 Question ${questionIndex + 1}:`, {
+        questionText: question.questionText.substring(0, 50) + '...',
+        userSelectedIndex: userAnswerIndexNum,
+        correctAnswerIndex: correctAnswerIndex,
+        isCorrect,
+        userSelectedText: userAnswerIndexNum !== null && question.options[userAnswerIndexNum] ? question.options[userAnswerIndexNum] : 'N/A',
+        correctAnswerText: correctAnswerIndex !== null && correctAnswerIndex !== -1 && question.options[correctAnswerIndex] ? question.options[correctAnswerIndex] : 'N/A',
+        options: question.options
+      });
+      
       if (isCorrect) correctCount++;
       
       return {
-        questionIndex: index,
+        questionIndex: questionIndex,
         questionText: question.questionText,
-        userAnswer,
-        correctAnswer: question.correctAnswer,
+        userAnswer: userAnswerIndexNum !== null && question.options[userAnswerIndexNum] ? question.options[userAnswerIndexNum] : null,
+        userAnswerIndex: userAnswerIndexNum,
+        correctAnswer: correctAnswerIndex !== null && correctAnswerIndex !== -1 && question.options[correctAnswerIndex] ? question.options[correctAnswerIndex] : question.correctAnswer,
+        correctAnswerIndex: correctAnswerIndex,
         isCorrect
       };
     });
 
     const score = Math.round((correctCount / totalQuestions) * 100);
+    console.log(`📊 Quiz Score Calculation: ${correctCount}/${totalQuestions} = ${score}%`);
+    console.log(`📊 All answers received:`, answers);
+    console.log(`📊 Results:`, results.map(r => ({ 
+      question: r.questionIndex, 
+      userAnswer: r.userAnswer, 
+      correctAnswer: r.correctAnswer, 
+      isCorrect: r.isCorrect 
+    })));
+
+    // Get trainee's group and supervisor info (for populating optional fields)
+    const trainee = await Trainee.findById(traineeId).populate('ObjectGroupID');
+    let groupId = null;
+    let supervisorId = null;
+    
+    if (trainee?.ObjectGroupID) {
+      const groupIdObj = trainee.ObjectGroupID._id || trainee.ObjectGroupID;
+      if (groupIdObj) {
+        groupId = groupIdObj;
+        const group = await Group.findById(groupId);
+        if (group) {
+          supervisorId = group.SupervisorObjectUserID;
+        }
+      }
+    }
 
     // Update or create progress record
     let progress = await Progress.findOne({
@@ -2893,12 +3140,21 @@ router.post('/trainee/content/:contentId/quiz/submit', requireTrainee, async (re
         TraineeObjectUserID: traineeId,
         ObjectContentID: contentId,
         ObjectQuizID: quiz._id,
+        groupID: groupId,
+        supervisorID: supervisorId,
         score: score
       });
     } else {
       console.log('📝 Updating existing progress record with quiz results');
       progress.score = score;
       progress.ObjectQuizID = quiz._id;
+      // Update groupID and supervisorID if not already set
+      if (!progress.groupID && groupId) {
+        progress.groupID = groupId;
+      }
+      if (!progress.supervisorID && supervisorId) {
+        progress.supervisorID = supervisorId;
+      }
     }
     
     await progress.save();

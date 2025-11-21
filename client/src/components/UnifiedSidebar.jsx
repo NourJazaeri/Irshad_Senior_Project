@@ -15,7 +15,9 @@ import {
   Building,
   UserCog,
   FolderOpen,
-  Building2 as BuildingOffice
+  Building2 as BuildingOffice,
+  MessageCircle,
+  Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
@@ -59,7 +61,7 @@ const navigationConfigs = {
     brand: { name: 'Irshad', subtitle: 'Supervisor Portal' },
     user: { name: 'Supervisor', role: 'supervisor@company.com', avatar: 'S' },
     items: [
-      { name: 'Dashboard', href: '/supervisor', icon: Home },
+      { name: 'Dashboard', href: '/supervisor/charts', icon: Home },
       { name: 'Groups', href: '/supervisor/groups', icon: Users },
       { name: 'Content Library', href: '/supervisor/content', icon: FolderOpen },
       { name: 'My Profile', href: '/supervisor/my-profile', icon: User },
@@ -73,6 +75,7 @@ const navigationConfigs = {
     user: { name: 'Trainee', role: 'trainee@company.com', avatar: 'T' },
     items: [
       { name: 'Dashboard', href: '/trainee', icon: Home },
+      { name: 'AI Assistant', href: '/trainee/chatbot', icon: Bot },
       { name: 'To Do List', href: '/trainee/todo', icon: ClipboardList },
       { name: 'My Profile', href: '/trainee/my-profile', icon: User }
     ]
@@ -284,6 +287,11 @@ export const UnifiedSidebar = ({
       localStorage.removeItem("token");
       localStorage.removeItem("sessionId");
       localStorage.removeItem("user");
+      
+      // Clear chatbot conversation from sessionStorage
+      sessionStorage.removeItem("chatbot_messages");
+      sessionStorage.removeItem("chatbot_conversation_id");
+      sessionStorage.removeItem("chatbot_conversation");
 
       // Redirect to login
       navigate("/login");
@@ -293,6 +301,9 @@ export const UnifiedSidebar = ({
       localStorage.removeItem("token");
       localStorage.removeItem("sessionId");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("chatbot_messages");
+      sessionStorage.removeItem("chatbot_conversation_id");
+      sessionStorage.removeItem("chatbot_conversation");
       navigate("/login");
     }
   };

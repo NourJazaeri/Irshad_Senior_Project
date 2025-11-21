@@ -1,7 +1,7 @@
 // server/src/routes/notifications.js
 import express from 'express';
 import Notification from '../models/Notification.js';
-import { requireTrainee } from '../middleware/authMiddleware.js';
+import { requireTrainee, requireSupervisor } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -111,6 +111,88 @@ router.delete('/:id', requireTrainee, async (req, res) => {
     res.json({ success: true, message: 'Notification deleted' });
   } catch (error) {
     console.error('❌ Error deleting notification:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
+// SUPERVISOR NOTIFICATION ROUTES
+// ───────────────────────────────────────────────────────────────────────────────
+
+// GET /api/notifications/supervisor - Get supervisor's notifications
+router.get('/supervisor', requireSupervisor, async (req, res) => {
+  try {
+    const supervisorId = req.user._id;
+    
+    const notifications = await Notification.find({ recipientSupervisorId: supervisorId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    
+    res.json({ success: true, notifications });
+  } catch (error) {
+    console.error('❌ Error fetching supervisor notifications:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/notifications/supervisor/unread-count - Get unread notification count for supervisor
+router.get('/supervisor/unread-count', requireSupervisor, async (req, res) => {
+  try {
+    const supervisorId = req.user._id;
+    
+    const count = await Notification.countDocuments({ 
+      recipientSupervisorId: supervisorId, 
+      isRead: false 
+    });
+    
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('❌ Error counting unread supervisor notifications:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/notifications/supervisor/:id/read - Mark supervisor notification as read
+router.patch('/supervisor/:id/read', requireSupervisor, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supervisorId = req.user._id;
+    
+    const notification = await Notification.findOneAndUpdate(
+      { _id: id, recipientSupervisorId: supervisorId },
+      { isRead: true, readAt: new Date() },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+    
+    res.json({ success: true, notification });
+  } catch (error) {
+    console.error('❌ Error marking supervisor notification as read:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/notifications/supervisor/mark-all-read - Mark all supervisor notifications as read
+router.patch('/supervisor/mark-all-read', requireSupervisor, async (req, res) => {
+  try {
+    const supervisorId = req.user._id;
+    
+    const result = await Notification.updateMany(
+      { recipientSupervisorId: supervisorId, isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'All notifications marked as read',
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('❌ Error marking all supervisor notifications as read:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

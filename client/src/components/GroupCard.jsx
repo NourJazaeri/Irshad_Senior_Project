@@ -8,7 +8,7 @@ export default function GroupCard({ name, count, department, onClick }) {
     >
       <div className="text-lg font-semibold">{name}</div>
       <div className="mt-1 text-sm opacity-70">{department || '—'}</div>
-      <div className="mt-2 text-sm">{count} Trainees</div>
+      <div className="mt-2 text-sm">{count} Members</div>
     </button>
   );
 }

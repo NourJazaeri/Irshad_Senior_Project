@@ -110,12 +110,8 @@ router.delete("/:id", requireAdmin, async (req, res) => {
     const totalModified = updateResult.modifiedCount + updateResult2.modifiedCount;
     console.log(`✅ Unassigned ${totalModified} trainees from group (ObjectId: ${updateResult.modifiedCount}, String: ${updateResult2.modifiedCount}).`);
 
-    // 4️⃣ Update department member count (subtract group size)
-    const memberCount = group.numOfMembers || 0;
-    await Department.findByIdAndUpdate(group.ObjectDepartmentID, {
-      $inc: { numOfMembers: -memberCount }
-    });
-    console.log(`📊 Department member count decreased by ${memberCount}.`);
+    // Note: Department member count is now calculated directly from Employee table,
+    // so we don't need to update it when groups are deleted
 
     // 5️⃣ Delete the group
     const deletedGroup = await Group.findByIdAndDelete(groupObjectId);
@@ -585,10 +581,8 @@ router.post("/finalize", requireAdmin, async (req, res) => {
       console.log(`✅ Assigned ${traineeRecords.length} Trainees to Group:`, group.groupName);
     }
 
-    // STEP 5: Update department member count (optional - if you want to track this)
-    await Department.findByIdAndUpdate(department._id, {
-      $inc: { numOfMembers: traineeRecords.length + 1 }
-    });
+    // Note: Department member count is now calculated directly from Employee table,
+    // so we don't need to update it when groups are created
 
     // STEP 6: Send login credentials via email
     const emailResults = [];
@@ -711,6 +705,84 @@ function mapSupervisor(supervisorDoc) {
 }
 
 /* ========================================================================== */
+/* GET /api/groups/:id/trainees/available (Get all employees from department)  */
+/* ========================================================================== */
+router.get('/:id/trainees/available', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const group = await Group.findById(id);
+    
+    if (!group) {
+      return res.status(404).json({ ok: false, error: 'Group not found' });
+    }
+
+    // Get department ID
+    const departmentId = group.ObjectDepartmentID;
+    if (!departmentId) {
+      return res.status(404).json({ ok: false, error: 'Department not found for this group' });
+    }
+
+    // Find all employees in the department
+    const Employee = (await import("../models/Employees.js")).default;
+    const employees = await Employee.find({ ObjectDepartmentID: departmentId })
+      .select('fname lname email EmpID _id')
+      .lean();
+
+    // Get employee IDs
+    const employeeIds = employees.map(emp => emp._id);
+    
+    // Get all existing supervisors to identify them (but don't exclude from list)
+    const existingSupervisors = await Supervisor.find({ EmpObjectUserID: { $in: employeeIds } })
+      .select('EmpObjectUserID')
+      .lean();
+    const supervisorEmployeeIds = new Set(existingSupervisors.map(s => s.EmpObjectUserID.toString()));
+    
+    // Get all existing trainees for all employees (including supervisors, for validation)
+    const existingTrainees = await Trainee.find({ EmpObjectUserID: { $in: employeeIds } })
+      .select('_id EmpObjectUserID ObjectGroupID')
+      .lean();
+
+    // Create a map of employee ID to trainee record for quick lookup
+    const traineeMap = new Map();
+    existingTrainees.forEach(trainee => {
+      traineeMap.set(trainee.EmpObjectUserID.toString(), trainee);
+    });
+
+    // Map all employees to format for frontend (including supervisors, for validation)
+    const availableEmployees = employees.map(employee => {
+      const trainee = traineeMap.get(employee._id.toString());
+      const employeeId = employee._id.toString();
+      const isSupervisor = supervisorEmployeeIds.has(employeeId);
+      
+      return {
+        // Use trainee ID if exists, otherwise use employee ID (will create trainee record later)
+        traineeId: trainee?._id.toString() || employeeId,
+        employeeId: employeeId,
+        name: `${employee.fname || ''} ${employee.lname || ''}`.trim() || 'Unknown',
+        email: employee.email || '',
+        empId: employee.EmpID || '',
+        // Check if this employee's trainee record is in the current group
+        isInGroup: trainee?.ObjectGroupID?.toString() === id || false,
+        // Indicate if employee already has a trainee record
+        hasTraineeRecord: !!trainee,
+        // Show if employee is in another group
+        inAnotherGroup: trainee?.ObjectGroupID && trainee.ObjectGroupID.toString() !== id ? true : false,
+        // Indicate if employee is a supervisor (cannot be assigned as trainee)
+        isSupervisor: isSupervisor
+      };
+    });
+
+    res.json({
+      ok: true,
+      trainees: availableEmployees
+    });
+  } catch (err) {
+    console.error('❌ GET /api/groups/:id/trainees/available error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load available employees' });
+  }
+});
+
+/* ========================================================================== */
 /* GET /api/groups/:id (Admin Group Details)                                  */
 /* ========================================================================== */
 router.get('/:id', requireAdmin, async (req, res) => {
@@ -792,6 +864,245 @@ router.get('/:id', requireAdmin, async (req, res) => {
 });
 
 /* ========================================================================== */
+/* GET /api/groups/:id/supervisors/available (Get all employees from department for supervisor assignment)  */
+/* ========================================================================== */
+router.get('/:id/supervisors/available', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const group = await Group.findById(id);
+    
+    if (!group) {
+      return res.status(404).json({ ok: false, error: 'Group not found' });
+    }
+
+    // Get department ID
+    const departmentId = group.ObjectDepartmentID;
+    if (!departmentId) {
+      return res.status(404).json({ ok: false, error: 'Department not found for this group' });
+    }
+
+    // Find all employees in the department
+    const Employee = (await import("../models/Employees.js")).default;
+    const employees = await Employee.find({ ObjectDepartmentID: departmentId })
+      .select('fname lname email EmpID _id')
+      .lean();
+
+    // Get employee IDs
+    const employeeIds = employees.map(emp => emp._id);
+    
+    // Get all existing trainees to exclude them (trainees cannot be supervisors)
+    const existingTrainees = await Trainee.find({ EmpObjectUserID: { $in: employeeIds } })
+      .select('EmpObjectUserID')
+      .lean();
+    const traineeEmployeeIds = new Set(existingTrainees.map(t => t.EmpObjectUserID.toString()));
+    
+    // Filter out employees who are trainees (trainees cannot be supervisors)
+    const employeesNotTrainees = employees.filter(emp => !traineeEmployeeIds.has(emp._id.toString()));
+    
+    // Get all existing supervisors to identify them (but allow assigning existing supervisors)
+    const existingSupervisors = await Supervisor.find({ EmpObjectUserID: { $in: employeeIds } })
+      .select('_id EmpObjectUserID')
+      .lean();
+    const supervisorEmployeeIds = new Map();
+    existingSupervisors.forEach(s => {
+      supervisorEmployeeIds.set(s.EmpObjectUserID.toString(), s._id.toString());
+    });
+
+    // Map all employees (excluding trainees) to format for frontend
+    const availableEmployees = employeesNotTrainees.map(employee => {
+      const employeeId = employee._id.toString();
+      const isSupervisor = supervisorEmployeeIds.has(employeeId);
+      const supervisorId = supervisorEmployeeIds.get(employeeId);
+      
+      return {
+        // Use supervisor ID if exists, otherwise use employee ID (will create supervisor record later)
+        supervisorId: supervisorId || employeeId,
+        employeeId: employeeId,
+        name: `${employee.fname || ''} ${employee.lname || ''}`.trim() || 'Unknown',
+        email: employee.email || '',
+        empId: employee.EmpID || '',
+        // Indicate if employee already has a supervisor record
+        hasSupervisorRecord: isSupervisor,
+        // Indicate if employee is a supervisor (for display purposes)
+        isSupervisor: isSupervisor
+      };
+    });
+
+    res.json({
+      ok: true,
+      employees: availableEmployees
+    });
+  } catch (err) {
+    console.error('❌ GET /api/groups/:id/supervisors/available error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load available employees' });
+  }
+});
+
+/* ========================================================================== */
+/* POST /api/groups/:id/supervisor (Assign supervisor to an existing group)   */
+/* ========================================================================== */
+router.post('/:id/supervisor', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { supervisorId } = req.body;
+
+    if (!supervisorId) {
+      return res.status(400).json({ ok: false, error: 'supervisorId is required' });
+    }
+
+    const group = await Group.findById(id).populate('ObjectDepartmentID', 'departmentName');
+    if (!group) {
+      return res.status(404).json({ ok: false, error: 'Group not found' });
+    }
+
+    const Employee = (await import("../models/Employees.js")).default;
+    const departmentName = group.ObjectDepartmentID?.departmentName || 'Department';
+    const groupName = group.groupName || 'Group';
+
+    let supervisorRecord;
+    let newlyCreated = false;
+    let emailResult = null;
+
+    // First, try to find as Supervisor
+    supervisorRecord = await Supervisor.findById(supervisorId);
+    
+    // If not found as Supervisor, check if it's an Employee ID
+    if (!supervisorRecord) {
+      const employee = await Employee.findById(supervisorId);
+      
+      if (!employee) {
+        return res.status(404).json({ ok: false, error: 'Employee not found' });
+      }
+
+      // Check if employee is already a trainee (cross-role validation)
+      const existingTrainee = await Trainee.findOne({
+        EmpObjectUserID: employee._id
+      });
+      if (existingTrainee) {
+        return res.status(400).json({ 
+          ok: false,
+          error: `Employee ${employee.fname} ${employee.lname} is already a trainee and cannot be assigned as supervisor`,
+          employeeName: `${employee.fname} ${employee.lname}`,
+          employeeEmail: employee.email
+        });
+      }
+
+      // Check if there's an existing Supervisor record for this employee
+      const existingSupervisor = await Supervisor.findOne({
+        EmpObjectUserID: employee._id
+      });
+
+      if (existingSupervisor) {
+        supervisorRecord = existingSupervisor;
+        console.log(`✅ Using existing Supervisor record for: ${employee.fname} ${employee.lname}`);
+      } else {
+        // Create new Supervisor record from Employee
+        try {
+          const supervisorPassword = generateRandomPassword();
+          const bcrypt = await import('bcryptjs');
+          const hashedPassword = await bcrypt.hash(supervisorPassword, 10);
+          
+          supervisorRecord = await Supervisor.create({
+            loginEmail: employee.email,
+            passwordHash: hashedPassword,
+            EmpObjectUserID: employee._id
+          });
+          
+          supervisorRecord.plainPassword = supervisorPassword;
+          supervisorRecord.employeeName = `${employee.fname} ${employee.lname}`;
+          newlyCreated = true;
+          console.log(`✅ Created new Supervisor record for: ${employee.fname} ${employee.lname}`);
+        } catch (createError) {
+          // Handle duplicate key error - find and use existing record
+          if (createError.code === 11000) {
+            console.log(`Duplicate Supervisor detected for employee ${employee._id}, finding existing record...`);
+            const existingSupervisor = await Supervisor.findOne({
+              EmpObjectUserID: employee._id
+            });
+            if (existingSupervisor) {
+              supervisorRecord = existingSupervisor;
+              console.log(`Using existing Supervisor record for: ${employee.fname} ${employee.lname}`);
+            } else {
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
+        }
+      }
+    } else {
+      // If supervisorId is a Supervisor ID, validate that the employee is not a trainee
+      const Employee = (await import("../models/Employees.js")).default;
+      const existingTrainee = await Trainee.findOne({
+        EmpObjectUserID: supervisorRecord.EmpObjectUserID
+      });
+      if (existingTrainee) {
+        const employee = await Employee.findById(supervisorRecord.EmpObjectUserID);
+        const employeeName = employee ? `${employee.fname} ${employee.lname}` : 'Employee';
+        return res.status(400).json({ 
+          ok: false,
+          error: `${employeeName} is a trainee and cannot be assigned as supervisor`
+        });
+      }
+    }
+
+    // Assign supervisor to group
+    await Group.findByIdAndUpdate(id, { SupervisorObjectUserID: supervisorRecord._id });
+
+    // Send email to newly created supervisors
+    if (newlyCreated && supervisorRecord.plainPassword && supervisorRecord.employeeName) {
+      try {
+        emailResult = await sendLoginCredentials(
+          supervisorRecord.loginEmail,
+          supervisorRecord.employeeName,
+          supervisorRecord.plainPassword,
+          'Supervisor',
+          groupName,
+          departmentName
+        );
+        
+        if (emailResult.success) {
+          console.log(`✅ Email sent successfully to ${supervisorRecord.loginEmail}`);
+        } else {
+          console.error(`❌ Failed to send email to ${supervisorRecord.loginEmail}:`, emailResult.error);
+        }
+      } catch (emailError) {
+        console.error(`❌ Error sending email to ${supervisorRecord.loginEmail}:`, emailError);
+        // Extract clean error message without stack trace or file paths
+        let errorMessage = emailError.message || 'Unknown error occurred';
+        // Remove stack trace and file path information if present
+        if (errorMessage.includes('Cannot find module')) {
+          errorMessage = 'Email service configuration error. Please check server logs for details.';
+        } else if (errorMessage.includes('imported from') || errorMessage.includes('\\') || errorMessage.includes('/')) {
+          // Extract just the main error message, not file paths
+          const lines = errorMessage.split('\n');
+          errorMessage = lines[0] || 'Email sending failed. Please check server logs.';
+        }
+        emailResult = {
+          success: false,
+          error: errorMessage
+        };
+      }
+    }
+
+    res.json({
+      ok: true,
+      message: 'Supervisor assigned successfully',
+      supervisor: {
+        _id: supervisorRecord._id,
+        name: supervisorRecord.employeeName || 'Supervisor',
+        email: supervisorRecord.loginEmail
+      },
+      newlyCreated: newlyCreated,
+      emailResult: emailResult
+    });
+  } catch (err) {
+    console.error('❌ POST /api/groups/:id/supervisor error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to assign supervisor' });
+  }
+});
+
+/* ========================================================================== */
 /* DELETE /api/groups/:id/supervisor (Unassign the supervisor)               */
 /* ========================================================================== */
 router.delete('/:id/supervisor', requireAdmin, async (req, res) => {
@@ -805,6 +1116,202 @@ router.delete('/:id/supervisor', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('❌ DELETE /api/groups/:id/supervisor error:', err);
     res.status(500).json({ ok: false, error: 'Failed to remove supervisor' });
+  }
+});
+
+/* ========================================================================== */
+/* POST /api/groups/:id/trainees (Add trainees to an existing group)         */
+/* ========================================================================== */
+router.post('/:id/trainees', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { traineeIds } = req.body;
+
+    if (!traineeIds || !Array.isArray(traineeIds)) {
+      return res.status(400).json({ ok: false, error: 'traineeIds array is required' });
+    }
+
+    const group = await Group.findById(id).populate('ObjectDepartmentID', 'departmentName');
+    if (!group) {
+      return res.status(404).json({ ok: false, error: 'Group not found' });
+    }
+
+    const Employee = (await import("../models/Employees.js")).default;
+    const departmentName = group.ObjectDepartmentID?.departmentName || 'Department';
+    const groupName = group.groupName || 'Group';
+
+    const results = {
+      added: [],
+      alreadyInGroup: [],
+      inAnotherGroup: [],
+      notFound: [],
+      errors: [],
+      newlyCreated: [],
+      emailResults: []
+    };
+
+    // Track newly created trainees for email sending
+    const newlyCreatedTrainees = [];
+
+    for (const traineeId of traineeIds) {
+      try {
+        // First, try to find as Trainee
+        let trainee = await Trainee.findById(traineeId);
+        
+        // If found as Trainee, validate that the employee is not a supervisor
+        if (trainee) {
+          const existingSupervisor = await Supervisor.findOne({
+            EmpObjectUserID: trainee.EmpObjectUserID
+          });
+          if (existingSupervisor) {
+            const employee = await Employee.findById(trainee.EmpObjectUserID);
+            const employeeName = employee ? `${employee.fname} ${employee.lname}` : 'Employee';
+            results.errors.push({ 
+              traineeId, 
+              error: `${employeeName} is a supervisor and cannot be assigned as trainee` 
+            });
+            continue;
+          }
+        }
+        
+        // If not found as Trainee, check if it's an Employee ID
+        if (!trainee) {
+          const employee = await Employee.findById(traineeId);
+          
+          if (!employee) {
+            results.notFound.push(traineeId);
+            continue;
+          }
+
+          // Check if employee is already a supervisor (cross-role validation)
+          const existingSupervisor = await Supervisor.findOne({
+            EmpObjectUserID: employee._id
+          });
+          if (existingSupervisor) {
+            results.errors.push({ 
+              traineeId, 
+              error: `Employee ${employee.fname} ${employee.lname} is already a supervisor and cannot be assigned as trainee` 
+            });
+            continue;
+          }
+
+          // Check if there's an existing Trainee record for this employee
+          const existingTrainee = await Trainee.findOne({
+            EmpObjectUserID: employee._id
+          });
+
+          if (existingTrainee) {
+            trainee = existingTrainee;
+          } else {
+            // Create new Trainee record from Employee
+            try {
+              const traineePassword = generateRandomPassword();
+              const bcrypt = await import('bcryptjs');
+              const hashedPassword = await bcrypt.hash(traineePassword, 10);
+              
+              trainee = await Trainee.create({
+                loginEmail: employee.email,
+                passwordHash: hashedPassword,
+                EmpObjectUserID: employee._id
+              });
+              
+              // Store password and employee name for email sending
+              trainee.plainPassword = traineePassword;
+              trainee.employeeName = `${employee.fname} ${employee.lname}`;
+              
+              results.newlyCreated.push(trainee._id.toString());
+              newlyCreatedTrainees.push(trainee);
+              console.log(`✅ Created new Trainee record for: ${employee.fname} ${employee.lname}`);
+            } catch (createError) {
+              // Handle duplicate key error - find and use existing record
+              if (createError.code === 11000) {
+                console.log(`Duplicate Trainee detected for employee ${employee._id}, finding existing record...`);
+                const existingTrainee = await Trainee.findOne({
+                  EmpObjectUserID: employee._id
+                });
+                if (existingTrainee) {
+                  trainee = existingTrainee;
+                  console.log(`Using existing Trainee record for: ${employee.fname} ${employee.lname}`);
+                } else {
+                  throw createError;
+                }
+              } else {
+                throw createError;
+              }
+            }
+          }
+        }
+
+        // Check if already in this group
+        if (trainee.ObjectGroupID && trainee.ObjectGroupID.toString() === id) {
+          results.alreadyInGroup.push(trainee._id.toString());
+          continue;
+        }
+
+        // Check if in another group
+        if (trainee.ObjectGroupID) {
+          results.inAnotherGroup.push(trainee._id.toString());
+          continue;
+        }
+
+        // Add to group
+        await Trainee.findByIdAndUpdate(trainee._id, { ObjectGroupID: id });
+        results.added.push(trainee._id.toString());
+      } catch (err) {
+        console.error(`Error processing trainee ${traineeId}:`, err);
+        results.errors.push({ traineeId, error: err.message });
+      }
+    }
+
+    // Send emails to newly created trainees
+    if (newlyCreatedTrainees.length > 0) {
+      console.log(`📧 Sending login credentials to ${newlyCreatedTrainees.length} newly created trainees...`);
+      
+      for (const trainee of newlyCreatedTrainees) {
+        if (trainee.plainPassword && trainee.employeeName) {
+          try {
+            const emailResult = await sendLoginCredentials(
+              trainee.loginEmail,
+              trainee.employeeName,
+              trainee.plainPassword,
+              'Trainee',
+              groupName,
+              departmentName
+            );
+            
+            results.emailResults.push({
+              email: trainee.loginEmail,
+              name: trainee.employeeName,
+              success: emailResult.success,
+              error: emailResult.error
+            });
+            
+            if (emailResult.success) {
+              console.log(`✅ Email sent successfully to ${trainee.loginEmail}`);
+            } else {
+              console.error(`❌ Failed to send email to ${trainee.loginEmail}:`, emailResult.error);
+            }
+          } catch (emailError) {
+            console.error(`❌ Error sending email to ${trainee.loginEmail}:`, emailError);
+            results.emailResults.push({
+              email: trainee.loginEmail,
+              name: trainee.employeeName,
+              success: false,
+              error: emailError.message
+            });
+          }
+        }
+      }
+    }
+
+    res.json({
+      ok: true,
+      message: `Processed ${traineeIds.length} trainees`,
+      results
+    });
+  } catch (err) {
+    console.error('❌ POST /api/groups/:id/trainees error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to add trainees' });
   }
 });
 
@@ -831,6 +1338,44 @@ router.delete('/:id/trainees/:traineeId', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('❌ DELETE /api/groups/:id/trainees/:traineeId error:', err);
     res.status(500).json({ ok: false, error: 'Failed to remove trainee' });
+  }
+});
+
+/* ============================================================
+   🎯 Get all groups assigned to a supervisor (For Supervisor Dashboard)
+   ============================================================ */
+router.get("/supervisor/:supervisorId", async (req, res) => {
+  try {
+    const { supervisorId } = req.params;
+    console.log('🔍 Fetching groups for supervisor:', supervisorId);
+    // Find all groups where this supervisor is assigned
+    const groups = await Group.find({ SupervisorObjectUserID: supervisorId })
+      .populate("ObjectDepartmentID", "departmentName")
+      .sort({ createdAt: -1 });
+    console.log('📊 Found', groups.length, 'groups for supervisor');
+    // Count actual trainees for each group
+    const groupsWithDetails = await Promise.all(
+      groups.map(async (g) => {
+        const traineeCount = await Trainee.countDocuments({ ObjectGroupID: g._id });
+        return {
+          _id: g._id,
+          groupName: g.groupName,
+          departmentName: g.ObjectDepartmentID?.departmentName || "N/A",
+          traineeCount: traineeCount, // Only trainees (not including supervisor)
+          numOfMembers: g.numOfMembers || 0, // Total members including supervisor
+          createdAt: g.createdAt
+        };
+      })
+    );
+    res.json({
+      ok: true,
+      groups: groupsWithDetails,
+      totalGroups: groupsWithDetails.length,
+      totalTrainees: groupsWithDetails.reduce((sum, g) => sum + g.traineeCount, 0)
+    });
+  } catch (err) {
+    console.error("❌ Error fetching supervisor groups:", err);
+    res.status(500).json({ ok: false, message: "Failed to fetch groups" });
   }
 });
 

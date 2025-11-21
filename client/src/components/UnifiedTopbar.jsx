@@ -12,7 +12,9 @@ import {
   Bell,
   UserCog,
   Building2 as BuildingOffice,
-  ClipboardList
+  ClipboardList,
+  MessageCircle,
+  Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
@@ -118,6 +120,8 @@ const getPageTitle = (pathname, userType) => {
       case '/trainee':
       case '/trainee/':
         return 'Dashboard';
+      case '/trainee/chatbot':
+        return 'AI Assistant';
       case '/trainee/todo':
         return 'To Do List';
       case '/trainee/profile':
@@ -212,6 +216,8 @@ const getPageIcon = (pathname, userType) => {
       case '/trainee':
       case '/trainee/':
         return Home;
+      case '/trainee/chatbot':
+        return Bot;
       case '/trainee/todo':
         return ClipboardList;
       case '/trainee/profile':
@@ -358,6 +364,9 @@ export const UnifiedTopbar = ({
       localStorage.removeItem("token");
       localStorage.removeItem("sessionId");
       localStorage.removeItem("user");
+      
+      // Clear chatbot conversation from sessionStorage
+      sessionStorage.removeItem("chatbot_conversation");
 
       // Redirect to login
       navigate("/login");
@@ -367,6 +376,7 @@ export const UnifiedTopbar = ({
       localStorage.removeItem("token");
       localStorage.removeItem("sessionId");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("chatbot_conversation");
       navigate("/login");
     }
   };
@@ -439,12 +449,12 @@ export const UnifiedTopbar = ({
           </div>
         </div>
 
-        {/* Right: Notification Bell (for trainees) and Company Logo */}
+        {/* Right: Notification Bell (for trainees and supervisors) and Company Logo */}
         <div className="flex items-center gap-4">
-          {/* Notification Bell for Trainees */}
-          {userType === 'trainee' && (
+          {/* Notification Bell for Trainees and Supervisors */}
+          {(userType === 'trainee' || userType === 'supervisor') && (
             <div>
-              <NotificationBell />
+              <NotificationBell userType={userType} />
             </div>
           )}
 

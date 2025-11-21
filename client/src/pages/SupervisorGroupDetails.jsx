@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { getSupervisorGroupDetails, getSupervisorUnreadCount } from '../services/api';
 import { FiMail, FiArrowLeft, FiUser, FiPlus, FiEye, FiMessageCircle } from 'react-icons/fi';
 import AddContentModal from '../components/AddContentModal';
@@ -10,6 +10,8 @@ import '../styles/chat.css';
 export default function SupervisorGroupDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const prevLocationRef = useRef();
   const [meta, setMeta] = useState({ groupName: '', departmentName: '', membersCount: 0 });
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,7 @@ export default function SupervisorGroupDetails() {
   const [loadingContent, setLoadingContent] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
 
-  const fetchUnreadCounts = async (traineeList) => {
+  const fetchUnreadCounts = useCallback(async (traineeList) => {
     const counts = {};
     await Promise.all(
       traineeList.map(async (member) => {
@@ -35,7 +37,7 @@ export default function SupervisorGroupDetails() {
       })
     );
     setUnreadCounts(counts);
-  };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +57,22 @@ export default function SupervisorGroupDetails() {
     })();
   }, [id]);
 
+  // Refresh unread counts when returning from chat page
+  useEffect(() => {
+    // Check if we're coming back from a chat page
+    const prevPath = prevLocationRef.current;
+    const currentPath = location.pathname;
+
+    // If we were on a chat page and now we're back on this group details page, refresh counts
+    if (prevPath && prevPath.includes('/supervisor/chat/') && currentPath.includes('/supervisor/groups/') && members.length > 0) {
+      console.log('🔄 Refreshing unread counts after returning from chat');
+      fetchUnreadCounts(members);
+    }
+
+    // Update previous location
+    prevLocationRef.current = currentPath;
+  }, [location.pathname, members, fetchUnreadCounts]);
+
   // Poll for unread counts every 10 seconds when members are loaded
   useEffect(() => {
     if (members.length === 0) return;
@@ -67,8 +85,26 @@ export default function SupervisorGroupDetails() {
       fetchUnreadCounts(members);
     }, 10000);
 
-    return () => clearInterval(interval);
-  }, [members]);
+    // Refresh counts when page becomes visible (user returns from chat)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && members.length > 0) {
+        fetchUnreadCounts(members);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', () => {
+      if (members.length > 0) {
+        fetchUnreadCounts(members);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [members, fetchUnreadCounts]);
 
   useEffect(() => {
     if (members.length > 0 || !loading) {
@@ -170,7 +206,7 @@ export default function SupervisorGroupDetails() {
                     <th className="sv-col-name">Name</th>
                     <th className="sv-col-email">Email</th>
                     <th className="sv-col-id">Employee ID</th>
-                    <th className="sv-col-actions">Actions</th>
+                    <th className="sv-col-actions"></th>
                   </tr>
                 </thead>
 
@@ -189,7 +225,20 @@ export default function SupervisorGroupDetails() {
                     </tr>
                   ) : (
                     members.map((m, idx) => (
-                      <tr key={m.traineeId || idx} className="hoverable">
+                      <tr 
+                        key={m.traineeId || idx} 
+                        className="hoverable"
+                        onClick={() => {
+                          // Navigate to trainee details page, passing group info for breadcrumb
+                          navigate(`/supervisor/trainees/${m.traineeId}`, {
+                            state: {
+                              groupId: id,
+                              groupName: meta.groupName
+                            }
+                          });
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
                         {/* NAME */}
                         <td className="sv-col-name">
                           <div className="sv-user">
@@ -201,7 +250,7 @@ export default function SupervisorGroupDetails() {
                         </td>
 
                         {/* EMAIL */}
-                        <td className="sv-col-email">
+                        <td className="sv-col-email" onClick={(e) => e.stopPropagation()}>
                           <div className="sv-email">
                             <FiMail className="sv-email-ic" />
                             {m.email ? (
@@ -209,6 +258,7 @@ export default function SupervisorGroupDetails() {
                                 className="sv-link sv-ellipsis"
                                 href={`mailto:${m.email}`}
                                 title={m.email}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {m.email}
                               </a>
@@ -221,15 +271,37 @@ export default function SupervisorGroupDetails() {
                         {/* EMPLOYEE ID */}
                         <td className="sv-col-id">{m.empId || '—'}</td>
 
-                        {/* ACTIONS - Chat Icon with Notification Badge */}
-                        <td className="sv-col-actions">
+                        {/* ACTIONS - Chat Button with Notification Badge */}
+                        <td className="sv-col-actions" onClick={(e) => e.stopPropagation()}>
                           <Link
                             to={`/supervisor/chat/${m.traineeId}`}
-                            className="sv-action-btn sv-chat-icon-wrapper"
                             title="Chat with trainee"
-                            style={{ position: 'relative' }}
+                            style={{
+                              padding: '8px 16px',
+                              background: '#2563EB',
+                              border: 'none',
+                              borderRadius: '0.5rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              transition: 'background-color 0.2s',
+                              color: '#FFFFFF',
+                              fontWeight: '500',
+                              fontSize: '14px',
+                              textDecoration: 'none',
+                              position: 'relative'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = '#1D4ED8';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = '#2563EB';
+                            }}
                           >
-                            <FiMessageCircle />
+                            <FiMessageCircle size={18} color="white" />
+                            <span>Chat</span>
                             {unreadCounts[m.traineeId] > 0 && (
                               <span className="sv-chat-badge">{unreadCounts[m.traineeId]}</span>
                             )}

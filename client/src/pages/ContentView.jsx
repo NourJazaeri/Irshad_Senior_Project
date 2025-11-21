@@ -20,6 +20,8 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [progressLoading, setProgressLoading] = useState(false);
+  const [acknowledgeLoading, setAcknowledgeLoading] = useState(false);
+  const [completeLoading, setCompleteLoading] = useState(false);
   const [userProgress, setUserProgress] = useState(null);
   const [taskUpdateLoading, setTaskUpdateLoading] = useState(false);
   
@@ -133,7 +135,7 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
     }
     
     console.log('Acknowledging content with ID:', actualContentId);
-    setProgressLoading(true);
+    setAcknowledgeLoading(true);
     try {
       const token = localStorage.getItem('token');
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -172,7 +174,7 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
     } catch (error) {
       console.error('Error acknowledging content:', error);
     } finally {
-      setProgressLoading(false);
+      setAcknowledgeLoading(false);
     }
   };
 
@@ -182,32 +184,41 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
       return;
     }
 
-    // Check if content has quiz
-    const hasQuiz = content?.quiz && content?.quiz.questions && content?.quiz.questions.length > 0;
-    // Quiz is completed if score is not null (even if it's 0)
-    const quizCompleted = content?.quizTaken === true;
-    
-    // Block completion if there IS a quiz AND it's NOT completed
-    if (hasQuiz && !quizCompleted) {
-      setAlertMessage('You cannot mark this content as complete before taking the quiz. Please complete the quiz first.');
-      setShowAlert(true);
+    // Check if already completed
+    if (userProgress?.status === 'completed') {
       return;
     }
-    
-    // Check if acknowledgment is required
+
+    // Check if acknowledgment is required but not done
     if (content?.ackRequired && !userProgress?.acknowledged) {
       setAlertMessage('You must acknowledge this content before marking it as complete.');
       setShowAlert(true);
       return;
     }
-    
+
+    // Check if quiz is assigned but not taken
+    const hasQuiz = content?.quiz && content.quiz.questions && content.quiz.questions.length > 0;
+    const quizTaken = userProgress?.score !== null && userProgress?.score !== undefined;
+    if (hasQuiz && !quizTaken) {
+      setAlertMessage('You must take the quiz before marking this content as complete.');
+      setShowAlert(true);
+      return;
+    }
+
+    // Check if both acknowledgment and quiz are required
+    const needsAck = content?.ackRequired && !userProgress?.acknowledged;
+    const needsQuiz = hasQuiz && !quizTaken;
+    if (needsAck && needsQuiz) {
+      setAlertMessage('You must acknowledge this content and take the quiz before marking it as complete.');
+      setShowAlert(true);
+      return;
+    }
+
     console.log('Completing content with ID:', actualContentId);
-    setProgressLoading(true);
+    setCompleteLoading(true);
     try {
       const token = localStorage.getItem('token');
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-      
-      console.log('Making complete request to:', `${API_BASE}/api/content/trainee/progress/${actualContentId}`);
       
       const response = await fetch(`${API_BASE}/api/content/trainee/progress/${actualContentId}`, {
         method: 'PUT',
@@ -220,30 +231,35 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
         })
       });
 
-      console.log('Complete response status:', response.status);
-      console.log('Complete response headers:', Object.fromEntries(response.headers.entries()));
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Complete response data:', data);
-        console.log('🔵 Setting userProgress to:', data.progress);
         setUserProgress(data.progress);
         
-        console.log('Content completed successfully! Progress:', data.progress);
-        
-        // Notify parent component to refresh data
         if (onProgressUpdate) {
           onProgressUpdate();
         }
       } else {
-        const errorData = await response.text();
+        const errorData = await response.json().catch(() => ({ error: 'Failed to complete content' }));
         console.error('Failed to complete content:', response.status, errorData);
-        console.error('Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        // Show error message to user
+        if (errorData.requiresAcknowledgment || errorData.error?.includes('acknowledge')) {
+          setAlertMessage(errorData.error || 'You must acknowledge this content before marking it as complete.');
+          setShowAlert(true);
+        } else if (errorData.requiresQuiz || errorData.error?.includes('quiz')) {
+          setAlertMessage(errorData.error || 'You must take the quiz before marking this content as complete.');
+          setShowAlert(true);
+        } else {
+          setAlertMessage(errorData.error || 'Failed to complete content. Please try again.');
+          setShowAlert(true);
+        }
       }
     } catch (error) {
       console.error('Error completing content:', error);
+      setAlertMessage('An error occurred while completing the content. Please try again.');
+      setShowAlert(true);
     } finally {
-      setProgressLoading(false);
+      setCompleteLoading(false);
     }
   };
 
@@ -276,12 +292,14 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
   };
 
   // Handle answer selection
-  const handleAnswerSelect = (questionIndex, answer) => {
+  const handleAnswerSelect = (questionIndex, optionIndex) => {
     if (quizSubmitted) return; // Don't allow changes after submission
     
+    // Store the option index as a string to avoid issues with duplicate option texts
+    // We'll convert it back to text when submitting
     setSelectedAnswers(prev => ({
       ...prev,
-      [questionIndex]: answer
+      [questionIndex]: optionIndex
     }));
   };
 
@@ -299,13 +317,22 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
       const token = localStorage.getItem('token');
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
       
+      // Send option indices (not text) for comparison
+      // This ensures that even if two options have the same text, they're compared by position
+      const answersAsIndices = {};
+      Object.keys(selectedAnswers).forEach(questionIndex => {
+        const optionIndex = selectedAnswers[questionIndex];
+        // Store as number (index) not text
+        answersAsIndices[questionIndex] = parseInt(optionIndex);
+      });
+      
       const response = await fetch(`${API_BASE}/api/content/trainee/content/${actualContentId}/quiz/submit`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ answers: selectedAnswers })
+        body: JSON.stringify({ answers: answersAsIndices })
       });
 
       if (response.ok) {
@@ -1748,12 +1775,14 @@ Your unique skills and perspective will be invaluable as we work towards our sha
                   <div className="space-y-3">
                     {content.quiz.questions[currentQuestionIndex].options?.map((optionText, index) => {
                       const optionLetter = String.fromCharCode(65 + index); // A, B, C, D
-                      const isSelected = selectedAnswers[currentQuestionIndex] === optionText;
+                      // Compare by index directly to handle duplicate option texts correctly
+                      const selectedOptionIndex = selectedAnswers[currentQuestionIndex];
+                      const isSelected = selectedOptionIndex === index;
                       
                       return (
                         <button
                           key={index}
-                          onClick={() => handleAnswerSelect(currentQuestionIndex, optionText)}
+                          onClick={() => handleAnswerSelect(currentQuestionIndex, index)}
                           className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                             isSelected
                               ? 'border-blue-600 bg-blue-50'
@@ -1814,14 +1843,8 @@ Your unique skills and perspective will be invaluable as we work towards our sha
               /* Quiz Results */
               <div className="bg-white rounded-lg border border-gray-200 p-8 max-w-4xl mx-auto">
                 <div className="text-center mb-8">
-                  <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${
-                    quizResults?.passed ? 'bg-green-100' : 'bg-red-100'
-                  }`}>
-                    {quizResults?.passed ? (
-                      <CheckCircle className="w-10 h-10 text-green-600" />
-                    ) : (
-                      <AlertCircle className="w-10 h-10 text-red-600" />
-                    )}
+                  <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center bg-green-100">
+                    <CheckCircle className="w-10 h-10 text-green-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
                     {quizResults?.passed ? 'Congratulations!' : 'Quiz Completed'}
@@ -2025,20 +2048,20 @@ Your unique skills and perspective will be invaluable as we work towards our sha
                   </p>
                   <button
                     onClick={handleAcknowledge}
-                    disabled={progressLoading || userProgress?.acknowledged || !content?.ackRequired}
+                    disabled={acknowledgeLoading || userProgress?.acknowledged || !content?.ackRequired}
                     className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
                       !content?.ackRequired
                         ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
                         : userProgress?.acknowledged
                           ? 'bg-green-50 text-green-700 border border-green-200 cursor-not-allowed'
-                          : progressLoading
+                          : acknowledgeLoading
                             ? 'bg-green-400 text-white cursor-not-allowed'
                             : 'bg-green-600 text-white hover:bg-green-700'
                     }`}
                   >
                     {!content?.ackRequired ? (
                       'Acknowledgment Not Required'
-                    ) : progressLoading ? (
+                    ) : acknowledgeLoading ? (
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         Processing...
@@ -2067,16 +2090,38 @@ Your unique skills and perspective will be invaluable as we work towards our sha
                   </p>
                   <button
                     onClick={handleComplete}
-                    disabled={progressLoading || userProgress?.status === 'completed'}
+                    disabled={completeLoading || userProgress?.status === 'completed'}
                     className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
                       userProgress?.status === 'completed'
                         ? 'bg-blue-50 text-blue-700 border border-blue-200 cursor-not-allowed'
-                        : progressLoading
-                          ? 'bg-blue-400 text-white cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                        : (content?.ackRequired && !userProgress?.acknowledged) ||
+                          (content?.quiz && content.quiz.questions && content.quiz.questions.length > 0 && 
+                           (userProgress?.score === null || userProgress?.score === undefined))
+                          ? 'bg-gray-300 text-gray-500 border border-gray-200 cursor-not-allowed'
+                          : completeLoading
+                            ? 'bg-blue-400 text-white cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
+                    title={
+                      userProgress?.status === 'completed'
+                        ? 'Content is already completed'
+                        : (() => {
+                            const needsAck = content?.ackRequired && !userProgress?.acknowledged;
+                            const needsQuiz = content?.quiz && content.quiz.questions && content.quiz.questions.length > 0 && 
+                                            (userProgress?.score === null || userProgress?.score === undefined);
+                            
+                            if (needsAck && needsQuiz) {
+                              return 'You must acknowledge this content and take the quiz before marking it as complete.';
+                            } else if (needsAck) {
+                              return 'You must acknowledge this content before marking it as complete.';
+                            } else if (needsQuiz) {
+                              return 'You must take the quiz before marking this content as complete.';
+                            }
+                            return undefined;
+                          })()
+                    }
                   >
-                    {progressLoading ? (
+                    {completeLoading ? (
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         Processing...

@@ -7,6 +7,50 @@ import Trainee from '../models/Trainee.js';
 // Helper to read "Authorization: Bearer <token>"
 const readBearer = (req) => req.header('Authorization')?.replace('Bearer ', '');
 
+// Helper to handle JWT errors consistently
+const handleJWTError = (error, context = 'Authentication') => {
+  // Handle token expiration specifically
+  if (error.name === 'TokenExpiredError') {
+    // Only log once per minute per context to reduce log spam
+    const logKey = `${context}LastExpiredLog`;
+    const now = Date.now();
+    if (!handleJWTError[logKey] || now - handleJWTError[logKey] > 60000) {
+      console.warn(`${context} error: Token expired. User needs to re-authenticate.`);
+      handleJWTError[logKey] = now;
+    }
+    return {
+      status: 401,
+      response: {
+        success: false,
+        message: 'Your session has expired. Please log in again.',
+        expired: true
+      }
+    };
+  }
+  
+  // Handle other JWT errors
+  if (error.name === 'JsonWebTokenError' || error.name === 'NotBeforeError') {
+    console.error(`${context} error:`, error.name, error.message);
+    return {
+      status: 401,
+      response: {
+        success: false,
+        message: 'Invalid token. Please log in again.'
+      }
+    };
+  }
+  
+  // Handle other errors
+  console.error(`${context} error:`, error.name, error.message);
+  return {
+    status: 401,
+    response: {
+      success: false,
+      message: 'Authentication failed.'
+    }
+  };
+};
+
 // ======================= ADMIN =======================
 export const requireAdmin = async (req, res, next) => {
   try {
@@ -16,6 +60,23 @@ export const requireAdmin = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
+      });
+    }
+
+    // Validate token format before attempting to verify
+    if (typeof token !== 'string' || token.trim() === '' || token === 'null' || token === 'undefined') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token format. Please log in again.'
+      });
+    }
+
+    // Check if token looks like a JWT (has 3 parts separated by dots)
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token format. Please log in again.'
       });
     }
 
@@ -47,11 +108,8 @@ export const requireAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error (Admin):', error.name, error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token.'
-    });
+    const errorResponse = handleJWTError(error, 'Authentication error (Admin)');
+    return res.status(errorResponse.status).json(errorResponse.response);
   }
 };
 
@@ -93,11 +151,8 @@ export const authenticateWebOwner = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error (WebOwner):', error.name, error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token.'
-    });
+    const errorResponse = handleJWTError(error, 'Authentication error (WebOwner)');
+    return res.status(errorResponse.status).json(errorResponse.response);
   }
 };
 
@@ -140,11 +195,8 @@ export const requireSupervisor = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error (Supervisor):', error.name, error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token.'
-    });
+    const errorResponse = handleJWTError(error, 'Authentication error (Supervisor)');
+    return res.status(errorResponse.status).json(errorResponse.response);
   }
 };
 
@@ -199,11 +251,8 @@ export const requireAdminOrSupervisor = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error (Admin/Supervisor):', error.name, error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token.'
-    });
+    const errorResponse = handleJWTError(error, 'Authentication error (Admin/Supervisor)');
+    return res.status(errorResponse.status).json(errorResponse.response);
   }
 };
 
@@ -248,11 +297,8 @@ export const requireTrainee = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error (Trainee):', error.name, error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token.'
-    });
+    const errorResponse = handleJWTError(error, 'Authentication error (Trainee)');
+    return res.status(errorResponse.status).json(errorResponse.response);
   }
 };
 
@@ -280,10 +326,7 @@ export const authenticate = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error (General):', error.name, error.message);
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token.'
-    });
+    const errorResponse = handleJWTError(error, 'Authentication error (General)');
+    return res.status(errorResponse.status).json(errorResponse.response);
   }
 };

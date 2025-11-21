@@ -305,36 +305,6 @@ export default function TraineeChat() {
         </button>
       </div>
 
-      {/* Chat Header */}
-      <div className="chat-page-header" style={{ 
-        padding: '1.5rem', 
-        background: 'linear-gradient(135deg, #0b2b5a 0%, #173a72 100%)',
-        borderRadius: '0.75rem',
-        marginBottom: '1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 4px 20px rgba(11, 43, 90, 0.2)'
-      }}>
-        <div className="chat-header-info" style={{ flex: 1 }}>
-          <h1 className="chat-page-title" style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600', color: '#ffffff', marginBottom: '0.5rem' }}>
-            {supervisorInfo ? `${supervisorInfo.fname} ${supervisorInfo.lname}` : 'Supervisor'}
-          </h1>
-          {supervisorInfo?.email && (
-            <p className="chat-header-email" style={{ margin: 0, fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-              {supervisorInfo.email}
-            </p>
-          )}
-        </div>
-        <div className="chat-connection-status">
-          {socketConnected ? (
-            <span className="status-indicator status-connected" title="Connected" style={{ color: '#10b981', fontSize: '1.25rem' }}>●</span>
-          ) : (
-            <span className="status-indicator status-disconnected" title="Disconnected" style={{ color: '#ef4444', fontSize: '1.25rem' }}>○</span>
-          )}
-        </div>
-      </div>
-
       {/* Chat Container */}
       <div className="chat-container-full" style={{ 
         display: 'flex', 
@@ -347,6 +317,46 @@ export default function TraineeChat() {
         overflow: 'hidden',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
       }}>
+        {/* Supervisor Name Header inside chat card */}
+        <div style={{ 
+          padding: '1.5rem 1.5rem 1rem 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #e2e8f0',
+          background: '#ffffff',
+          margin: '-1px -1px 0 -1px',
+          borderRadius: '0.75rem 0.75rem 0 0'
+        }}>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '1.5rem', 
+              fontWeight: '600', 
+              color: '#0b2f55', 
+              marginBottom: '0.25rem' 
+            }}>
+              {supervisorInfo ? `${supervisorInfo.fname} ${supervisorInfo.lname}` : 'Supervisor'}
+            </h1>
+            {supervisorInfo?.email && (
+              <p style={{ 
+                margin: 0, 
+                fontSize: '0.875rem', 
+                color: '#475569' 
+              }}>
+                {supervisorInfo.email}
+              </p>
+            )}
+          </div>
+          <div className="chat-connection-status">
+            {socketConnected ? (
+              <span className="status-indicator status-connected" title="Connected" style={{ color: '#10b981', fontSize: '1.25rem' }}>●</span>
+            ) : (
+              <span className="status-indicator status-disconnected" title="Disconnected" style={{ color: '#ef4444', fontSize: '1.25rem' }}>○</span>
+            )}
+          </div>
+        </div>
+
         {/* Messages Area */}
         <div className="chat-messages" style={{
           flex: 1,
@@ -354,7 +364,8 @@ export default function TraineeChat() {
           padding: '1.5rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1rem'
+          gap: '1rem',
+          backgroundColor: '#f8fafc'
         }}>
           {messages.length === 0 ? (
             <div className="chat-empty" style={{
@@ -416,23 +427,35 @@ export default function TraineeChat() {
             disabled={!newMessage.trim() || sending || loading}
             title="Send message"
             style={{
-              padding: '0.75rem 1.5rem',
-              background: 'linear-gradient(135deg, #0b2b5a 0%, #173a72 100%)',
-              color: '#ffffff',
-              border: 'none',
+              padding: '0.75rem',
+              background: 'transparent',
+              border: '2px solid #e0f2fe',
               borderRadius: '0.5rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1rem',
+              width: '48px',
+              height: '48px',
               transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(11, 43, 90, 0.2)'
+              color: '#0b2f55'
             }}
-            onMouseEnter={(e) => !e.target.disabled && (e.target.style.background = 'linear-gradient(135deg, #173a72 0%, #1e4a8a 100%)')}
-            onMouseLeave={(e) => !e.target.disabled && (e.target.style.background = 'linear-gradient(135deg, #0b2b5a 0%, #173a72 100%)')}
+            onMouseEnter={(e) => {
+              if (!e.target.disabled) {
+                e.target.style.borderColor = '#60a5fa';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(96, 165, 250, 0.2)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!e.target.disabled) {
+                e.target.style.borderColor = '#e0f2fe';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }
+            }}
           >
-            <FiSend />
+            <FiSend size={20} />
           </button>
         </form>
       </div>
