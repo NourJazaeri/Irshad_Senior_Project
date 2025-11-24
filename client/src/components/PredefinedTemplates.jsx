@@ -158,7 +158,13 @@ const PredefinedTemplates = ({ onTemplateSelect, onClose, onTemplateSaved }) => 
     <div className="template-library">
       {/* Template Grid Container */}
       <main className="container mx-auto" style={{ margin: '0', padding: '20px 12px', maxWidth: '1800px' }}>
-        <div style={{ background: '#f9fafc', padding: '32px', borderRadius: '12px' }}>
+        <div style={{ 
+          background: 'white', 
+          padding: '20px', 
+          borderRadius: '12px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        }}>
           {/* Breadcrumb - only show if not in group context */}
           {!inGroupContext && (
             <div className="mb-6" style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>

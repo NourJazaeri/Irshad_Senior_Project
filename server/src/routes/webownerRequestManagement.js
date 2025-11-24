@@ -60,35 +60,31 @@ const approveRequest = async (req, res) => {
       return res.status(404).json({ ok: false, error: "Request not found or already processed" });
     }
 
-    console.log('📋 Found registration request:', rr._id);
-
     const c = rr.application.company;
     const a = rr.application.admin;
 
-    // Extract admin info from your data structure
-    const adminEmail = a.email || a.loginEmail || a.LoginEmail;
-    const adminPassword = a.password || a.passwordHash;
+    // Extract admin info from your data structure (check all possible field names)
+    const adminEmail = (a.LoginEmail || a.loginEmail || a.email || '').toLowerCase().trim();
+    const adminPassword = a.passwordHash || a.password;
 
-    console.log('👤 Admin info:', { email: adminEmail, hasPassword: !!adminPassword });
+    if (!adminEmail) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Cannot approve registration: Admin email is missing from the registration request." 
+      });
+    }
 
-    // Create/find employee first to get the employee ID
+    // Find existing employee by email (case-insensitive search)
     const employeeCollection = mongoose.default.connection.db.collection('Employee');
-    let employee = await employeeCollection.findOne({ email: adminEmail });
+    const employee = await employeeCollection.findOne({ 
+      email: { $regex: new RegExp(`^${adminEmail}$`, 'i') } 
+    });
     
     if (!employee) {
-      employee = {
-        _id: new mongoose.default.Types.ObjectId(),
-        fname: a.firstName || "Unknown",
-        lname: a.lastName || "Unknown",
-        email: adminEmail,
-        phone: a.phone || "",
-        position: "Admin",
-        ObjectCompanyID: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      await employeeCollection.insertOne(employee);
-      console.log('✅ Created employee:', employee._id);
+      return res.status(400).json({ 
+        ok: false, 
+        error: `Cannot approve registration: Admin email "${adminEmail}" does not correspond to any existing employee in the system. Please ensure the employee exists before approving.` 
+      });
     }
 
     // Create/find admin user using direct collection access
@@ -96,20 +92,24 @@ const approveRequest = async (req, res) => {
     let adminUser = await adminCollection.findOne({ loginEmail: adminEmail });
     
     if (!adminUser) {
+      const adminId = new mongoose.default.Types.ObjectId();
+      const employeeObjectId = employee._id instanceof mongoose.default.Types.ObjectId 
+        ? employee._id 
+        : new mongoose.default.Types.ObjectId(employee._id);
+      
       adminUser = {
-        _id: new mongoose.default.Types.ObjectId(),
+        _id: adminId,
         loginEmail: adminEmail,
         passwordHash: adminPassword,
-        EmpObjectUserID: employee._id  // Foreign key pointing to Employee._id
+        EmpObjectUserID: employeeObjectId
       };
       await adminCollection.insertOne(adminUser);
-      console.log('✅ Created admin user with minimal fields:', adminUser._id);
-      console.log('📧 Admin email:', adminEmail);
-      console.log('🔗 Admin linked to employee ID:', employee._id);
-      console.log('🔐 Password hash stored:', !!adminPassword);
     }
 
-    // Employee was already created above
+    // Ensure adminUser._id is a proper ObjectId for company creation
+    const adminObjectId = adminUser._id instanceof mongoose.default.Types.ObjectId 
+      ? adminUser._id 
+      : new mongoose.default.Types.ObjectId(adminUser._id);
 
     // Create company using direct collection access
     const companyCollection = mongoose.default.connection.db.collection('Company');
@@ -124,18 +124,39 @@ const approveRequest = async (req, res) => {
       linkedin: c.linkedIn || "",
       size: c.size,
       logoUrl: c.logoUrl ? `/uploads/${c.logoUrl}` : "",
-      ObjectRegReqID: rr._id,
-      AdminUserObjectID: adminUser._id,  // Only this field for admin reference
+      ObjectRegReqID: rr._id instanceof mongoose.default.Types.ObjectId 
+        ? rr._id 
+        : new mongoose.default.Types.ObjectId(rr._id),
+      AdminObjectUserID: adminObjectId,  // Ensure proper ObjectId type
       createdAt: new Date(),
       updatedAt: new Date()
     };
     await companyCollection.insertOne(companyDoc);
-    console.log('✅ Created company:', companyDoc._id);
 
-    // Update employee with company ID
+    // Link ALL employees with matching company name to the new company
+    const companyName = c.name.trim();
+    const updateResult = await employeeCollection.updateMany(
+      { 
+        companyName: { $regex: new RegExp(`^${companyName}$`, 'i') } // Case-insensitive match
+      },
+      { 
+        $set: { 
+          ObjectCompanyID: companyDoc._id,
+          companyName: c.name, // Ensure company name is set consistently
+          updatedAt: new Date()
+        } 
+      }
+    );
+    // Ensure admin's employee record is linked (double-check)
     await employeeCollection.updateOne(
       { _id: employee._id },
-      { $set: { ObjectCompanyID: companyDoc._id, updatedAt: new Date() } }
+      { 
+        $set: { 
+          ObjectCompanyID: companyDoc._id,
+          companyName: c.name,
+          updatedAt: new Date() 
+        } 
+      }
     );
 
     // Update registration request
@@ -151,8 +172,6 @@ const approveRequest = async (req, res) => {
         }
       }
     );
-
-    console.log('✅ Registration request approved successfully');
 
     res.json({
       ok: true,
@@ -184,8 +203,6 @@ const rejectRequest = async (req, res) => {
       return res.status(404).json({ ok: false, error: "Request not found or already processed" });
     }
 
-    console.log('❌ Rejecting registration request:', rr._id);
-
     // Update registration request
     await collection.updateOne(
       { _id: rr._id },
@@ -198,8 +215,6 @@ const rejectRequest = async (req, res) => {
         }
       }
     );
-
-    console.log('✅ Registration request rejected successfully');
 
     res.json({ 
       ok: true, 

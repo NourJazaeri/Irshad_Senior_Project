@@ -74,15 +74,15 @@ export default function CompanyDetails() {
           </span>
         </div>
 
-        {/* Header Section */}
+      {/* Header Section */}
         <div className="wo-details__header" style={{ marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid #e5e7eb' }}>
-          <div className="wo-header__left">
-            <h1 className="wo-company-title">{doc.name}</h1>
-          </div>
-          <div className="wo-header__right">
-            <span className="wo-badge wo-badge--green">Active Company</span>
-          </div>
+        <div className="wo-header__left">
+          <h1 className="wo-company-title">{doc.name}</h1>
         </div>
+        <div className="wo-header__right">
+          <span className="wo-badge wo-badge--green">Active Company</span>
+        </div>
+      </div>
 
       {/* Company Summary Card */}
       <div className="wo-details-card" style={{ marginBottom: '24px' }}>

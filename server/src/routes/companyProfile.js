@@ -68,37 +68,54 @@ router.post("/upload", requireAdmin, upload.single('companyLogo'), async (req, r
  */
 router.get("/me", requireAdmin, async (req, res) => {
   try {
-    const adminId = req.user.id; // from JWT
-    console.log("🔍 Admin ID from JWT:", adminId);
+    const adminId = req.user.id; // from JWT (this is admin._id from middleware)
+    const adminObjectId = typeof adminId === 'string' ? new Types.ObjectId(adminId) : adminId;
 
-    const company = await Company.findOne({ AdminObjectUserID: adminId }).lean();
-    console.log("🔍 Company found:", company);
+    // Try lookup strategies in order of likelihood
+    let company = await Company.findOne({ AdminObjectUserID: adminObjectId }).lean();
+    
+    // If not found, try alternative field names (backward compatibility)
+    if (!company) {
+      // Try with old field names or string comparison
+      const fallbackQueries = [
+        { AdminUserObjectID: adminObjectId },
+        { adminUserID: adminObjectId }
+      ];
+      
+      // If adminId was a string, also try string comparison
+      if (typeof adminId === 'string') {
+        fallbackQueries.push({ AdminObjectUserID: adminId });
+      }
+      
+      company = await Company.findOne({ $or: fallbackQueries }).lean();
+      
+      // Auto-fix if found with old field name
+      if (company && company.AdminUserObjectID) {
+        await Company.updateOne(
+          { _id: company._id },
+          { $set: { AdminObjectUserID: adminObjectId }, $unset: { AdminUserObjectID: "" } }
+        );
+        company.AdminObjectUserID = adminObjectId;
+        delete company.AdminUserObjectID;
+      }
+    }
 
     if (!company) {
-      console.log("❌ No company found for admin ID:", adminId);
       return res.status(404).json({
         message: "Company not found for this admin",
-        adminId: adminId,
-        debug: "Check if AdminObjectUserID in Company table matches this admin ID"
+        adminId: adminId.toString()
       });
     }
 
-    // Get admin data from Admin table
+    // Get admin and employee data
     const admin = await Admin.findById(adminId).lean();
-    console.log("🔍 Admin found:", admin);
-
-    // Get employee data for firstName and lastName
     let employee = null;
-    if (admin && admin.EmpObjectUserID) {
+    if (admin?.EmpObjectUserID) {
       employee = await mongoose.connection.db.collection('Employee').findOne({
         _id: admin.EmpObjectUserID
       });
-      console.log("🔍 Employee found:", employee);
     }
-
-    console.log("✅ Company found for admin:", company.name);
     
-    // Always include admin data, even if admin is null
     const adminData = admin ? {
       firstName: employee?.fname || admin.firstName || 'Admin',
       lastName: employee?.lname || admin.lastName || 'User',
@@ -108,8 +125,6 @@ router.get("/me", requireAdmin, async (req, res) => {
       lastName: 'User', 
       email: 'admin@company.com'
     };
-    
-    console.log("📤 Sending admin data:", adminData);
     
     res.json({ 
       ok: true, 
@@ -130,8 +145,9 @@ router.get("/me", requireAdmin, async (req, res) => {
 router.put("/me", requireAdmin, async (req, res) => {
   try {
     const adminId = req.user.id;
+    const adminObjectId = typeof adminId === 'string' ? new Types.ObjectId(adminId) : adminId;
 
-    // whitelist editable fields
+    // Whitelist editable fields
     const allowed = {};
     for (const k of [
       "name", "CRN", "industry", "description",
@@ -140,10 +156,8 @@ router.put("/me", requireAdmin, async (req, res) => {
       if (typeof req.body[k] !== "undefined") allowed[k] = req.body[k];
     }
 
-    // Keep branches as string - no conversion needed
-
     const company = await Company.findOneAndUpdate(
-      { AdminObjectUserID: adminId },
+      { AdminObjectUserID: adminObjectId },
       { $set: allowed },
       { new: true, runValidators: true }
     );

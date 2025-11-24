@@ -213,40 +213,40 @@ export default function PendingCompanyRegistrations() {
     <div className="wo-details-container" style={{ maxWidth: '100%', padding: '0 16px' }}>
       {/* Main Container Card */}
       <div className="wo-details-card" style={{ padding: '32px', marginBottom: '24px', width: '100%' }}>
-        {/* Tabs */}
+      {/* Tabs */}
         <div className="wo-tabs">
-          <button 
+        <button 
             className={`wo-tab ${activeTab === 'pending' ? 'wo-tab--active' : ''}`}
-            data-status="pending"
-            onClick={() => setActiveTab('pending')}
-          >
-            Pending
-          </button>
-          <button 
+          data-status="pending"
+          onClick={() => setActiveTab('pending')}
+        >
+          Pending
+        </button>
+        <button 
             className={`wo-tab ${activeTab === 'approved' ? 'wo-tab--active' : ''}`}
-            data-status="approved"
-            onClick={() => setActiveTab('approved')}
-          >
-            Approved
-          </button>
-          <button 
+          data-status="approved"
+          onClick={() => setActiveTab('approved')}
+        >
+          Approved
+        </button>
+        <button 
             className={`wo-tab ${activeTab === 'rejected' ? 'wo-tab--active' : ''}`}
-            data-status="rejected"
-            onClick={() => setActiveTab('rejected')}
-          >
-            Rejected
-          </button>
-        </div>
+          data-status="rejected"
+          onClick={() => setActiveTab('rejected')}
+        >
+          Rejected
+        </button>
+      </div>
 
-        {items.length === 0 ? (
+      {items.length === 0 ? (
           <div className="reg-meta" style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>No {activeTab} requests.</div>
-        ) : (
-          <div className="reg-list">
-            {items.map((r) => (
-              <Card key={r._id} req={r} />
-            ))}
-          </div>
-        )}
+      ) : (
+        <div className="reg-list">
+          {items.map((r) => (
+            <Card key={r._id} req={r} />
+          ))}
+        </div>
+      )}
       </div>
     </div>
   );

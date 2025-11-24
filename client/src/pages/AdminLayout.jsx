@@ -24,12 +24,7 @@ export default function AdminLayout() {
           minHeight: 'calc(100vh - 200px)',
           padding: '0'
         }}>
-          <div style={{
-            maxWidth: '1800px',
-            margin: '0 auto',
-            width: '100%',
-            padding: '40px 20px'
-          }}>
+          <div className="admin-content-inner">
             {/* page content from child routes */}
             <Outlet />
           </div>

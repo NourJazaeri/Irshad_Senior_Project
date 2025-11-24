@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import Department from "../models/Department.js";
 import Employee from "../models/Employees.js";
 import { requireAdmin } from "../middleware/authMiddleware.js";
@@ -77,21 +78,167 @@ router.post("/", requireAdmin, async (req, res) => {
       return res.status(400).json({ ok: false, error: "Missing department name or company ID" });
     }
 
-    const exists = await Department.findOne({ departmentName, ObjectCompanyID: companyId });
+    // Check if department already exists for this company
+    const exists = await Department.findOne({ 
+      departmentName: departmentName.trim(), 
+      ObjectCompanyID: companyId 
+    });
     if (exists) {
-      return res.status(400).json({ ok: false, error: "Department already exists" });
+      return res.status(400).json({ ok: false, error: "Department already exists for this company" });
     }
 
-    const department = await Department.create({
-      departmentName,
-      ObjectCompanyID: companyId,
-      AdminObjectUserID: adminId,
-    });
+    let department;
+    try {
+      // Ensure companyId is converted to ObjectId
+      const companyObjectId = typeof companyId === 'string' 
+        ? new mongoose.Types.ObjectId(companyId) 
+        : companyId;
+      
+      department = await Department.create({
+        departmentName: departmentName.trim(),
+        ObjectCompanyID: companyObjectId,
+        AdminObjectUserID: adminId,
+      });
+      
+      console.log(`\n✅ Department created successfully:`);
+      console.log(`   Name: "${department.departmentName}"`);
+      console.log(`   ID: ${department._id}`);
+      console.log(`   Company ID: ${department.ObjectCompanyID} (type: ${typeof department.ObjectCompanyID})`);
+    } catch (createError) {
+      // Handle duplicate key error (old index might still exist)
+      if (createError.code === 11000) {
+        // Check if it's a duplicate within the same company
+        const duplicateCheck = await Department.findOne({ 
+          departmentName: departmentName.trim(), 
+          ObjectCompanyID: companyId 
+        });
+        if (duplicateCheck) {
+          return res.status(400).json({ ok: false, error: "Department already exists for this company" });
+        }
+        // If it's a duplicate across companies, provide helpful error
+        return res.status(400).json({ 
+          ok: false, 
+          error: "A department with this name already exists. Please use a different name or contact support to update the database indexes." 
+        });
+      }
+      throw createError; // Re-throw if it's a different error
+    }
 
-    res.status(201).json({ ok: true, department });
+    // Link all employees with matching department name AND company ID (case-insensitive) to the new department
+    // Use the department's ObjectCompanyID to ensure consistency
+    const trimmedDeptName = departmentName.trim();
+    const escapedDeptName = trimmedDeptName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const deptCompanyId = department.ObjectCompanyID; // Use the department's company ID (already ObjectId)
+    
+    console.log(`\n🔍 ===== EMPLOYEE LINKING PROCESS =====`);
+    console.log(`📝 Department created: "${trimmedDeptName}"`);
+    console.log(`🏢 Department Company ID: ${deptCompanyId} (${deptCompanyId.constructor.name})`);
+    console.log(`🆔 Department ID: ${department._id}`);
+    console.log(`🔎 Searching for employees with:`);
+    console.log(`   - depName matching: "${trimmedDeptName}" (case-insensitive, trimmed)`);
+    console.log(`   - ObjectCompanyID: ${deptCompanyId}`);
+    
+    let linkedCount = 0;
+    try {
+      // First, let's check what employees exist with this company ID
+      const allCompanyEmployees = await Employee.find({ ObjectCompanyID: deptCompanyId })
+        .select('_id email fname lname depName ObjectCompanyID')
+        .lean();
+      
+      console.log(`\n📊 Total employees in company: ${allCompanyEmployees.length}`);
+      if (allCompanyEmployees.length > 0) {
+        console.log(`   Employee depNames in company:`);
+        allCompanyEmployees.forEach(emp => {
+          console.log(`     - ${emp.fname} ${emp.lname}: depName="${emp.depName || '(empty)'}"`);
+        });
+      }
+
+      // Find employees matching the criteria
+      // First try with regex (handles case-insensitive matching)
+      const matchingEmployees = await Employee.find({
+        $and: [
+          { ObjectCompanyID: deptCompanyId }, // Must be in the same company (ObjectId comparison)
+          { depName: { $exists: true } },
+          { depName: { $ne: null } },
+          { depName: { $ne: '' } },
+          { depName: { $regex: new RegExp(`^${escapedDeptName}$`, 'i') } } // Case-insensitive match
+        ]
+      }).select('_id email fname lname depName ObjectCompanyID').lean();
+
+      console.log(`\n📋 Found ${matchingEmployees.length} employee(s) matching criteria`);
+      if (matchingEmployees.length > 0) {
+        console.log(`   Matching employees:`);
+        matchingEmployees.forEach(emp => {
+          console.log(`     - ${emp.fname} ${emp.lname} (${emp.email})`);
+          console.log(`       depName: "${emp.depName}"`);
+          console.log(`       ObjectCompanyID: ${emp.ObjectCompanyID} (${emp.ObjectCompanyID?.constructor?.name || 'unknown'})`);
+        });
+      } else {
+        console.log(`   ⚠️  No employees matched. Checking why...`);
+        // Check if any employees have similar depName
+        const similarEmployees = await Employee.find({
+          ObjectCompanyID: deptCompanyId,
+          depName: { $exists: true, $ne: null, $ne: '' }
+        }).select('_id email fname lname depName ObjectCompanyID').lean();
+        
+        if (similarEmployees.length > 0) {
+          console.log(`   Employees with depName in this company:`);
+          similarEmployees.forEach(emp => {
+            const empDepNameTrimmed = emp.depName ? emp.depName.trim() : '';
+            const deptNameLower = trimmedDeptName.toLowerCase();
+            const empDepNameLower = empDepNameTrimmed.toLowerCase();
+            const matches = empDepNameLower === deptNameLower;
+            console.log(`     - ${emp.fname} ${emp.lname}: depName="${emp.depName}" -> trimmed="${empDepNameTrimmed}" ${matches ? '✅ MATCHES' : '❌ NO MATCH'}`);
+            if (!matches) {
+              console.log(`       Expected: "${trimmedDeptName}" (lowercase: "${deptNameLower}")`);
+              console.log(`       Got: "${empDepNameTrimmed}" (lowercase: "${empDepNameLower}")`);
+            }
+          });
+        } else {
+          console.log(`   ⚠️  No employees found in this company with any depName set`);
+        }
+      }
+
+      if (matchingEmployees.length > 0) {
+        // Update all matching employees
+        const updateResult = await Employee.updateMany(
+          { 
+            $and: [
+              { ObjectCompanyID: deptCompanyId }, // Must be in the same company (ObjectId comparison)
+              { depName: { $exists: true } },
+              { depName: { $ne: null } },
+              { depName: { $ne: '' } },
+              { depName: { $regex: new RegExp(`^${escapedDeptName}$`, 'i') } } // Case-insensitive match
+            ]
+          },
+          { 
+            $set: { 
+              ObjectDepartmentID: department._id,
+              depName: trimmedDeptName // Ensure department name is set consistently
+            } 
+          }
+        );
+
+        linkedCount = updateResult.modifiedCount;
+        console.log(`\n✅ Successfully linked ${linkedCount} employee(s) to department "${trimmedDeptName}" (ID: ${department._id})`);
+        console.log(`   Employees linked:`, matchingEmployees.map(e => `${e.fname} ${e.lname} (${e.email})`).join(', '));
+        console.log(`==========================================\n`);
+      } else {
+        console.log(`\nℹ️  No employees found with depName "${trimmedDeptName}" for company ID ${deptCompanyId}`);
+        console.log(`==========================================\n`);
+      }
+    } catch (linkError) {
+      // If linking fails, log the error but don't fail the department creation
+      console.error("\n❌ Error linking employees to department:", linkError);
+      console.error("   Error message:", linkError.message);
+      console.error("   Error stack:", linkError.stack);
+      console.error("==========================================\n");
+    }
+
+    res.status(201).json({ ok: true, department, linkedEmployees: linkedCount });
   } catch (err) {
     console.error("Error creating department:", err);
-    res.status(500).json({ ok: false, error: "Failed to create department" });
+    res.status(500).json({ ok: false, error: "Failed to create department", details: err.message });
   }
 });
 

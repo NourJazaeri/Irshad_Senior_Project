@@ -15,6 +15,8 @@ const EmployeeSchema = new Schema(
     },
     EmpID: { type: String, unique: true },
     ObjectCompanyID: { type: Schema.Types.ObjectId, ref: "Company" },
+    companyName: { type: String, trim: true }, // Company name for quick access
+    depName: { type: String, trim: true }, // Department name for quick access and linking
     ObjectDepartmentID: {type: Schema.Types.ObjectId, ref: "Department"}
   },
   { collection: "Employee", timestamps: true }

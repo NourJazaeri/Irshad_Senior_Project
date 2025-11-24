@@ -103,7 +103,14 @@ export default function Dashboard() {
         </div>
 
         {/* Dashboard Cards - Individual containers with equal wrapper */}
-        <div className="w-full bg-white border border-gray-200 rounded-xl p-8 shadow-lg">
+        <div style={{ 
+          width: '100%',
+          background: 'white',
+          border: '1px solid #E2E8F0',
+          borderRadius: '12px',
+          padding: '20px',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
             {dashboardCards.map((card) => (
               <Card

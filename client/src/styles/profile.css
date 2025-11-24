@@ -1,8 +1,8 @@
 /* Profile Container */
 .profile-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
+  max-width: 100%; /* Use full width of parent container */
+  margin: 0;
+  padding: 0; /* Remove padding - will be handled by the white card container */
 }
 
 /* Profile Header */
@@ -124,14 +124,23 @@
 
 .profile-card-body {
   padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Form Elements */
 .profile-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure last column in grid has no right margin */
+.profile-form-grid > .profile-form-group:last-child {
+  margin-right: 0;
 }
 
 .profile-form-group {
@@ -157,13 +166,42 @@
 
 .profile-input {
   width: 100%;
-  padding: 10px 14px;
+  padding: 10px 15px;
   border: 1px solid #D1D5DB;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
   color: #1F2937;
   background: white;
   transition: all 0.2s;
+  box-sizing: border-box;
+  min-height: 42px; /* Consistent height for all inputs */
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+/* Ensure select elements match input height and styling */
+select.profile-input {
+  min-height: 42px;
+  height: 42px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+select.profile-input:disabled {
+  cursor: not-allowed;
+}
+
+/* Textarea should have same base styling but allow vertical resize */
+textarea.profile-input {
+  min-height: 100px; /* Keep textarea taller for multi-line content */
+  resize: vertical;
+  line-height: 1.5;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .profile-input:focus {
@@ -181,6 +219,15 @@
 .profile-input.read-only {
   background-color: #F3F4F6;
   border-color: #E5E7EB;
+}
+
+.profile-input[readonly] {
+  cursor: pointer;
+}
+
+.profile-input[readonly]:hover {
+  border-color: #4F46E5;
+  background-color: #F9FAFB;
 }
 
 .read-only-badge {
@@ -204,10 +251,12 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  max-width: 400px; /* Match size of other input boxes */
 }
 
 .profile-email-group .profile-input {
   flex: 1;
+  max-width: 100%;
 }
 
 /* Buttons */
@@ -280,6 +329,12 @@
   font-weight: 600;
   color: #1F2937;
   margin: 0 0 16px 0;
+}
+
+/* Logo Upload Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Responsive */

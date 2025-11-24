@@ -330,7 +330,7 @@ const UserProfile = ({ userRole }) => {
                 </button>
               </>
             ) : (
-              <button className="btn-outline" onClick={() => setEditing(true)}>
+              <button className="btn-secondary" onClick={() => setEditing(true)}>
                 Edit Email
               </button>
             )}
@@ -344,7 +344,7 @@ const UserProfile = ({ userRole }) => {
             ) : (
               <div className="password-change-form">
                 <h3>Change Password</h3>
-                <div className="profile-form-group">
+                <div className="profile-form-group" style={{ maxWidth: '400px' }}>
                   <label>Current Password</label>
                   <input
                     type="password"
@@ -355,7 +355,7 @@ const UserProfile = ({ userRole }) => {
                     placeholder="Enter current password"
                   />
                 </div>
-                <div className="profile-form-group">
+                <div className="profile-form-group" style={{ maxWidth: '400px' }}>
                   <label>New Password</label>
                   <input
                     type="password"
@@ -366,7 +366,7 @@ const UserProfile = ({ userRole }) => {
                     placeholder="Enter new password (min 8 characters)"
                   />
                 </div>
-                <div className="profile-form-group">
+                <div className="profile-form-group" style={{ maxWidth: '400px' }}>
                   <label>Confirm New Password</label>
                   <input
                     type="password"

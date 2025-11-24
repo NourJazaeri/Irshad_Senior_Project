@@ -101,7 +101,7 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
     console.log('Request body:', req.body);
     console.log('Uploaded file:', req.file);
 
-    // Check for duplicate email
+    // Check for duplicate email in registration requests
     const existingRequest = await RegistrationRequest.findOne({
       'application.admin.email': (req.body.adminEmail || '').toLowerCase()
     });
@@ -109,6 +109,17 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
     if (existingRequest) {
       return res.status(400).json({ 
         error: 'A registration request with this email already exists' 
+      });
+    }
+
+    // Check if admin email already exists in Admin table
+    const existingAdmin = await Admin.findOne({ 
+      loginEmail: (req.body.adminEmail || '').toLowerCase() 
+    });
+    
+    if (existingAdmin) {
+      return res.status(400).json({ 
+        error: 'An admin with this email already exists. Please use a different email or contact support if you need to reset your account.' 
       });
     }
 
@@ -183,7 +194,10 @@ router.post('/', upload.single('companyLogo'), async (req, res, next) => {
   }
 });
 
-// ---- APPROVE request ----
+// NOTE: Approve/Reject endpoints have been moved to webownerRequestManagement.js
+// This file now only handles creating and listing registration requests
+// 
+// ---- APPROVE request (DEPRECATED - Use /api/webowner/request-management/:id/approve instead) ----
 router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
   try {
     const rr = await RegistrationRequest.findOne({ _id: req.params.id, status: "pending" });
@@ -193,34 +207,45 @@ router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
 
     const c = rr.application.company;
     const a = rr.application.admin;
+    const companyName = c.name.trim();
 
-    // Create/find admin user
+    // STEP 1: Find existing employee by registered email (required - no new employee creation)
+    const employee = await Employee.findOne({ email: a.LoginEmail });
+    
+    // If employee not found, return error - admin must be an existing employee
+    if (!employee) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Cannot approve registration: Admin is not an employee. The admin email must correspond to an existing employee in the system." 
+      });
+    }
+    
+    console.log('✅ Found existing employee for admin:', employee._id, 'Email:', employee.email);
+    
+    // Update employee's company name if it doesn't exist or is different
+    if (!employee.companyName || employee.companyName.toLowerCase() !== companyName.toLowerCase()) {
+      employee.companyName = c.name;
+    }
+
+    // STEP 2: Create admin user with employee ID (EmpObjectUserID is required)
     let adminUser = await Admin.findOne({ loginEmail: a.LoginEmail });
     if (!adminUser) {
       adminUser = await Admin.create({
-        firstName: a.firstName || "Unknown",
-        lastName: a.lastName || "Unknown",
         loginEmail: a.LoginEmail,
-        phone: a.phone || "",
-        position: a.position || "",
         passwordHash: a.passwordHash,
+        EmpObjectUserID: employee._id, // Required: Link admin to employee
       });
+      console.log('✅ Created new admin with employee link:', adminUser._id, '->', employee._id);
+    } else {
+      // If admin exists but doesn't have employee link, update it
+      if (!adminUser.EmpObjectUserID) {
+        adminUser.EmpObjectUserID = employee._id;
+        await adminUser.save();
+        console.log('✅ Linked existing admin to employee:', adminUser._id, '->', employee._id);
+      }
     }
 
-    // Create/find employee
-    let employee = await Employee.findOne({ email: a.LoginEmail });
-    if (!employee) {
-      employee = await Employee.create({
-        fname: a.firstName || "Unknown",
-        lname: a.lastName || "Unknown",
-        email: a.LoginEmail,
-        phone: a.phone || "",
-        position: "Admin",
-        ObjectCompanyID: null,
-      });
-    }
-
-    // Create company
+    // STEP 3: Create company with admin ID (so admin can view company profile)
     const companyDoc = await Company.create({
       name: c.name,
       CRN: c.CRN,
@@ -232,12 +257,32 @@ router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
       size: c.size,
       logoUrl: c.logoUrl ? `/uploads/${c.logoUrl}` : "",
       ObjectRegReqID: rr._id,
-      AdminObjectUserID: adminUser._id,
+      AdminObjectUserID: adminUser._id, // Required: Link company to admin for profile access
     });
+    console.log('✅ Created company:', companyDoc._id, 'linked to admin:', adminUser._id);
 
-    // Update employee with company ID
-    employee.ObjectCompanyID = companyDoc._id;
-    await employee.save();
+    // STEP 4: Link ALL employees with matching company name to the new company
+    // This includes the admin's employee record and any other employees with same company name
+    const updateResult = await Employee.updateMany(
+      { 
+        companyName: { $regex: new RegExp(`^${companyName}$`, 'i') } // Case-insensitive match
+      },
+      { 
+        $set: { 
+          ObjectCompanyID: companyDoc._id,
+          companyName: c.name // Ensure company name is set consistently
+        } 
+      }
+    );
+    console.log(`✅ Linked ${updateResult.modifiedCount} employee(s) with company name "${companyName}" to company ID: ${companyDoc._id}`);
+
+    // STEP 5: Ensure admin's employee record is linked (double-check)
+    if (!employee.ObjectCompanyID || employee.ObjectCompanyID.toString() !== companyDoc._id.toString()) {
+      employee.ObjectCompanyID = companyDoc._id;
+      employee.companyName = c.name;
+      await employee.save();
+      console.log('✅ Updated admin employee record with company ID');
+    }
 
     // Update registration request
     rr.status = "approved";

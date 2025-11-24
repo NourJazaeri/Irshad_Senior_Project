@@ -150,7 +150,13 @@ export default function AdminHome() {
   };
 
   return (
-    <div style={{ background: '#f9fafc', border: '1px solid #e2e6ef', borderRadius: '10px', padding: '40px 12px', margin: '10px 8px' }}>
+    <div style={{ 
+      background: 'white', 
+      border: '1px solid #E2E8F0', 
+      borderRadius: '12px', 
+      padding: '20px',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    }}>
       <style>{`
         .modal-cancel-btn:hover {
           background: #d1d5db !important;

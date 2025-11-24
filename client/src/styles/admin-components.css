@@ -311,9 +311,23 @@ header.bg-blue-50 .w-56 {
 
 /* Admin Content */
 .admin-content {
-  padding: 18px 22px;
+  padding: 0;
   flex: 1;
   overflow-y: auto;
+}
+
+/* Admin Content Inner Container - Consistent padding regardless of sidebar state */
+.admin-content-inner {
+  max-width: 1800px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 40px 20px;
+  transition: padding 0.3s ease;
+}
+
+/* Ensure consistent spacing when sidebar is collapsed */
+.admin-shell:has(.admin-sidebar--collapsed) .admin-content-inner {
+  padding: 40px 20px; /* Same padding when collapsed */
 }
 
 /* Admin Footer */

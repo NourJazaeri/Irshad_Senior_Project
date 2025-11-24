@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Building2, Building, Globe, ExternalLink, Check, X, Save, Edit3 } from "lucide-react";
-import "../styles/admin-components.css";
-import "../styles/company-profile.css";
+import { FileText, Building2, Globe, Upload } from "lucide-react";
+import "../styles/profile.css";
 
 function CompanyProfile() {
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [editingField, setEditingField] = useState(null);
-  const [fieldValue, setFieldValue] = useState("");
-  const [savingField, setSavingField] = useState(null);
-  const [fieldStatus, setFieldStatus] = useState({});
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [editedFields, setEditedFields] = useState({});
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    CRN: '',
+    taxNo: '',
+    industry: '',
+    size: '',
+    description: '',
+    branches: '',
+    linkedin: ''
+  });
 
   // Fetch admin's company data
   useEffect(() => {
@@ -39,6 +44,16 @@ function CompanyProfile() {
         
         if (data.ok && data.company) {
           setCompany(data.company);
+          setFormData({
+            name: data.company.name || '',
+            CRN: data.company.CRN || '',
+            taxNo: data.company.taxNo || '',
+            industry: data.company.industry || '',
+            size: data.company.size || '',
+            description: data.company.description || '',
+            branches: data.company.branches || '',
+            linkedin: data.company.linkedin || ''
+          });
         } else {
           setError(data.message || 'No company found');
         }
@@ -53,59 +68,28 @@ function CompanyProfile() {
     fetchCompanyData();
   }, []);
 
-  // Deselect editing when clicking anywhere outside the active field
-  useEffect(() => {
-    const handleGlobalMouseDown = (e) => {
-      if (!editingField) return;
-      // If click is inside any editing form group, ignore
-      const isInsideEditingGroup = e.target.closest('.form-group');
-      if (isInsideEditingGroup) return;
-      // Otherwise, cancel editing
-      cancelEditing();
-    };
-
-    document.addEventListener('mousedown', handleGlobalMouseDown);
-    return () => document.removeEventListener('mousedown', handleGlobalMouseDown);
-  }, [editingField]);
-
-  // Start editing a field
-  const startEditing = (fieldName, currentValue) => {
-    setEditingField(fieldName);
-    setFieldValue(currentValue || '');
+  // Handle input changes
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
-  // Cancel editing
-  const cancelEditing = () => {
-    setEditingField(null);
-    setFieldValue('');
-    setFieldStatus({});
-  };
-
-  // Handle field value change
-  const handleFieldChange = (fieldName, value) => {
-    setFieldValue(value);
-    setEditedFields(prev => ({
-      ...prev,
-      [fieldName]: value
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  // Save all changes
-  const saveAllChanges = async () => {
+  // Save changes
+  const handleSaveChanges = async () => {
     try {
-      setSavingField('all');
+      setSaving(true);
       const token = localStorage.getItem('token');
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
       
-      // Backend route is PUT /api/company-profile/me and returns { ok, company }
       const response = await fetch(`${API_BASE}/api/company-profile/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(editedFields)
+        body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
@@ -115,12 +99,8 @@ function CompanyProfile() {
       const data = await response.json();
       if (data.ok && data.company) {
         setCompany(data.company);
-        setEditedFields({});
-        setHasUnsavedChanges(false);
-        setEditingField(null);
-        setFieldValue('');
-        setFieldStatus({});
-        alert('All changes saved successfully!');
+        setEditing(false);
+        alert('Changes saved successfully!');
       } else {
         throw new Error(data.message || 'Failed to save changes');
       }
@@ -128,73 +108,25 @@ function CompanyProfile() {
       console.error('Error saving changes:', err);
       alert('Failed to save changes. Please try again.');
     } finally {
-      setSavingField(null);
+      setSaving(false);
     }
   };
 
-  // Cancel all changes
-  const cancelAllChanges = () => {
-    setEditedFields({});
-    setHasUnsavedChanges(false);
-    setEditingField(null);
-    setFieldValue('');
-    setFieldStatus({});
-  };
-
-  // Save field changes
-  const saveField = async (fieldName) => {
-    try {
-      setSavingField(fieldName);
-      setFieldStatus(prev => ({ ...prev, [fieldName]: 'saving' }));
-
-      const token = localStorage.getItem('token');
-      const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-      
-      const updateData = { [fieldName]: fieldValue };
-      
-      const response = await fetch(`${API_BASE}/api/company-profile/me`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
+  // Cancel editing
+  const handleCancel = () => {
+    setEditing(false);
+    if (company) {
+      setFormData({
+        name: company.name || '',
+        CRN: company.CRN || '',
+        taxNo: company.taxNo || '',
+        industry: company.industry || '',
+        size: company.size || '',
+        description: company.description || '',
+        branches: company.branches || '',
+        linkedin: company.linkedin || ''
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.ok && data.company) {
-        setCompany(data.company);
-        setEditingField(null);
-        setFieldValue('');
-        setFieldStatus(prev => ({ ...prev, [fieldName]: 'saved' }));
-        
-        // Clear status after 2 seconds
-        setTimeout(() => {
-          setFieldStatus(prev => ({ ...prev, [fieldName]: null }));
-        }, 2000);
-      } else {
-        throw new Error(data.message || 'Failed to update field');
-      }
-    } catch (err) {
-      console.error('Error updating field:', err);
-      setFieldStatus(prev => ({ ...prev, [fieldName]: 'error' }));
-      
-      // Clear error status after 3 seconds
-      setTimeout(() => {
-        setFieldStatus(prev => ({ ...prev, [fieldName]: null }));
-      }, 3000);
-    } finally {
-      setSavingField(null);
     }
-  };
-
-  // Handle input changes
-  const handleInputChange = (e) => {
-    setFieldValue(e.target.value);
   };
 
   // Handle logo upload
@@ -216,10 +148,9 @@ function CompanyProfile() {
 
     try {
       setUploadingLogo(true);
-      setFieldStatus(prev => ({ ...prev, logoUrl: 'saving' }));
 
-      const formData = new FormData();
-      formData.append('companyLogo', file);
+      const uploadFormData = new FormData();
+      uploadFormData.append('companyLogo', file);
 
       const token = localStorage.getItem('token');
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -229,7 +160,7 @@ function CompanyProfile() {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-        body: formData
+        body: uploadFormData
       });
 
       if (!response.ok) {
@@ -253,12 +184,7 @@ function CompanyProfile() {
           const updateData = await updateResponse.json();
           if (updateData.ok && updateData.company) {
             setCompany(updateData.company);
-            setFieldStatus(prev => ({ ...prev, logoUrl: 'saved' }));
-            
-            // Clear status after 2 seconds
-            setTimeout(() => {
-              setFieldStatus(prev => ({ ...prev, logoUrl: null }));
-            }, 2000);
+            alert('Logo uploaded successfully!');
           }
         }
       } else {
@@ -267,12 +193,6 @@ function CompanyProfile() {
     } catch (err) {
       console.error('Error uploading logo:', err);
       alert('Failed to upload logo: ' + err.message);
-      setFieldStatus(prev => ({ ...prev, logoUrl: 'error' }));
-      
-      // Clear error status after 3 seconds
-      setTimeout(() => {
-        setFieldStatus(prev => ({ ...prev, logoUrl: null }));
-      }, 3000);
     } finally {
       setUploadingLogo(false);
       // Reset file input
@@ -280,321 +200,342 @@ function CompanyProfile() {
     }
   };
 
-  // Handle Enter key to save
-  const handleKeyPress = (e, fieldName) => {
-    if (e.key === 'Enter') {
-      saveField(fieldName);
-    } else if (e.key === 'Escape') {
-      cancelEditing();
-    }
-  };
-
-  // Render field value
-  const renderFieldValue = (fieldName, value) => {
-    const pendingValue = editedFields[fieldName];
-    const displayValue = typeof pendingValue !== 'undefined' && pendingValue !== null && String(pendingValue).length > 0
-      ? pendingValue
-      : value;
-    if (editingField === fieldName) {
-      const isTextarea = fieldName === 'description' || fieldName === 'branches';
-      
-      return (
-        <div className="form-group">
-          {isTextarea ? (
-            <textarea
-              value={fieldValue}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-              onKeyDown={(e) => handleKeyPress(e, fieldName)}
-              className="form-textarea editing"
-              rows="4"
-              autoFocus
-            />
-          ) : fieldName === 'industry' ? (
-            <select
-              value={fieldValue}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-              className="form-select editing"
-              autoFocus
-            >
-              <option value="">Select industry</option>
-              <option value="Technology">Technology</option>
-              <option value="Healthcare">Healthcare</option>
-              <option value="Finance">Finance</option>
-              <option value="Education">Education</option>
-              <option value="Manufacturing">Manufacturing</option>
-              <option value="Retail">Retail</option>
-              <option value="Construction">Construction</option>
-              <option value="Consulting">Consulting</option>
-              <option value="Other">Other</option>
-            </select>
-          ) : fieldName === 'size' ? (
-            <select
-              value={fieldValue}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-              className="form-select editing"
-              autoFocus
-            >
-              <option value="">Select size</option>
-              <option value="1-10">1-10 employees</option>
-              <option value="11-50">11-50 employees</option>
-              <option value="51-200">51-200 employees</option>
-              <option value="201-500">201-500 employees</option>
-              <option value="501-1000">501-1000 employees</option>
-              <option value="1000+">1000+ employees</option>
-            </select>
-          ) : (
-            <input
-              type={fieldName === 'linkedin' || fieldName === 'logoUrl' ? 'url' : 'text'}
-              value={fieldValue}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-              onKeyDown={(e) => handleKeyPress(e, fieldName)}
-              className="form-input editing"
-              autoFocus
-            />
-          )}
-        </div>
-      );
-    }
-
-    // Special display for LinkedIn: show clickable URL in the box (including unsaved edits)
-    if (fieldName === 'linkedin' && displayValue) {
-      const href = /^https?:\/\//i.test(displayValue) ? displayValue : `https://${displayValue}`;
-      return (
-        <div 
-          className={`form-display hoverable ${editedFields[fieldName] ? 'has-changes' : ''}`}
-          onClick={() => startEditing(fieldName, displayValue)}
-        >
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="linkedin-url"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {displayValue}
-          </a>
-          <ExternalLink className="w-5 h-5 text-primary" />
-        </div>
-      );
-    }
-
-    return (
-      <div 
-        className={`form-display hoverable ${editingField === fieldName ? 'editing' : ''} ${editedFields[fieldName] ? 'has-changes' : ''}`}
-        onClick={() => startEditing(fieldName, displayValue)}
-      >
-        {displayValue || 'Click to edit'}
-        {editedFields[fieldName] && (
-          <div className="field-indicator">
-            <Edit3 size={16} className="text-primary" />
-          </div>
-        )}
-      </div>
-    );
-  };
-
   if (loading) {
     return (
-      <div className="admin-page">
-        <div className="company-profile-loading">
-          <div className="loading-spinner"></div>
-          <h2>Loading your company profile...</h2>
-        </div>
+      <div className="profile-container">
+        <div className="profile-loading">Loading your company profile...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="admin-page">
-        <div className="company-profile-error">
-          <div className="error-icon">⚠️</div>
-          <h2>Error Loading Company Profile</h2>
-          <p className="error-message">{error}</p>
-          <p className="error-help">
-            Make sure your admin account is linked to a company.
-          </p>
-        </div>
+      <div className="profile-container">
+        <div className="profile-error">Error Loading Company Profile: {error}</div>
       </div>
     );
   }
 
   return (
-    <div className="admin-page">
-      <div className="admin-company-profile">
-        <div className="admin-company-profile-header">
-          <div className="header-content">
-            <p className="admin-company-profile-subtitle">Click on any field to edit your company information</p>
+    <div className="profile-container">
+      {/* Basic Information */}
+      <div className="profile-card">
+        <div className="profile-card-header">
+          <div className="profile-card-title">
+            <div className="profile-icon blue">
+              <FileText size={24} />
+            </div>
+            <div>
+              <h2>Basic Information</h2>
+              <p>Your company's basic details and registration information</p>
+            </div>
           </div>
         </div>
 
-        <div className="company-profile-content">
-          <div className="profile-section">
-            <h3 className="section-title">
-              <FileText className="w-6 h-6 text-primary" />
-              Basic Information
-            </h3>
-            
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">
-                  Company Name <span className="required">*</span>
-                </label>
-                {renderFieldValue('name', company?.name)}
-              </div>
+        <div className="profile-card-body">
+          <div className="profile-form-grid">
+            <div className="profile-form-group">
+              <label>
+                <FileText size={16} /> Company Name <span className="read-only-badge">Required</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+              />
+            </div>
 
-              <div className="form-group">
-                <label className="form-label">
-                  CRN (Commercial Registration Number) <span className="required">*</span>
-                </label>
-                {renderFieldValue('CRN', company?.CRN)}
-              </div>
+            <div className="profile-form-group">
+              <label>
+                <Building2 size={16} /> Industry <span className="read-only-badge">Required</span>
+              </label>
+              <select
+                name="industry"
+                value={formData.industry}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+              >
+                <option value="">Select industry</option>
+                <option value="Technology">Technology</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Finance">Finance</option>
+                <option value="Education">Education</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Retail">Retail</option>
+                <option value="Construction">Construction</option>
+                <option value="Consulting">Consulting</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
-              <div className="form-group">
-                <label className="form-label">
-                  Tax Number
-                </label>
-                {renderFieldValue('taxNo', company?.taxNo)}
-              </div>
+            <div className="profile-form-group">
+              <label>
+                <Building2 size={16} /> Branches
+              </label>
+              <input
+                type="text"
+                name="branches"
+                value={formData.branches}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+              />
+            </div>
+
+            <div className="profile-form-group" style={{ gridColumn: '1 / -1' }}>
+              <label>
+                <FileText size={16} /> Company Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+                rows="4"
+                style={{ resize: 'vertical', minHeight: '100px' }}
+              />
             </div>
           </div>
 
-          <div className="profile-section">
-            <h3 className="section-title">
-              <Building2 className="w-6 h-6 text-primary" />
-              Business Details
-            </h3>
-            
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">
-                  Industry <span className="required">*</span>
-                </label>
-                {renderFieldValue('industry', company?.industry)}
-              </div>
+          <div className="profile-actions">
+            {editing ? (
+              <>
+                <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button className="btn-secondary" onClick={handleCancel}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit Information
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-              <div className="form-group">
-                <label className="form-label">
-                  Company Size (Employees)
-                </label>
-                {renderFieldValue('size', company?.size)}
-              </div>
+      {/* Business Details */}
+      <div className="profile-card">
+        <div className="profile-card-header">
+          <div className="profile-card-title">
+            <div className="profile-icon purple">
+              <Building2 size={24} />
+            </div>
+            <div>
+              <h2>Business Details</h2>
+              <p>Information about your company's industry, size, and operations</p>
+            </div>
+          </div>
+        </div>
 
-              <div className="form-group full-width">
-                <label className="form-label">
-                  Company Description
-                </label>
-                {renderFieldValue('description', company?.description)}
-              </div>
+        <div className="profile-card-body">
+          <div className="profile-form-grid">
+            <div className="profile-form-group">
+              <label>
+                <FileText size={16} /> CRN (Commercial Registration Number) <span className="read-only-badge">Required</span>
+              </label>
+              <input
+                type="text"
+                name="CRN"
+                value={formData.CRN}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+              />
+            </div>
 
-              <div className="form-group full-width">
-                <label className="form-label">
-                  Branches
-                </label>
-                {renderFieldValue('branches', company?.branches)}
-              </div>
+            <div className="profile-form-group">
+              <label>
+                <FileText size={16} /> Tax Number
+              </label>
+              <input
+                type="text"
+                name="taxNo"
+                value={formData.taxNo}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+              />
+            </div>
+
+            <div className="profile-form-group">
+              <label>
+                <Building2 size={16} /> Company Size (Employees)
+              </label>
+              <select
+                name="size"
+                value={formData.size}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+              >
+                <option value="">Select size</option>
+                <option value="1-10">1-10 employees</option>
+                <option value="11-50">11-50 employees</option>
+                <option value="51-200">51-200 employees</option>
+                <option value="201-500">201-500 employees</option>
+                <option value="501-1000">501-1000 employees</option>
+                <option value="1000+">1000+ employees</option>
+              </select>
             </div>
           </div>
 
-          <div className="profile-section">
-            <h3 className="section-title">
-              <Globe className="w-6 h-6 text-primary" />
-              Online Presence
-            </h3>
-            
-            <div className="form-grid">
-              <div className="form-group full-width">
-                <label className="form-label">
-                  LinkedIn Profile
-                </label>
-                {company?.linkedin ? (
-                  <div>
-                    {renderFieldValue('linkedin', company.linkedin)}
-                    <a href={company.linkedin} target="_blank" rel="noopener noreferrer" className="profile-link">
-                      View LinkedIn Profile →
-                    </a>
-                  </div>
-                ) : (
-                  renderFieldValue('linkedin', company?.linkedin)
-                )}
-              </div>
+          <div className="profile-actions">
+            {editing ? (
+              <>
+                <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button className="btn-secondary" onClick={handleCancel}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit Information
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-              <div className="form-group full-width">
-                <label className="form-label">
-                  Company Logo
-                </label>
-                <div className="logo-upload-section">
-                  {company?.logoUrl && (
-                    <div className="current-logo">
+      {/* Online Presence */}
+      <div className="profile-card">
+        <div className="profile-card-header">
+          <div className="profile-card-title">
+            <div className="profile-icon green">
+              <Globe size={24} />
+            </div>
+            <div>
+              <h2>Online Presence</h2>
+              <p>Your company's online profiles and branding</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="profile-card-body">
+          <div className="profile-form-grid">
+            <div className="profile-form-group">
+              <label>
+                <Globe size={16} /> LinkedIn Profile
+              </label>
+              <input
+                type="url"
+                name="linkedin"
+                value={formData.linkedin}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className="profile-input"
+                placeholder="https://linkedin.com/company/your-company"
+              />
+            </div>
+
+            <div className="profile-form-group" style={{ gridColumn: '1 / -1' }}>
+              <label>
+                <Building2 size={16} /> Company Logo
+              </label>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/jpeg,image/png,image/gif"
+                  onChange={handleLogoUpload}
+                  style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: editing ? 'pointer' : 'not-allowed', zIndex: 1 }}
+                  disabled={uploadingLogo || !editing}
+                />
+                <div 
+                  style={{
+                    border: '2px dashed #D1D5DB',
+                    borderRadius: '12px',
+                    padding: '48px 20px',
+                    textAlign: 'center',
+                    background: '#F9FAFB',
+                    transition: 'all 0.2s',
+                    cursor: editing ? 'pointer' : 'not-allowed',
+                    opacity: editing ? 1 : 0.6,
+                    minHeight: '200px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (editing) {
+                      e.currentTarget.style.borderColor = '#4F46E5';
+                      e.currentTarget.style.background = '#F3F4F6';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (editing) {
+                      e.currentTarget.style.borderColor = '#D1D5DB';
+                      e.currentTarget.style.background = '#F9FAFB';
+                    }
+                  }}
+                >
+                  {company?.logoUrl && !uploadingLogo ? (
+                    <>
                       <img 
                         src={company.logoUrl} 
                         alt={`${company.name} logo`}
-                        className="logo-preview-img"
+                        style={{ maxWidth: '150px', maxHeight: '150px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', objectFit: 'contain', marginBottom: '12px' }}
                         onError={(e) => {
                           e.target.style.display = 'none';
                         }}
                       />
-                    </div>
+                      <p style={{ margin: 0, color: '#374151', fontSize: '14px', fontWeight: '500' }}>
+                        Click to change logo
+                      </p>
+                      <p style={{ margin: 0, color: '#6B7280', fontSize: '12px' }}>
+                        JPG, PNG, GIF - Max 5MB
+                      </p>
+                    </>
+                  ) : uploadingLogo ? (
+                    <>
+                      <div style={{ width: '48px', height: '48px', border: '3px solid rgba(79, 70, 229, 0.3)', borderTop: '3px solid #4F46E5', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '12px' }}></div>
+                      <p style={{ margin: 0, color: '#374151', fontSize: '14px', fontWeight: '500' }}>
+                        Uploading...
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={48} style={{ color: '#9CA3AF', marginBottom: '8px' }} />
+                      <p style={{ margin: 0, color: '#374151', fontSize: '14px', fontWeight: '500' }}>
+                        Upload Company Logo (Optional)
+                      </p>
+                      <p style={{ margin: 0, color: '#6B7280', fontSize: '12px' }}>
+                        JPG, PNG, GIF - Max 5MB
+                      </p>
+                    </>
                   )}
-                  
-                  <div className="upload-controls">
-                    <input
-                      type="file"
-                      id="logo-upload"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      style={{ display: 'none' }}
-                      disabled={uploadingLogo}
-                    />
-                    <label htmlFor="logo-upload" className="upload-btn">
-                      {uploadingLogo ? (
-                        <>
-                          <span className="btn-spinner"></span>
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <span className="btn-icon">📁</span>
-                          {company?.logoUrl ? 'Change Logo' : 'Upload Logo'}
-                        </>
-                      )}
-                    </label>
-                    
-                    {fieldStatus.logoUrl === 'saved' && (
-                      <span className="upload-success">✅ Logo updated successfully!</span>
-                    )}
-                    {fieldStatus.logoUrl === 'error' && (
-                      <span className="upload-error">❌ Failed to upload logo</span>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Save/Cancel Actions */}
-          {hasUnsavedChanges && (
-            <div className="profile-actions">
-              <div className="actions-container">
-                <button
-                  onClick={cancelAllChanges}
-                  className="action-btn action-btn-cancel"
-                >
-                  <X size={20} className="mr-2" />
-                  Cancel All Changes
+          <div className="profile-actions">
+            {editing ? (
+              <>
+                <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button
-                  onClick={saveAllChanges}
-                  disabled={savingField === 'all'}
-                  className="action-btn action-btn-save"
-                >
-                  <Save size={20} className="mr-2" />
-                  {savingField === 'all' ? 'Saving...' : 'Save All Changes'}
+                <button className="btn-secondary" onClick={handleCancel}>
+                  Cancel
                 </button>
-              </div>
-            </div>
-          )}
-
+              </>
+            ) : (
+              <button className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit Information
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

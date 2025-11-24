@@ -441,13 +441,12 @@ export default function UserManagement() {
   ];
 
   return (
-    <div style={{ 
-      background: '#f9fafc',
-      border: '1px solid #e2e6ef',
-      borderRadius: '10px',
-      padding: '40px 20px',
-      margin: '10px 8px',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+    <div style={{
+      padding: '20px',
+      background: 'white',
+      borderRadius: '12px',
+      border: '1px solid #E2E8F0',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
     }}>
         {/* Tab Navigation (clean, single bar) */}
         <div style={{
@@ -458,7 +457,8 @@ export default function UserManagement() {
           background: 'white',
           padding: '0 24px',
           minHeight: '56px',
-          borderRadius: '16px 16px 0 0',
+          borderRadius: '12px 12px 0 0',
+          margin: '-20px -20px 20px -20px',
         }}>
           {tabs.map(tab => (
             <button
@@ -497,12 +497,6 @@ export default function UserManagement() {
           ))}
         </div>
 
-        {/* Table container follows below */}
-        <div style={{
-          padding: '32px',
-          background: 'white',
-          borderRadius: '0 0 16px 16px',
-        }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', marginBottom: '8px' }}>
           <h2 style={{ 
             fontSize: '2rem', 
@@ -522,7 +516,6 @@ export default function UserManagement() {
           </span>
         </div>
         {renderTable(data[activeTab], activeTab)}
-        </div>
     </div>
   );
 }

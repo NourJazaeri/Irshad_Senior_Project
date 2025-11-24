@@ -58,7 +58,13 @@ const ContentManagement = () => {
   };
 
   return (
-    <div className="p-8">
+    <div style={{
+      padding: '20px',
+      background: 'white',
+      borderRadius: '12px',
+      border: '1px solid #E2E8F0',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    }}>
 
            {/* Header with Add Button */}
            <div className="flex justify-between items-center mb-8">
