@@ -1,15 +1,25 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { FiBriefcase, FiUsers, FiMapPin } from "react-icons/fi";
 
 export default function CompanyCard({ company }) {
+  const navigate = useNavigate();
   const c = company;
+  
+  const handleCardClick = () => {
+    navigate(`/owner/companies/${c._id}`);
+  };
+
   return (
-    <article className="wo-card wo-card--enhanced">
+    <article 
+      className="wo-card wo-card--enhanced wo-card--clickable" 
+      onClick={handleCardClick}
+    >
       <div className="wo-card__content">
         <div className="wo-card__header">
           {c.logoUrl && (
             <div className="wo-card__logo">
               <img 
-                src={c.logoUrl} 
+                src={c.logoUrl.startsWith('http') ? c.logoUrl : `${import.meta.env.VITE_API_BASE || 'http://localhost:5000'}${c.logoUrl}`}
                 alt={`${c.name} logo`}
                 onError={(e) => {
                   e.target.style.display = 'none';
@@ -35,17 +45,23 @@ export default function CompanyCard({ company }) {
         <div className="wo-card__details">
           <div className="wo-card__info-row">
             <div className="wo-card__info-item">
-              <span className="wo-info__icon">🏢</span>
+              <div className="wo-info__icon-container">
+                <FiBriefcase className="wo-info__icon" />
+              </div>
               <span className="wo-info__label">Industry</span>
               <span className="wo-info__value">{c.industry}</span>
             </div>
             <div className="wo-card__info-item">
-              <span className="wo-info__icon">👥</span>
+              <div className="wo-info__icon-container">
+                <FiUsers className="wo-info__icon" />
+              </div>
               <span className="wo-info__label">Size</span>
               <span className="wo-info__value">{c.size}</span>
             </div>
             <div className="wo-card__info-item">
-              <span className="wo-info__icon">🏬</span>
+              <div className="wo-info__icon-container">
+                <FiMapPin className="wo-info__icon" />
+              </div>
               <span className="wo-info__label">Branches</span>
               <span className="wo-info__value">
                 {c.branches ? 
@@ -57,13 +73,6 @@ export default function CompanyCard({ company }) {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="wo-card__actions">
-        <Link className="wo-btn wo-btn--primary" to={`/owner/companies/${c._id}`}>
-          <span className="wo-btn__ico">👁️</span>
-          View Details
-        </Link>
       </div>
     </article>
   );

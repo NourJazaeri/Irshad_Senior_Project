@@ -11,8 +11,13 @@ const router = express.Router();
  */
 router.get('/me', authenticateWebOwner, async (req, res) => {
   try {
-    const webOwnerId = req.user.id;
+    // authenticateWebOwner middleware sets both req.webOwner and req.user
+    const webOwnerId = req.webOwner?.id || req.user?.id;
+    console.log('🔍 WebOwner ID:', webOwnerId);
+    
     const webOwner = await WebOwner.findById(webOwnerId).lean();
+    console.log('🔍 WebOwner data:', webOwner);
+    
     if (!webOwner) {
       return res.status(404).json({ success: false, message: 'Web Owner not found' });
     }
@@ -23,6 +28,7 @@ router.get('/me', authenticateWebOwner, async (req, res) => {
       email: webOwner.loginEmail || null,
     };
 
+    console.log('📤 Sending payload:', payload);
     res.json({ ok: true, webOwner: payload });
   } catch (e) {
     console.error('webowner/me error:', e);

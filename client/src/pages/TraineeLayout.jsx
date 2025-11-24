@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { UnifiedSidebar } from '../components/UnifiedSidebar.jsx';
 import { UnifiedTopbar } from '../components/UnifiedTopbar.jsx';
+import '../styles/admin-components.css';
 
 const TraineeLayout = () => {
   const location = useLocation();
@@ -24,6 +25,9 @@ const TraineeLayout = () => {
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50" style={{ padding: '1.5rem' }}>
           <Outlet />
         </main>
+        <footer className="admin-footer">
+          © 2025 Irshad — Your Digital Onboarding and Training Platform
+        </footer>
       </div>
     </div>
   );

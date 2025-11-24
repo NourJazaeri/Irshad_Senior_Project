@@ -29,6 +29,23 @@ router.get('/', async (req, res, next) => {
             { $lookup: { from: 'Admin', localField: '_id', foreignField: 'companyID', as: 'admins' } },
             { $addFields: { admin: { $first: '$admins' } } },
             {
+              $addFields: {
+                logoUrl: {
+                  $cond: {
+                    if: { $and: [{ $ne: ['$logoUrl', null] }, { $ne: ['$logoUrl', ''] }] },
+                    then: {
+                      $cond: {
+                        if: { $eq: [{ $substr: ['$logoUrl', 0, 8] }, '/uploads/'] },
+                        then: '$logoUrl',
+                        else: { $concat: ['/uploads/', '$logoUrl'] }
+                      }
+                    },
+                    else: null
+                  }
+                }
+              }
+            },
+            {
               $project: {
                 name: 1, CRN: 1, industry: 1, size: 1, createdAt: 1, logoUrl: 1,
                 'admin.email': 1
@@ -56,6 +73,23 @@ router.get('/:id', async (req, res, next) => {
 
     const [doc] = await Company.aggregate([
       { $match: { _id: id } },
+      {
+        $addFields: {
+          logoUrl: {
+            $cond: {
+              if: { $and: [{ $ne: ['$logoUrl', null] }, { $ne: ['$logoUrl', ''] }] },
+              then: {
+                $cond: {
+                  if: { $eq: [{ $substr: ['$logoUrl', 0, 8] }, '/uploads/'] },
+                  then: '$logoUrl',
+                  else: { $concat: ['/uploads/', '$logoUrl'] }
+                }
+              },
+              else: null
+            }
+          }
+        }
+      },
       {
         $project: {
           name: 1, 

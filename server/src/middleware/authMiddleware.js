@@ -149,6 +149,13 @@ export const authenticateWebOwner = async (req, res, next) => {
       name: `${webOwner.fname} ${webOwner.lname}`
     };
 
+    // Also set req.user for consistency with other middleware
+    req.user = {
+      id: webOwner._id,
+      role: 'WebOwner',
+      email: webOwner.loginEmail
+    };
+
     next();
   } catch (error) {
     const errorResponse = handleJWTError(error, 'Authentication error (WebOwner)');

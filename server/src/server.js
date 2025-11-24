@@ -23,6 +23,7 @@ import supervisorGroupsRouter from './routes/supervisorGroups.js';
 import supervisorProfileRouter from './routes/supervisorProfile.js';
 import supervisorDashboardRouter from './routes/supervisorDashboard.js';
 import traineeProfileRouter from './routes/traineeProfile.js';
+import webOwnerProfileRouter from './routes/webOwnerProfile.js';
 import { requireSupervisor } from './middleware/authMiddleware.js';
 import employeesRouter from './routes/employees.js';
 import content from './routes/content.js';
@@ -239,10 +240,32 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Static uploads dir
+// Static uploads dir - serve from both possible locations
 const uploadsDir = path.join(__dirname, '../uploads');
+const srcUploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-app.use('/uploads', express.static(uploadsDir));
+if (!fs.existsSync(srcUploadsDir)) fs.mkdirSync(srcUploadsDir, { recursive: true });
+
+// Custom middleware to check both upload directories
+app.use('/uploads', (req, res, next) => {
+  const filePath = req.path.replace(/^\/+/, ''); // Remove leading slashes
+  if (!filePath) return next();
+  
+  // First try the main uploads directory
+  const mainPath = path.join(uploadsDir, filePath);
+  if (fs.existsSync(mainPath) && fs.statSync(mainPath).isFile()) {
+    return res.sendFile(path.resolve(mainPath));
+  }
+  
+  // Fallback to src/uploads directory
+  const srcPath = path.join(srcUploadsDir, filePath);
+  if (fs.existsSync(srcPath) && fs.statSync(srcPath).isFile()) {
+    return res.sendFile(path.resolve(srcPath));
+  }
+  
+  // If file doesn't exist in either location, continue to next middleware (404)
+  next();
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -269,6 +292,7 @@ app.use('/api/admin/groups', adminGroupsRouter);
 // Supervisor routes (overview + my-groups, etc.)
 app.use('/api/supervisor', requireSupervisor, supervisorGroupsRouter);
 app.use('/api/supervisor', supervisorProfileRouter);
+app.use('/api/webowner', webOwnerProfileRouter);
 app.use('/api/supervisor', supervisorDashboardRouter);
 
 // Trainee routes

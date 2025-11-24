@@ -34,6 +34,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # -------------------------------------------------
+# Load .env file (if exists)
+# -------------------------------------------------
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        logger.info(f"✅ Loaded .env file from {env_path}")
+    else:
+        parent_env = Path(__file__).parent.parent / '.env'
+        if parent_env.exists():
+            load_dotenv(parent_env)
+            logger.info(f"✅ Loaded .env file from {parent_env}")
+except ImportError:
+    logger.warning("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
+
+# -------------------------------------------------
 # Config
 # -------------------------------------------------
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -41,10 +58,6 @@ if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY environment variable must be set")
 
 MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-# Embedding model - Available options:
-# - models/text-embedding-004 (recommended, newer, better performance)
-# - models/embedding-001 (older, still supported)
-# - models/text-multilingual-embedding-002 (for multilingual support)
 EMBEDDING_MODEL = os.environ.get("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
 CSV_PATH = Path(os.environ.get("KNOWLEDGE_BASE_PATH", 
                                str(Path(__file__).parent / "majestic_realistic_knowledge_base.csv")))

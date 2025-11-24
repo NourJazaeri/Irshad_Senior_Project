@@ -481,7 +481,7 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
       category,
       contentUrl,
       youtubeVideoId,
-      isTemplate: false,
+      isTemplate: true, // Set to true when content is created from a template
       templateData,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired || false,
@@ -1168,6 +1168,7 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
       contentUrl: template.contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true || template.templateData.ackRequired === true,
+      isTemplate: true, // Set to true when content is created from a template
       assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
       assignedTo_depID: departmentIds,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,

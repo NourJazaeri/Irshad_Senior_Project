@@ -198,8 +198,9 @@ export const UnifiedSidebar = ({
               console.log(`✅ ${userType} - Parsed user data:`, userData);
               
               // Set initial state from localStorage
+              // For webOwner, don't use email as fallback - wait for API response
               const displayData = {
-                firstName: userData.firstName || formatDisplayName(userData.email),
+                firstName: userData.firstName || (userType === 'webOwner' ? '' : formatDisplayName(userData.email)),
                 lastName: userData.lastName || '',
                 email: userData.email || `${userType.toLowerCase()}@company.com`
               };
@@ -228,31 +229,43 @@ export const UnifiedSidebar = ({
           });
 
           if (!resp.ok) {
-            console.warn('Failed to fetch profile from API');
+            console.warn(`❌ ${userType} - Failed to fetch profile from API:`, resp.status, resp.statusText);
+            const errorText = await resp.text().catch(() => '');
+            console.warn('Error response:', errorText);
             return; // Keep the localStorage data
           }
 
           const data = await resp.json();
+          console.log(`📥 ${userType} - API response:`, data);
           const profileMap = {
             'trainee': data.trainee,
             'supervisor': data.supervisor,
             'webOwner': data.webOwner
           };
           const profile = profileMap[userType];
+          console.log(`👤 ${userType} - Profile data:`, profile);
           
           if (data && data.ok && profile) {
-            const displayName = profile.firstName || formatDisplayName(profile.email || userData?.email);
+            // For webOwner, ensure we use firstName and lastName from the API
+            const firstName = profile.firstName || (userData?.firstName) || '';
+            const lastName = profile.lastName || (userData?.lastName) || '';
+            
+            console.log(`✅ ${userType} - Setting name:`, { firstName, lastName });
+            
+            // Only use email fallback for non-webOwner users
+            const finalFirstName = firstName || (userType === 'webOwner' ? '' : formatDisplayName(profile.email || userData?.email || ''));
             
             setAdminData({
-              firstName: displayName || formatDisplayName(profile.email || userData?.email || ''),
-              lastName: profile.lastName || '',
+              firstName: finalFirstName,
+              lastName: lastName,
               email: profile.email || userData?.email || `${userType.toLowerCase()}@company.com`
             });
           } else if (userData) {
             // If API fails but we have localStorage data, use it
-            const displayName = userData.firstName || formatDisplayName(userData.email);
+            // For webOwner, don't use email as fallback
+            const displayName = userData.firstName || (userType === 'webOwner' ? '' : formatDisplayName(userData.email));
             setAdminData({
-              firstName: displayName || 'Trainee',
+              firstName: displayName || (userType === 'webOwner' ? '' : 'Trainee'),
               lastName: userData.lastName || '',
               email: userData.email || `${userType.toLowerCase()}@company.com`
             });
@@ -336,6 +349,15 @@ export const UnifiedSidebar = ({
   const handleLogout = async () => {
     try {
       const sessionId = localStorage.getItem('sessionId');
+      
+      // Reset chatbot conversation on logout (before clearing token)
+      try {
+        const { resetChatbot } = await import('../services/api');
+        await resetChatbot();
+      } catch (chatbotError) {
+        console.warn('Failed to reset chatbot on logout:', chatbotError);
+        // Continue with logout even if chatbot reset fails
+      }
       
       if (sessionId) {
         await logoutUser(sessionId);
@@ -477,10 +499,19 @@ export const UnifiedSidebar = ({
           <div className={cn("flex items-center", collapsed ? "justify-center py-2" : "gap-4 px-4 py-4")}> 
             <div 
               className="w-12 h-12 rounded-full bg-[#e6eef5] text-[#0A2C5C] flex items-center justify-center font-bold text-lg flex-shrink-0 relative group"
-              title={collapsed ? (userType === 'admin' ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Admin' : userType === 'trainee' ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Trainee' : userType === 'supervisor' ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || 'Supervisor' : `${config.user.name} - ${config.user.role}`) : undefined}
+              title={collapsed ? (() => {
+                if (['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) {
+                  const fullName = `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim();
+                  if (userType === 'webOwner') {
+                    return fullName || config.user.name;
+                  }
+                  return fullName || adminData.email?.split('@')[0] || (userType === 'admin' ? 'Admin' : userType === 'trainee' ? 'Trainee' : 'Supervisor');
+                }
+                return `${config.user.name} - ${config.user.role}`;
+              })() : undefined}
             >
               {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) 
-                ? (adminData.firstName?.charAt(0) || adminData.email?.charAt(0) || 'T').toUpperCase()
+                ? ((adminData.firstName?.charAt(0) || adminData.lastName?.charAt(0) || adminData.email?.charAt(0) || 'T')).toUpperCase()
                 : config.user.avatar}
               
               {/* Tooltip for collapsed state */}
@@ -488,7 +519,14 @@ export const UnifiedSidebar = ({
                 <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                   <div className="font-semibold">
                     {['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType) 
-                      ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || adminData.email?.split('@')[0] || config.user.name
+                      ? (() => {
+                          const fullName = `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim();
+                          // For webOwner, only show full name if we have it
+                          if (userType === 'webOwner') {
+                            return fullName || (adminData.firstName ? adminData.firstName : '');
+                          }
+                          return fullName || adminData.email?.split('@')[0] || config.user.name;
+                        })()
                       : config.user.name}
                   </div>
                   <div className="text-xs text-gray-300">
@@ -503,7 +541,15 @@ export const UnifiedSidebar = ({
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="text-base font-semibold truncate text-[#e6eef5]">
                   {(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) 
-                    ? `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim() || adminData.email?.split('@')[0] || config.user.name
+                    ? (() => {
+                        const fullName = `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim();
+                        // For webOwner, only show full name if we have it, otherwise show empty string (will be updated when API loads)
+                        if (userType === 'webOwner') {
+                          // Only show name if we have firstName or lastName, don't fall back to config
+                          return fullName || (adminData.firstName ? adminData.firstName : '');
+                        }
+                        return fullName || adminData.email?.split('@')[0] || config.user.name;
+                      })()
                     : config.user.name}
                 </p>
                 <p className="text-sm font-medium text-[#e6eef5]/75 truncate" title={(['admin', 'trainee', 'supervisor', 'webOwner'].includes(userType)) ? userType.charAt(0).toUpperCase() + userType.slice(1) : config.user.role}>

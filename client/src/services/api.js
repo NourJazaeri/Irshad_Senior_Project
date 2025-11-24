@@ -1303,6 +1303,33 @@ export async function sendSupervisorMessage(traineeId, message) {
   }
 }
 
+export async function resetChatbot() {
+  try {
+    const token = localStorage.getItem('token');
+    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+    
+    const response = await fetch(`${API_BASE}/api/chatbot/reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      console.warn('Failed to reset chatbot:', data.error || 'Unknown error');
+      return { success: false, error: data.error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error resetting chatbot:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function sendTraineeMessage(message) {
   try {
     const token = localStorage.getItem('token');

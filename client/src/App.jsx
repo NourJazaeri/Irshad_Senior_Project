@@ -9,7 +9,6 @@ import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
-import SupervisorHome from "./pages/SupervisorHome.jsx";
 import SupervisorCharts from "./pages/SupervisorCharts.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
@@ -85,15 +84,17 @@ export default function App() {
   const dashboardRoutes = ['/supervisor', '/trainee', '/webowner'];
   const adminRoutes = ['/admin'];
   const ownerRoutes = ['/owner'];
+  const registrationRoutes = ['/registration', '/register'];
   const isLoginRoute = loginRoutes.includes(location.pathname);
   const isDashboardRoute = dashboardRoutes.includes(location.pathname) || location.pathname.startsWith('/supervisor') || location.pathname.startsWith('/trainee');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isOwnerRoute = location.pathname.startsWith('/owner');
+  const isRegistrationRoute = registrationRoutes.includes(location.pathname);
 
   return (
     <>
       <ToastPortal />
-      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && <Navbar />}
+      {!isLoginRoute && !isDashboardRoute && !isAdminRoute && !isOwnerRoute && !isRegistrationRoute && <Navbar />}
       <Routes>
 
 
@@ -137,7 +138,6 @@ export default function App() {
           <Route index element={<SupervisorCharts />} />
           <Route path="groups" element={<SupervisorDashboard />} />
           <Route path="charts" element={<SupervisorCharts />} />
-          <Route path="home" element={<SupervisorHome />} />
           <Route path="content" element={<SupervisorContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />
           <Route path="content/:id/view" element={<ContentView />} />
@@ -181,7 +181,7 @@ export default function App() {
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />
         <Route path="/settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain dashboard settings.</p></div>} />
       </Routes>
-      {!isLoginRoute && !isAdminRoute && !isOwnerRoute && !isDashboardRoute && <Footer />}
+      {!isLoginRoute && !isAdminRoute && !isOwnerRoute && !isDashboardRoute && !isRegistrationRoute && <Footer />}
     </>
   );
 }

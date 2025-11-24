@@ -644,7 +644,6 @@ function TraineeDashboard() {
               </div>
             )}
         </>
-      )}
 
     </div>
   );

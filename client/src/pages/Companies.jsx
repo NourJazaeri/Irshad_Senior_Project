@@ -27,16 +27,15 @@ export default function CompaniesPage() {
   }, [q]);
 
   return (
-    <div>
-      <h2 className="wo-h2">Active Companies</h2>
-      <p className="wo-subtle">Monitor all registered and active companies</p>
-
-      <input
-        className="wo-search-input"
-        placeholder="Search companies…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+    <div className="wo-companies-page">
+      <div className="wo-search-container">
+        <input
+          className="wo-search-input"
+          placeholder="Search companies…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
 
       <div className="wo-list">
         {loading && <EmptyState>Loading…</EmptyState>}

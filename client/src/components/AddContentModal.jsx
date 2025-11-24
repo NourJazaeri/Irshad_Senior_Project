@@ -8,21 +8,6 @@ import { getSupervisorGroups, getSupervisorGroupDetails } from '../services/api'
 import '../styles/content-modal.css';
 import '../styles/content-modal-enhanced.css';
 
-// Content types
-const CONTENT_TYPES = {
-  FILE: 'file',
-  LINK: 'link', 
-  TEMPLATE: 'template'
-};
-
-const STEPS = {
-  UPLOAD: 1,
-  ASSIGN: 2,
-  DEADLINE: 3,
-  MCQ: 4,
-  PUBLISH: 5
-};
-
 const categories = [
     'Policy',
     'Procedure',
@@ -35,14 +20,6 @@ const categories = [
   'Resource',
   'Guidelines',
   'General',
-];
-
-const mockDepartments = [
-  { id: '1', name: 'Human Resources', memberCount: 12 },
-  { id: '2', name: 'Engineering', memberCount: 25 },
-  { id: '3', name: 'Marketing', memberCount: 8 },
-  { id: '4', name: 'Sales', memberCount: 15 },
-  { id: '5', name: 'Finance', memberCount: 6 },
 ];
 
 const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, editContent = null, templateData = null, groupId = null, traineeId = null }) => {
@@ -60,7 +37,6 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
   const [urlValidationError, setUrlValidationError] = useState('');
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [urlValidationStatus, setUrlValidationStatus] = useState(null); // 'valid', 'invalid', 'checking'
-  const [showFileReplaceConfirm, setShowFileReplaceConfirm] = useState(false);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [numQuestionsToGenerate, setNumQuestionsToGenerate] = useState(5); // Number of questions for AI generation
   const [showQuestionCountDialog, setShowQuestionCountDialog] = useState(false); // Show chat-style dialog
@@ -120,14 +96,16 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       { number: 3, label: 'Set Deadline', icon: Clock },
     ];
     
-    // In edit mode, exclude "Add MCQs" step
-    if (!editMode) {
+    // In edit mode or when completing a template, exclude "Add MCQs" step
+    const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
+    if (!editMode && !isCompletingTemplate) {
       baseSteps.push({ number: 4, label: 'Add MCQs', icon: CheckCircle });
     }
     
-    // Add Publish step (step 4 in edit mode, step 5 in create mode)
+    // Add Publish step (step 4 in edit mode or template completion, step 5 in create mode)
+    const isTemplateMode = editMode || isCompletingTemplate;
     baseSteps.push({ 
-      number: editMode ? 4 : 5, 
+      number: isTemplateMode ? 4 : 5, 
       label: 'Publish', 
       icon: Bell 
     });
@@ -612,8 +590,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       }
     }
 
-    // Validation for step 4 (MCQ step) - only in create mode
-    if (currentStep === 4 && !editMode) {
+    // Validation for step 4 (MCQ step) - only in create mode, not when completing template
+    const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
+    if (currentStep === 4 && !editMode && !isCompletingTemplate) {
       // Only validate if user has added questions
       if (formData.mcqs && formData.mcqs.length > 0) {
         const validation = validateQuestions();
@@ -624,9 +603,10 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       }
     }
 
-    // In edit mode, skip from step 3 directly to step 4 (Publish)
+    // In edit mode or template completion, skip from step 3 directly to step 4 (Publish)
     // In create mode, go from step 4 (MCQ) to step 5 (Publish)
-    const maxStep = editMode ? 4 : 5;
+    const isTemplateMode = editMode || isCompletingTemplate;
+    const maxStep = isTemplateMode ? 4 : 5;
     if (currentStep < maxStep) {
       setCurrentStep(currentStep + 1);
     }
@@ -648,8 +628,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     console.log('🚀 Full Form data:', formData);
     
     // Validate questions before publishing if they exist - only in create mode
-    // In edit mode, quizzes cannot be updated, so skip validation
-    if (!editMode && formData.mcqs && formData.mcqs.length > 0) {
+    // In edit mode or template completion, quizzes cannot be updated, so skip validation
+    const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
+    if (!editMode && !isCompletingTemplate && formData.mcqs && formData.mcqs.length > 0) {
       const validation = validateQuestions();
       if (!validation.valid) {
         showAlert('Some Quiz Questions Are Incomplete', 'Please fix the following issues with your quiz questions:\n\n' + validation.errors.join('\n\n'), '⚠️');
@@ -2028,8 +2009,11 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
           </div>
         )}
 
-        {/* Step 4: Add MCQs - Only show in create mode, not edit mode */}
-        {currentStep === 4 && !editMode && (
+        {/* Step 4: Add MCQs - Only show in create mode, not edit mode or template completion */}
+        {(() => {
+          const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
+          return currentStep === 4 && !editMode && !isCompletingTemplate;
+        })() && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -2273,8 +2257,12 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                         </div>
         )}
 
-        {/* Step 5 (or 4 in edit mode): Publish */}
-        {((!editMode && currentStep === 5) || (editMode && currentStep === 4)) && (
+        {/* Step 5 (or 4 in edit mode or template completion): Publish */}
+        {(() => {
+          const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
+          const isTemplateMode = editMode || isCompletingTemplate;
+          return ((!isTemplateMode && currentStep === 5) || (isTemplateMode && currentStep === 4));
+        })() && (
           <div className="space-y-6">
             <div className="text-center py-6">
               <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
@@ -2390,7 +2378,11 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
               Back
             </Button>
           )}
-          {((!editMode && currentStep < 5) || (editMode && currentStep < 4)) ? (
+          {(() => {
+            const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
+            const isTemplateMode = editMode || isCompletingTemplate;
+            return ((!isTemplateMode && currentStep < 5) || (isTemplateMode && currentStep < 4));
+          })() ? (
             <Button 
               onClick={handleNext}
               className="px-8 py-2.5 text-base font-medium bg-blue-600 hover:bg-blue-700 text-white"

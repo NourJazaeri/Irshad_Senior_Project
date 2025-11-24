@@ -90,11 +90,14 @@ export default function CompanyRegistration() {
     if (!formData.companySize) {
       newErrors.companySize = 'Company size is required';
     }
-    if (!formData.companyLogo) {
-      newErrors.companyLogo = 'Company logo is required';
-    }
-    if (!formData.linkedinProfileUrl.trim()) {
-      newErrors.linkedinProfileUrl = 'LinkedIn profile URL is required';
+    // Company logo is optional
+    // LinkedIn is optional, but if provided, must be a valid LinkedIn URL
+    if (formData.linkedinProfileUrl.trim()) {
+      const linkedinUrl = formData.linkedinProfileUrl.trim();
+      const urlPattern = /^https?:\/\/(www\.)?linkedin\.com\/(company|in)\/.+/i;
+      if (!urlPattern.test(linkedinUrl)) {
+        newErrors.linkedinProfileUrl = 'Please enter a valid LinkedIn profile URL (e.g., https://linkedin.com/company/your-company)';
+      }
     }
     
     setErrors(newErrors);
@@ -227,11 +230,14 @@ export default function CompanyRegistration() {
       </div>
 
       <div className="step-indicator">
-        <div className={`step ${currentStep === 1 ? 'active' : ''}`}>
-          1 Company Info
+        <div className={`step ${currentStep >= 1 ? 'active' : 'inactive'}`}>
+          <div className="step-number">1</div>
+          <span className="step-text">Company Info</span>
         </div>
-        <div className={`step ${currentStep === 2 ? 'active' : ''}`}>
-          2 Admin Info
+        <div className="step-connector"></div>
+        <div className={`step ${currentStep >= 2 ? 'active' : 'inactive'}`}>
+          <div className="step-number">2</div>
+          <span className="step-text">Admin Info</span>
         </div>
       </div>
 
@@ -359,7 +365,7 @@ export default function CompanyRegistration() {
                   {errors.companySize && <span className="error-message">{errors.companySize}</span>}
                 </div>
                 <div className="form-group">
-                  <label htmlFor="linkedinProfileUrl">LinkedIn Profile URL *</label>
+                  <label htmlFor="linkedinProfileUrl">LinkedIn Profile URL</label>
                   <input
                     type="url"
                     id="linkedinProfileUrl"
@@ -367,8 +373,7 @@ export default function CompanyRegistration() {
                     value={formData.linkedinProfileUrl}
                     onChange={handleInputChange}
                     className={errors.linkedinProfileUrl ? 'error' : ''}
-                    placeholder="https://linkedin.com/company/your-company"
-                    required
+                    placeholder="https://linkedin.com/company/your-company (optional)"
                   />
                   {errors.linkedinProfileUrl && <span className="error-message">{errors.linkedinProfileUrl}</span>}
                 </div>
@@ -376,7 +381,7 @@ export default function CompanyRegistration() {
 
               <div className="form-row">
                 <div className="form-group full-width">
-                  <label htmlFor="companyLogo">Company Logo *</label>
+                  <label htmlFor="companyLogo">Company Logo</label>
                   <div className="file-upload">
                     <input
                       type="file"
@@ -385,7 +390,6 @@ export default function CompanyRegistration() {
                       onChange={handleInputChange}
                       accept="image/*"
                       className={errors.companyLogo ? 'error' : ''}
-                      required
                     />
                     <div className="file-upload-area">
                       {formData.companyLogo ? (
@@ -401,7 +405,7 @@ export default function CompanyRegistration() {
                       ) : (
                         <>
                           <div className="upload-icon">↑</div>
-                          <p>Upload Company Logo (Required)</p>
+                          <p>Upload Company Logo (Optional)</p>
                           <p className="upload-hint">JPG, PNG, GIF - Max 5MB</p>
                         </>
                       )}
@@ -467,7 +471,7 @@ export default function CompanyRegistration() {
           <div className="form-actions">
             {currentStep === 1 ? (
               <button type="button" onClick={handleNext} className="btn-primary">
-                Next: Admin Information →
+                Next
               </button>
             ) : (
               <>

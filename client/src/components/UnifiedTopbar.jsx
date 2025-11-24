@@ -81,6 +81,10 @@ const getPageTitle = (pathname, userType) => {
       case '/owner/my-profile':
         return 'My Profile';
       default:
+        // Check if it's a company details page
+        if (pathname.match(/^\/owner\/companies\/[^/]+$/)) {
+          return 'Companies';
+        }
         return 'Platform Management';
     }
   } else if (userType === 'usageReport') {
@@ -355,6 +359,15 @@ export const UnifiedTopbar = ({
   const handleLogout = async () => {
     try {
       const sessionId = localStorage.getItem('sessionId');
+      
+      // Reset chatbot conversation on logout (before clearing token)
+      try {
+        const { resetChatbot } = await import('../services/api');
+        await resetChatbot();
+      } catch (chatbotError) {
+        console.warn('Failed to reset chatbot on logout:', chatbotError);
+        // Continue with logout even if chatbot reset fails
+      }
       
       if (sessionId) {
         await logoutUser(sessionId);
