@@ -172,15 +172,7 @@ The Python services provide AI-powered features including an intelligent chatbot
    pip install -r requirements.txt
    ```
 
-2. (Optional) Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # macOS/Linux
-   # or
-   venv\Scripts\activate     # Windows
-   ```
-
-3. Verify knowledge base file:
+2. Verify knowledge base file:
    - Ensure `majestic_realistic_knowledge_base.csv` exists in the `python/` directory
    - This CSV should contain columns: `_id, company_id, category, Question, Answer, keywords`
 
