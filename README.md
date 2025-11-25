@@ -1,8 +1,6 @@
-# Irshad
+## Project Description
 
 Irshad is a comprehensive employee and training management platform designed to streamline the learning process for modern organizations. The system facilitates company registration, role-based content management, real-time communication, and AI-powered learning assistance to help organizations effectively onboard and train their employees.
-
-## Project Description
 
 Irshad solves the challenge of managing employee onboarding and training at scale by providing a centralized platform where companies can register, organize their workforce into departments and groups, and deliver structured learning content to trainees. The platform features role-based access control, allowing different stakeholders (company admins, supervisors, and trainees) to interact with the system according to their responsibilities.
 
@@ -70,9 +68,9 @@ Web owners operate at the platform level, managing company registration requests
 
 ### Other Tools/Services
 - **Authentication**: JWT-based authentication with role-based access control
-- **File Storage**: Cloudinary for image/file hosting
+- **File Storage**: Subase for image/file hosting
 - **Email Service**: Gmail SMTP via Nodemailer
-- **Development**: ESLint, PostCSS, Autoprefixer
+  
 
 ## Client
 
@@ -94,10 +92,7 @@ Web owners operate at the platform level, managing company registration requests
    npm install
    ```
 
-3. (Optional) Configure environment variables:
-   - The client uses Vite's proxy configuration to connect to the backend
-   - Default proxy target: `http://localhost:5000`
-   - No additional environment variables required for basic development
+
 
 ### Client – Running the Client
 
@@ -106,25 +101,13 @@ Web owners operate at the platform level, managing company registration requests
 npm run dev
 ```
 
-The client will start on `http://localhost:5173` (or the next available port).
 
-**Production Build:**
-```bash
-npm run build
-```
-
-This creates an optimized production build in the `dist/` directory.
-
-**Preview Production Build:**
-```bash
-npm run preview
-```
 
 **Note**: The client is configured to proxy API requests to `http://localhost:5000` during development. Ensure the server is running for full functionality.
 
 ## Server
 
-### Server – Installation Steps
+### Server – Full Setup
 
 **Prerequisites:**
 - Node.js (v16 or higher recommended)
@@ -143,70 +126,26 @@ npm run preview
    npm install
    ```
 
-3. Set up environment variables:
-   Create a `.env` file in the `server/` directory with the following variables:
-   ```env
-   # Database
-   MONGODB_URI=mongodb://localhost:27017/irshad
-   # Or for MongoDB Atlas:
-   # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/irshad
-
-   # Server Configuration
-   PORT=5000
-   NODE_ENV=development
-   CLIENT_ORIGIN=http://localhost:5173,http://localhost:5174
-
-   # Authentication
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-
-   # Email Service (Optional - for password reset and notifications)
-   EMAIL_USER=your-email@gmail.com
-   EMAIL_PASS=your-gmail-app-password
-   ```
-
-   **Important Notes:**
-   - `JWT_SECRET`: Use a strong, random string in production
-   - `MONGODB_URI`: Replace with your actual MongoDB connection string
-   - `EMAIL_USER` and `EMAIL_PASS`: Required for email features. Use Gmail App Password (not regular password)
-   - `CLIENT_ORIGIN`: Comma-separated list of allowed frontend origins
-
-4. Create uploads directory (if it doesn't exist):
-   ```bash
-   mkdir -p uploads
-   mkdir -p src/uploads
-   ```
-
-### Server – Running the Server
-
-**Development Mode:**
+3. **Development Mode:**
 ```bash
 npm run dev
 ```
 
-This uses nodemon to automatically restart the server on file changes.
 
-**Production Mode:**
-```bash
-npm start
-```
+The server will start on `http://localhost:5000`
 
-The server will start on `http://localhost:5000` (or the port specified in `PORT` environment variable).
 
 **Database Setup:**
 - The server automatically connects to MongoDB on startup
 - No manual migrations required - Mongoose handles schema creation
-- Optional migration scripts are available:
-  ```bash
-  npm run migrate:chat
-  npm run migrate:todos
-  npm run update:department-members
-  ```
+
 
 **Health Check:**
 Once running, verify the server is working:
 ```bash
 curl http://localhost:5000/api/health
 ```
+
 
 ## Python
 
@@ -325,6 +264,7 @@ The service will be available at `http://localhost:8001`
 
 **Note**: The backend server should be configured to proxy requests to these Python services, or update the client/server code to point to the correct Python service URLs.
 
+
 ## Team Members
 
 - Yara Ahmed
@@ -332,6 +272,7 @@ The service will be available at `http://localhost:8001`
 - Zainah Mabrouk
 - Nour Jazaeri
 - Lubaba Raed
+
 
 ## Folder Structure
 
@@ -359,56 +300,14 @@ Irshad_Senior_Project-main_Branche/
 │   ├── chatbot_service.py  # AI chatbot service
 │   ├── quiz_service.py     # Quiz generation service
 │   └── majestic_realistic_knowledge_base.csv  # Knowledge base data
-└── docs/                   # Project documentation
+
 ```
 
-## Getting Started (Full Setup)
-
-To run the complete system:
-
-1. **Start MongoDB** (if using local instance):
-   ```bash
-   mongod
-   ```
-
-2. **Start the Python services** (in separate terminals):
-   ```bash
-   cd python
-   source venv/bin/activate  # or venv\Scripts\activate on Windows
-   python chatbot_service.py --serve --port 8002
-   ```
-   
-   ```bash
-   cd python
-   source venv/bin/activate
-   python quiz_service.py --serve
-   ```
-
-3. **Start the backend server**:
-   ```bash
-   cd server
-   npm install
-   npm run dev
-   ```
-
-4. **Start the frontend client**:
-   ```bash
-   cd client
-   npm install
-   npm run dev
-   ```
-
-5. **Access the application**:
+**Access the application**:
    - Frontend: `http://localhost:5173`
    - Backend API: `http://localhost:5000`
    - Chatbot Service: `http://localhost:8002`
    - Quiz Service: `http://localhost:8001`
 
-## Additional Notes
 
-- **Authentication**: The system uses JWT tokens stored in cookies/localStorage. Tokens expire and users must re-authenticate.
-- **File Uploads**: Files are stored in the `server/uploads/` directory or uploaded to Cloudinary (if configured).
-- **Real-Time Features**: Socket.io is used for real-time chat. Ensure WebSocket connections are allowed in your network/firewall.
-- **CORS**: The server is configured to accept requests from specified origins. Update `CLIENT_ORIGIN` in `.env` if accessing from different domains.
-- **Email Service**: Email features (password reset, notifications) require valid Gmail credentials with App Password enabled.
 
