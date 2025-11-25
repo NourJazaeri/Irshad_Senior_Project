@@ -1,31 +1,22 @@
 ## Project Description
 
-Irshad is a comprehensive employee and training management platform designed to streamline the learning process for modern organizations. The system facilitates company registration, role-based content management, real-time communication, and AI-powered learning assistance to help organizations effectively onboard and train their employees.
+Irshad is a comprehensive employee onboarding and training management platform designed to streamline the learning process for modern organizations. The system provides a centralized solution where companies can register, organize their workforce into departments and groups, and deliver structured learning content to trainees.
 
-Irshad solves the challenge of managing employee onboarding and training at scale by providing a centralized platform where companies can register, organize their workforce into departments and groups, and deliver structured learning content to trainees. The platform features role-based access control, allowing different stakeholders (company admins, supervisors, and trainees) to interact with the system according to their responsibilities.
-
-**Key Capabilities:**
-- **Company Management**: Multi-tenant system supporting multiple companies with their own departments, groups, and users
-- **Content Management**: Rich content library with support for various media types (PDFs, videos, images) and customizable templates
-- **AI-Powered Learning**: Intelligent chatbot assistant powered by Google Gemini that helps trainees with company-specific questions
-- **Quiz Generation**: Automated quiz creation from YouTube videos, PDFs, and images using AI
-- **Real-Time Communication**: Live chat functionality between supervisors and trainees with notifications
-- **Progress Tracking**: Analytics and dashboards for monitoring trainee progress and engagement
-- **Task Management**: Todo lists and reminders to help trainees stay organized
+The platform features role-based access control, enabling different stakeholders to interact with the system according to their responsibilities. Key capabilities include multi-tenant company management, rich content libraries with support for various media types, AI-powered learning assistance, automated quiz generation, real-time communication, progress tracking, and task management.
 
 ## Who It's For
 
 ### Company Admins
-Company administrators manage the overall company structure, including departments, groups, and user accounts. They can create and assign content, manage company profiles, and oversee all training activities within their organization.
+Manage company structure, departments, groups, and user accounts. Create content, manage profiles, and oversee training activities.
 
 ### Supervisors
-Supervisors are responsible for managing specific groups of trainees. They can create and share content with their groups, communicate with trainees via real-time chat, track individual trainee progress, and generate reports on group performance.
+Manage groups of trainees, create and share content, communicate via real-time chat, and track trainee progress.
 
 ### Trainees / Employees
-Trainees are the primary learners in the system. They access assigned content, interact with an AI chatbot for instant help, communicate with their supervisors, manage their todo lists, and track their own learning progress.
+Access assigned content, interact with an AI chatbot for help, communicate with supervisors, and manage learning tasks.
 
 ### Web Owners
-Web owners operate at the platform level, managing company registration requests, approving or rejecting new company accounts, viewing platform-wide analytics, and overseeing all companies using the system.
+Manage platform-level operations including company registration requests, approvals, and platform-wide analytics.
 
 ## Tech Stack
 
@@ -67,7 +58,7 @@ Web owners operate at the platform level, managing company registration requests
 
 ### Other Tools/Services
 - **Authentication**: JWT-based authentication with role-based access control
-- **File Storage**: Subase for image/file hosting
+- **File Storage**: Supabase for image/file hosting
 - **Email Service**: Gmail SMTP via Nodemailer
   
 
@@ -125,8 +116,6 @@ Web owners operate at the platform level, managing company registration requests
 npm run dev
 ```
 
-
-The server will start on `http://localhost:5000`
 
 
 **Database Setup:**
@@ -186,7 +175,8 @@ The Python services provide AI-powered features including an intelligent chatbot
 
 5. Verify knowledge base file:
    - Ensure `majestic_realistic_knowledge_base.csv` exists in the `python/` directory
-   - This CSV should contain columns: `company_id`, `question`, `answer`
+   - This CSV should contain columns:  `_id, company_id, category, Question, Answer, keywords`  
+
 
 ### Python – Running Python Components
 
