@@ -18,7 +18,7 @@ Irshad solves the challenge of managing employee onboarding and training at scal
 ## Who It's For
 
 ### Company Admins
-Company administrators manage the overall company structure, including departments, groups, and user accounts. They can create and assign content, view analytics dashboards, manage company profiles, and oversee all training activities within their organization.
+Company administrators manage the overall company structure, including departments, groups, and user accounts. They can create and assign content, manage company profiles, and oversee all training activities within their organization.
 
 ### Supervisors
 Supervisors are responsible for managing specific groups of trainees. They can create and share content with their groups, communicate with trainees via real-time chat, track individual trainee progress, and generate reports on group performance.
