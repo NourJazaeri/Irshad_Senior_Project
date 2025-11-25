@@ -1,6 +1,6 @@
 # Irshad
 
-Irshad is a comprehensive employee onboarding and training management platform designed to streamline the learning process for modern organizations. The system facilitates company registration, role-based content management, real-time communication, and AI-powered learning assistance to help organizations effectively onboard and train their employees.
+Irshad is a comprehensive employee and training management platform designed to streamline the learning process for modern organizations. The system facilitates company registration, role-based content management, real-time communication, and AI-powered learning assistance to help organizations effectively onboard and train their employees.
 
 ## Project Description
 
