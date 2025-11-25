@@ -73,7 +73,7 @@ Web owners operate at the platform level, managing company registration requests
 
 ## Client
 
-### Client – Installation Steps
+### Client – Full Setup
 
 **Prerequisites:**
 - Node.js (v16 or higher recommended)
@@ -90,19 +90,14 @@ Web owners operate at the platform level, managing company registration requests
    ```bash
    npm install
    ```
-
-
-
-### Client – Running the Client
-
-**Development Mode:**
-```bash
-npm run dev
-```
-
+3. Development Mode:
+   ```bash
+     npm run dev
+   ```
 
 
 **Note**: The client is configured to proxy API requests to `http://localhost:5000` during development. Ensure the server is running for full functionality.
+
 
 ## Server
 
@@ -150,7 +145,7 @@ curl http://localhost:5000/api/health
 
 The Python services provide AI-powered features including an intelligent chatbot and automated quiz generation.
 
-### Python – Installation Steps
+### Python – Full Setup
 
 **Prerequisites:**
 - Python 3.8 or higher
@@ -189,7 +184,7 @@ The Python services provide AI-powered features including an intelligent chatbot
    - The same API key can be used for both `GOOGLE_API_KEY` and `GEMINI_API_KEY`
    - The knowledge base CSV file should be present in the `python/` directory
 
-6. Verify knowledge base file:
+5. Verify knowledge base file:
    - Ensure `majestic_realistic_knowledge_base.csv` exists in the `python/` directory
    - This CSV should contain columns: `company_id`, `question`, `answer`
 
