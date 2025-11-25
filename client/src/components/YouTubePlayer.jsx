@@ -28,7 +28,7 @@ const YouTubePlayer = ({ videoId, title, autoplay = false, width = "100%", heigh
     );
   }
 
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1${autoplay ? '&autoplay=1' : ''}`;
+  const embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1&fs=1&controls=1&showinfo=0&iv_load_policy=3${autoplay ? '&autoplay=1' : ''}`;
 
   return (
     <div className="youtube-player-container">

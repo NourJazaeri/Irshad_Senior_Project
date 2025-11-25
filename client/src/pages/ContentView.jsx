@@ -696,27 +696,7 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
 
     console.log('🎯 Final template type:', templateType);
 
-    // For non-trainee users (admin/supervisor), use the original template components
-    if (!isTrainee) {
-      switch(templateType) {
-        case 'knowledge-cards':
-          return <KnowledgeCardsTemplate onClose={() => {}} onTemplateSaved={() => {}} isReadOnly={true} templateData={templateData} />;
-        case 'recognition':
-          return <RecognitionTemplate onClose={() => {}} onTemplateSaved={() => {}} formData={templateData} />;
-        case 'event-announcement':
-          return <EventAnnouncementTemplate onClose={() => {}} onTemplateSaved={() => {}} formData={templateData} />;
-        case 'tool-system-guide':
-          return <ToolSystemGuideTemplate onClose={() => {}} onTemplateSaved={() => {}} templateData={templateData} />;
-        case 'task-reminders-board':
-          return <TaskRemindersBoardTemplate onClose={() => {}} onTemplateSaved={() => {}} templateData={templateData} />;
-        case 'welcome-intro':
-          return <WelcomeIntroTemplate onClose={() => {}} onTemplateSaved={() => {}} templateData={templateData} />;
-        default:
-          return <p className="text-muted-foreground">Unknown template type: {templateType}</p>;
-      }
-    }
-
-    // For trainee users, render inline with full styling
+    // Render inline with full styling for all users (trainee, admin, supervisor)
     switch(templateType) {
       case 'knowledge-cards':
         return (

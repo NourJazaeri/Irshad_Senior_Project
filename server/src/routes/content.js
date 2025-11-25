@@ -715,6 +715,19 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       }
     }
     
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+    
     let contentUrl = null;
     
     // Upload ALL files to Supabase if configured
@@ -805,11 +818,8 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       }
     }
     
-    const normGroupId = normalizeIdField(assignedTo_GroupID);
-    const normTraineeId = normalizeIdField(assignedTo_traineeID);
-    console.log('🧭 Normalized IDs:', { normGroupId, normTraineeId, rawGroup: assignedTo_GroupID, rawTrainee: assignedTo_traineeID });
+    console.log('🧭 Parsed IDs:', { groupIds, traineeIds, departmentIds });
 
-    const normGroupId2 = normalizeIdField(assignedTo_GroupID);
     const content = new Content({
       title: title || req.file.originalname,
       description: description || '',
@@ -818,8 +828,8 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: normGroupId,
-      assignedTo_depID: departmentIds,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
+      assignedTo_depID: departmentIds.length > 0 ? departmentIds : undefined,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
@@ -907,8 +917,22 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
       }
     }
     
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+    
     console.log('🔍 YOUTUBE UPLOAD - Parsed trainee IDs:', traineeIds);
     console.log('🔍 YOUTUBE UPLOAD - Parsed department IDs:', departmentIds);
+    console.log('🔍 YOUTUBE UPLOAD - Parsed group IDs:', groupIds);
     
     const content = new Content({
       title: title || 'YouTube Video',
@@ -919,8 +943,8 @@ router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: videoId,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
-      assignedTo_depID: departmentIds,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
+      assignedTo_depID: departmentIds.length > 0 ? departmentIds : undefined,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
@@ -1008,6 +1032,19 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       }
     }
     
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+    
     // Automatically determine if it's a YouTube link or regular link
     let contentTypeValue = 'link';
     let youtubeVideoId = null;
@@ -1019,12 +1056,10 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       console.log('🎥 YouTube URL detected:', linkUrl);
       console.log('🎥 Extracted video ID:', youtubeVideoId);
     }
-
-    const normGroupId = normalizeIdField(assignedTo_GroupID);
     
     console.log('🔍 LINK UPLOAD - Parsed trainee IDs:', traineeIds);
     console.log('🔍 LINK UPLOAD - Parsed department IDs:', departmentIds);
-    console.log('🔍 LINK UPLOAD - Normalized group ID:', normGroupId);
+    console.log('🔍 LINK UPLOAD - Parsed group IDs:', groupIds);
     
     const content = new Content({
       title: title || 'External Link',
@@ -1035,8 +1070,8 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: youtubeVideoId, // Add YouTube video ID if it's a YouTube URL
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: normGroupId,
-      assignedTo_depID: departmentIds,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
+      assignedTo_depID: departmentIds.length > 0 ? departmentIds : undefined,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
@@ -1107,6 +1142,19 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
       }
     }
     
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+    
     // Define template structures
     const templates = {
       'training_module': {
@@ -1159,6 +1207,7 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
     
     console.log('🔍 TEMPLATE UPLOAD - Parsed trainee IDs:', traineeIds);
     console.log('🔍 TEMPLATE UPLOAD - Parsed department IDs:', departmentIds);
+    console.log('🔍 TEMPLATE UPLOAD - Parsed group IDs:', groupIds);
     
     const content = new Content({
       title: template.title,
@@ -1168,8 +1217,8 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
       contentUrl: template.contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true || template.templateData.ackRequired === true,
-      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
-      assignedTo_depID: departmentIds,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
+      assignedTo_depID: departmentIds.length > 0 ? departmentIds : undefined,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
       assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null,
@@ -1371,9 +1420,17 @@ router.get('/trainee/view/:id', requireTrainee, async (req, res) => {
       isAssigned = true;
     }
 
-    // Check group assignment
-    if (!isAssigned && groupId && content.assignedTo_GroupID && content.assignedTo_GroupID._id.toString() === groupId.toString()) {
-      isAssigned = true;
+    // Check group assignment (now an array)
+    if (!isAssigned && groupId && content.assignedTo_GroupID) {
+      // Handle both array and single value for backward compatibility
+      const groupIds = Array.isArray(content.assignedTo_GroupID) ? content.assignedTo_GroupID : [content.assignedTo_GroupID];
+      const isGroupAssigned = groupIds.some(g => {
+        const gid = g._id || g;
+        return gid.toString() === groupId.toString();
+      });
+      if (isGroupAssigned) {
+        isAssigned = true;
+      }
     }
 
     // Check department assignment
@@ -1453,7 +1510,13 @@ router.get('/:id', requireAdminOrSupervisor, async (req, res) => {
     const content = await Content.findOne(filter)
       .populate('assignedTo_GroupID', 'groupName')
       .populate('assignedTo_depID', 'departmentName')
-      .populate('assignedTo_traineeID', 'fname lname')
+      .populate({
+        path: 'assignedTo_traineeID',
+        populate: {
+          path: 'EmpObjectUserID',
+          select: 'fname lname'
+        }
+      })
       .populate('assignedBy_adminID', 'firstName lastName')
       .populate('assignedBy_supervisorID', 'firstName lastName');
 
@@ -1463,6 +1526,64 @@ router.get('/:id', requireAdminOrSupervisor, async (req, res) => {
 
     // Debug: Log the assignedTo_GroupID to see what was populated
     console.log('🔍 GET /api/content/:id - assignedTo_GroupID:', JSON.stringify(content.assignedTo_GroupID, null, 2));
+    console.log('🔍 GET /api/content/:id - assignedTo_traineeID:', JSON.stringify(content.assignedTo_traineeID, null, 2));
+
+    // If content is assigned to individual trainee(s), format the trainee data
+    if (content.assignedTo_traineeID && content.assignedTo_traineeID.length > 0) {
+      const trainees = Array.isArray(content.assignedTo_traineeID) 
+        ? content.assignedTo_traineeID 
+        : [content.assignedTo_traineeID];
+      
+      content._doc.individualTrainees = trainees.map(trainee => ({
+        _id: trainee._id,
+        fname: trainee.EmpObjectUserID?.fname,
+        lname: trainee.EmpObjectUserID?.lname,
+        name: `${trainee.EmpObjectUserID?.fname || ''} ${trainee.EmpObjectUserID?.lname || ''}`.trim()
+      }));
+    }
+
+    // If content is assigned to one or more groups, fetch all trainees in those groups
+    if (content.assignedTo_GroupID && content.assignedTo_GroupID.length > 0) {
+      const Trainee = mongoose.model('Trainee');
+      const Employee = mongoose.model('Employee');
+      
+      const groupIds = content.assignedTo_GroupID.map(group => group._id || group);
+      
+      const traineesInGroups = await Trainee.find({ ObjectGroupID: { $in: groupIds } })
+        .populate('EmpObjectUserID', 'fname lname')
+        .lean();
+      
+      // Add trainee names to the content object
+      content._doc.groupTrainees = traineesInGroups.map(trainee => ({
+        _id: trainee._id,
+        fname: trainee.EmpObjectUserID?.fname,
+        lname: trainee.EmpObjectUserID?.lname,
+        name: `${trainee.EmpObjectUserID?.fname || ''} ${trainee.EmpObjectUserID?.lname || ''}`.trim()
+      }));
+    }
+
+    // Fetch trainees who completed this content
+    const Progress = mongoose.model('Progress');
+    const completedProgress = await Progress.find({
+      ObjectContentID: content._id,
+      status: 'completed'
+    })
+      .populate({
+        path: 'TraineeObjectUserID',
+        populate: {
+          path: 'EmpObjectUserID',
+          select: 'fname lname'
+        }
+      })
+      .lean();
+
+    content._doc.completedBy = completedProgress.map(progress => ({
+      traineeId: progress.TraineeObjectUserID?._id,
+      fname: progress.TraineeObjectUserID?.EmpObjectUserID?.fname,
+      lname: progress.TraineeObjectUserID?.EmpObjectUserID?.lname,
+      name: `${progress.TraineeObjectUserID?.EmpObjectUserID?.fname || ''} ${progress.TraineeObjectUserID?.EmpObjectUserID?.lname || ''}`.trim(),
+      completedAt: progress.completedAt
+    })).filter(trainee => trainee.name); // Filter out any with missing names
 
     res.json({ ok: true, content });
   } catch (error) {
@@ -2524,18 +2645,23 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
     });
 
     // Debug: Check all content in database with group assignments
-    const allContentWithGroup = await Content.find({ assignedTo_GroupID: { $exists: true, $ne: null } })
+    const allContentWithGroup = await Content.find({ assignedTo_GroupID: { $exists: true, $ne: null, $ne: [] } })
       .select('title assignedTo_GroupID assignedTo_traineeID assignedTo_depID')
       .lean();
     
     console.log('🔍 DEBUG: All content with group assignments:', allContentWithGroup.length);
     allContentWithGroup.forEach(c => {
-      const contentGroupId = c.assignedTo_GroupID;
-      const matchesTraineeGroup = groupId && contentGroupId && 
-        (contentGroupId.toString() === groupId.toString() || 
-         (contentGroupId._id && contentGroupId._id.toString() === groupId.toString()) ||
-         (typeof contentGroupId === 'object' && contentGroupId.toString() === groupId.toString()));
-      console.log(`  📋 ${c.title} - Group ID: ${contentGroupId} (type: ${typeof contentGroupId}, string: ${contentGroupId?.toString()}), Matches trainee group: ${matchesTraineeGroup}`);
+      // Handle both array and single value formats for backward compatibility
+      let contentGroupIds = c.assignedTo_GroupID;
+      if (!Array.isArray(contentGroupIds)) {
+        contentGroupIds = contentGroupIds ? [contentGroupIds] : [];
+      }
+      const matchesTraineeGroup = groupId && contentGroupIds.length > 0 && 
+        contentGroupIds.some(groupObj => {
+          const gid = groupObj._id || groupObj;
+          return gid.toString() === groupId.toString();
+        });
+      console.log(`  📋 ${c.title} - Group IDs: [${contentGroupIds.map(g => (g._id || g).toString()).join(', ')}], Matches trainee group ${groupId}: ${matchesTraineeGroup}`);
     });
 
     // Build query to find content assigned to:
@@ -2554,7 +2680,7 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
     ];
 
     // Add group condition if trainee belongs to a group
-    // Ensure proper ObjectId comparison
+    // Ensure proper ObjectId comparison - assignedTo_GroupID is now an array
     if (groupId) {
       // Convert to ObjectId if it's a string, or use as-is if already ObjectId
       let groupIdForQuery;
@@ -2567,11 +2693,12 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
           groupIdForQuery = groupId;
         }
         console.log('✅ Adding group condition to query:', groupIdForQuery.toString());
-        queryConditions.push({ assignedTo_GroupID: groupIdForQuery });
+        // Use $in since assignedTo_GroupID is now an array
+        queryConditions.push({ assignedTo_GroupID: { $in: [groupIdForQuery] } });
       } catch (err) {
         console.error('❌ Error processing group ID for query:', err);
         // Try with string comparison as fallback
-        queryConditions.push({ assignedTo_GroupID: groupId.toString() });
+        queryConditions.push({ assignedTo_GroupID: { $in: [groupId.toString()] } });
       }
     } else {
       console.log('⚠️ Trainee does not belong to any group');
@@ -2619,19 +2746,27 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
         return true;
       }
       
-      // If content is assigned to a group, verify it matches trainee's group
+      // If content is assigned to group(s), verify it matches trainee's group
       if (c.assignedTo_GroupID) {
-        const contentGroupId = c.assignedTo_GroupID._id || c.assignedTo_GroupID;
-        if (groupId) {
-          const matches = contentGroupId.toString() === groupId.toString();
-          if (!matches) {
-            console.log(`⚠️ Content "${c.title}" is ONLY assigned to group ${contentGroupId} but trainee is in group ${groupId} - excluding`);
+        // Handle both array and single value formats for backward compatibility
+        let contentGroupIds = Array.isArray(c.assignedTo_GroupID) ? c.assignedTo_GroupID : [c.assignedTo_GroupID];
+        
+        if (contentGroupIds.length > 0) {
+          if (groupId) {
+            // Check if trainee's group is in the array of assigned groups
+            const matches = contentGroupIds.some(groupObj => {
+              const contentGroupId = groupObj._id || groupObj;
+              return contentGroupId.toString() === groupId.toString();
+            });
+            if (!matches) {
+              console.log(`⚠️ Content "${c.title}" is ONLY assigned to groups but trainee's group ${groupId} not in list - excluding`);
+            }
+            return matches;
           }
-          return matches;
+          // If trainee has no group but content is ONLY assigned to group(s), exclude it
+          console.log(`⚠️ Content "${c.title}" is ONLY assigned to group(s) but trainee has no group - excluding`);
+          return false;
         }
-        // If trainee has no group but content is ONLY assigned to a group, exclude it
-        console.log(`⚠️ Content "${c.title}" is ONLY assigned to group but trainee has no group - excluding`);
-        return false;
       }
       
       // Content not assigned to group, trainee, or department - shouldn't happen but include it
@@ -2651,11 +2786,14 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
         (!Array.isArray(c.assignedTo_traineeID) && c.assignedTo_traineeID.toString() === trainee._id.toString())
       );
       
-      const contentGroupId = c.assignedTo_GroupID?._id || c.assignedTo_GroupID;
-      const matchesByGroup = groupId && contentGroupId && (
-        contentGroupId.toString() === groupId.toString() ||
-        (c.assignedTo_GroupID && c.assignedTo_GroupID.toString() === groupId.toString())
-      );
+      // Check if trainee's group is in the array of assigned groups
+      // Handle both array and single value formats for backward compatibility
+      let contentGroupIds = c.assignedTo_GroupID ? (Array.isArray(c.assignedTo_GroupID) ? c.assignedTo_GroupID : [c.assignedTo_GroupID]) : [];
+      const matchesByGroup = groupId && contentGroupIds.length > 0 && 
+        contentGroupIds.some(groupObj => {
+          const contentGroupId = groupObj._id || groupObj;
+          return contentGroupId.toString() === groupId.toString();
+        });
       
       const matchesByDept = c.assignedTo_depID && (
         (Array.isArray(c.assignedTo_depID) && c.assignedTo_depID.some(dep => {
@@ -2665,12 +2803,19 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
         (!Array.isArray(c.assignedTo_depID) && (c.assignedTo_depID._id || c.assignedTo_depID).toString() === departmentId.toString())
       );
       
+      // Handle both array and single value for logging
+      let groupIdsForLog = 'none';
+      if (c.assignedTo_GroupID) {
+        const groupIds = Array.isArray(c.assignedTo_GroupID) ? c.assignedTo_GroupID : [c.assignedTo_GroupID];
+        groupIdsForLog = groupIds.map(g => (g._id || g).toString()).join(', ');
+      }
+      
       console.log(`  📋 ${c.title} -`, {
         matchesByTrainee,
         matchesByGroup,
         matchesByDept,
         assignedTo_traineeID: c.assignedTo_traineeID ? (Array.isArray(c.assignedTo_traineeID) ? c.assignedTo_traineeID.map(id => id.toString()) : c.assignedTo_traineeID.toString()) : 'none',
-        assignedTo_GroupID: contentGroupId ? contentGroupId.toString() : 'none',
+        assignedTo_GroupID: groupIdsForLog,
         assignedTo_depID: c.assignedTo_depID ? (Array.isArray(c.assignedTo_depID) ? c.assignedTo_depID.map(dep => (dep._id || dep).toString()) : (c.assignedTo_depID._id || c.assignedTo_depID).toString()) : 'none'
       });
     });

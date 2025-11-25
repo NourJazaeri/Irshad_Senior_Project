@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
 
-import WelcomeSection from '../components/WebOwnerWelcomeSection';
 import KPIs from '../components/KPIs';
 import QuickLinks from '../components/QuickLinks';
 import '../styles/owner-components.css';
@@ -48,8 +47,9 @@ export default function WebOwnerDashboard() {
 
   return (
     <div>
-      <WelcomeSection />
-      <KPIs companyCount={companyCount} pendingCount={pendingCount} />
+      <div style={{ marginTop: '72px' }}>
+        <KPIs companyCount={companyCount} pendingCount={pendingCount} />
+      </div>
       <QuickLinks />
     </div>
   )

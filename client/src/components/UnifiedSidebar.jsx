@@ -74,7 +74,7 @@ const navigationConfigs = {
     brand: { name: 'Irshad', subtitle: 'Trainee' },
     user: { name: 'Trainee', role: 'trainee@company.com', avatar: 'T' },
     items: [
-      { name: 'Dashboard', href: '/trainee', icon: Home },
+      { name: 'Home', href: '/trainee', icon: Home },
       { name: 'AI Assistant', href: '/trainee/chatbot', icon: Bot },
       { name: 'To Do List', href: '/trainee/todo', icon: ClipboardList },
       { name: 'My Profile', href: '/trainee/my-profile', icon: User }
@@ -86,11 +86,12 @@ export const UnifiedSidebar = ({
   userType = 'admin', 
   collapsed = false, 
   setCollapsed = () => {},
+  mobileOpen = false,
+  onMobileClose = () => {},
   className = ''
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const logoImgRef = React.useRef(null);
   
   // Initialize from localStorage immediately to prevent flash
@@ -366,30 +367,14 @@ export const UnifiedSidebar = ({
     }
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
   return (
     <>
-      {/* Mobile Menu Button - 3 Line Hamburger */}
-      <button 
-        className="mobile-menu-btn lg:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-[#0A2C5C] text-[#e6eef5] rounded-lg flex items-center justify-center shadow-lg"
-        onClick={toggleMobileMenu}
-      >
-        <div className="w-5 h-4 flex flex-col justify-between">
-          <span className={cn("w-full h-0.5 bg-[#e6eef5] transition-all duration-300", isMobileMenuOpen && "rotate-45 translate-y-1.5")}></span>
-          <span className={cn("w-full h-0.5 bg-[#e6eef5] transition-all duration-300", isMobileMenuOpen && "opacity-0")}></span>
-          <span className={cn("w-full h-0.5 bg-[#e6eef5] transition-all duration-300", isMobileMenuOpen && "-rotate-45 -translate-y-1.5")}></span>
-        </div>
-      </button>
-
       {/* Sidebar */}
       <aside className={cn(
         'flex flex-col transition-all duration-300 ease-in-out',
         collapsed ? 'w-16' : 'w-64',
         'fixed lg:relative h-screen z-40',
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         'bg-[#0A2C5C] text-[#e6eef5u ]',
         className
       )}>
@@ -445,7 +430,7 @@ export const UnifiedSidebar = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setIsMobileMenuOpen(false);
+                  onMobileClose();
                   
                   // Navigate to the route
                   navigate(item.href);
@@ -529,10 +514,10 @@ export const UnifiedSidebar = ({
       </aside>
 
       {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
+      {mobileOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={onMobileClose}
         />
       )}
     </>

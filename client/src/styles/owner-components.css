@@ -91,8 +91,7 @@
   color: #fff;
 }
 
-.wo-main{display:grid;grid-template-rows:80px 1fr auto;flex:1;transition:margin-left 0.3s ease;min-height:100vh;overflow-x:hidden;min-width:0;order:2;width:calc(100% - 260px)}
-.wo-shell:has(.wo-sidebar--collapsed) .wo-main{width:calc(100% - 64px)}
+.wo-main{display:grid;grid-template-rows:auto 1fr auto;flex:1;transition:margin-left 0.3s ease;min-height:100vh;overflow-x:hidden;min-width:0;order:2}
 .wo-topbar{background:#e7edf4;border-bottom:1px solid #d6dee8;padding:20px 48px;display:flex;align-items:center;justify-content:space-between;min-height:80px}
 .wo-search input,.wo-search-input{width:320px;padding:12px 16px;border:1px solid #cfd7e3;border-radius:8px;background:#fff;font-size:16px}
 .wo-search-input{margin:8px 0 14px}
@@ -616,12 +615,12 @@
 
 /* Quick Links Section */
 .quick-links{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px}
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;align-items:flex-start;position:relative;transition:all 0.2s ease}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;align-items:flex-start;position:relative;transition:all 0.2s ease;min-height:240px}
 .card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.15)}
 .card-icon{color:#0b55a7;font-size:40px;margin-bottom:12px}
 .card-title{font-weight:700;margin-bottom:6px;color:#0f172a;font-size:1.1rem}
-.card-text{color:#6b7280;margin:0 0 14px 0;font-size:0.9rem;line-height:1.5}
-.btn{border:none;background:#0A2C5C;color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background-color 0.2s ease;font-weight:600}
+.card-text{color:#6b7280;margin:0 0 14px 0;font-size:0.9rem;line-height:1.5;flex-grow:1}
+.btn{border:none;background:#0A2C5C;color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background-color 0.2s ease;font-weight:600;margin-top:auto}
 .btn:hover{background:#083963}
 .btn:active{background:#062a4a}
 

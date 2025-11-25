@@ -170,6 +170,13 @@ router.delete('/:groupId/supervisor', requireAdmin, async (req, res, next) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ ok: false, message: 'Group not found' });
+    
+    // Update the group's numOfMembers count after removing supervisor
+    const traineeCount = await Trainee.countDocuments({ ObjectGroupID: groupId });
+    console.log(`👔❌ ADMIN REMOVE SUPERVISOR from group ${groupId} - Trainees: ${traineeCount}, Old count: ${updated.numOfMembers}, New count: ${traineeCount}`);
+    // Only trainees now (no supervisor)
+    await Group.updateOne({ _id: groupId }, { numOfMembers: traineeCount });
+    
     res.json({ ok: true, message: 'Supervisor removed from group', group: updated });
   } catch (err) {
     next(err);
@@ -183,12 +190,28 @@ router.delete('/:groupId/supervisor', requireAdmin, async (req, res, next) => {
 router.delete('/:groupId/trainees/:traineeId', requireAdmin, async (req, res, next) => {
   try {
     const { traineeId, groupId } = req.params;
+    console.log(`🗑️  REMOVING TRAINEE: ${traineeId} from GROUP: ${groupId}`);
 
     // optional: ensure trainee currently belongs to this group
     const t = await Trainee.findOne({ _id: traineeId, ObjectGroupID: groupId });
     if (!t) return res.status(404).json({ ok: false, message: 'Trainee not found in this group' });
 
     await Trainee.updateOne({ _id: traineeId }, { $unset: { ObjectGroupID: "" } });
+    console.log(`✅ Trainee ${traineeId} unassigned from group`);
+    
+    // Update the group's numOfMembers count
+    const traineeCount = await Trainee.countDocuments({ ObjectGroupID: groupId });
+    const group = await Group.findById(groupId);
+    console.log(`📊 Current state - Trainee count: ${traineeCount}, Has supervisor: ${!!group?.SupervisorObjectUserID}`);
+    
+    if (group) {
+      // Count: trainees + supervisor (if exists)
+      const oldCount = group.numOfMembers;
+      const newCount = traineeCount + (group.SupervisorObjectUserID ? 1 : 0);
+      await Group.updateOne({ _id: groupId }, { numOfMembers: newCount });
+      console.log(`🔄 Updated group member count: ${oldCount} → ${newCount}`);
+    }
+    
     res.json({ ok: true, message: 'Trainee removed from group' });
   } catch (err) {
     next(err);

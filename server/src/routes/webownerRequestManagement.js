@@ -4,6 +4,7 @@ import Company from "../models/Company.js";
 import Admin from "../models/Admin.js";
 import Employee from "../models/Employees.js";
 import { authenticateWebOwner } from "../middleware/authMiddleware.js";
+import { sendRegistrationApprovalEmail, sendRegistrationRejectionEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -154,12 +155,42 @@ const approveRequest = async (req, res) => {
 
     console.log('✅ Registration request approved successfully');
 
+    // Send approval email to admin
+    let emailResult = null;
+    try {
+      console.log(`📧 Preparing to send approval email to: ${adminEmail}`);
+      console.log(`📧 Company name: ${c.name}`);
+      console.log(`📧 Admin name: ${a.firstName || 'Unknown'} ${a.lastName || ''}`);
+      
+      emailResult = await sendRegistrationApprovalEmail(
+        adminEmail,
+        c.name,
+        a.firstName || 'Admin',
+        a.lastName || ''
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Approval email sent successfully to ${adminEmail}`);
+      } else {
+        console.error(`❌ Failed to send approval email to ${adminEmail}:`, emailResult.error);
+      }
+    } catch (emailError) {
+      console.error(`❌ Error sending approval email to ${adminEmail}:`, emailError);
+      console.error(`❌ Full error details:`, emailError);
+      emailResult = {
+        success: false,
+        error: emailError.message
+      };
+    }
+
     res.json({
       ok: true,
       message: "Registration request approved successfully",
       companyID: companyDoc._id,
       adminUserID: adminUser._id,
       employeeID: employee._id,
+      emailSent: emailResult?.success || false,
+      emailError: emailResult?.error || null
     });
   } catch (err) {
     console.error('Error approving request:', err);
@@ -201,9 +232,45 @@ const rejectRequest = async (req, res) => {
 
     console.log('✅ Registration request rejected successfully');
 
+    // Send rejection email to admin
+    const { rejectionReason } = req.body; // Optional rejection reason from frontend
+    const c = rr.application.company;
+    const a = rr.application.admin;
+    const adminEmail = a.email || a.loginEmail || a.LoginEmail;
+
+    let emailResult = null;
+    try {
+      console.log(`📧 Preparing to send rejection email to: ${adminEmail}`);
+      console.log(`📧 Company name: ${c.name}`);
+      console.log(`📧 Rejection reason: ${rejectionReason || 'Not specified'}`);
+      
+      emailResult = await sendRegistrationRejectionEmail(
+        adminEmail,
+        c.name,
+        'Admin',
+        '',
+        rejectionReason
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Rejection email sent successfully to ${adminEmail}`);
+      } else {
+        console.error(`❌ Failed to send rejection email to ${adminEmail}:`, emailResult.error);
+      }
+    } catch (emailError) {
+      console.error(`❌ Error sending rejection email to ${adminEmail}:`, emailError);
+      console.error(`❌ Full error details:`, emailError);
+      emailResult = {
+        success: false,
+        error: emailError.message
+      };
+    }
+
     res.json({ 
       ok: true, 
-      message: "Registration request rejected successfully" 
+      message: "Registration request rejected successfully",
+      emailSent: emailResult?.success || false,
+      emailError: emailResult?.error || null
     });
   } catch (err) {
     console.error('Error rejecting request:', err);

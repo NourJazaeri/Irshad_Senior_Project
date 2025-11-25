@@ -14,7 +14,8 @@ import {
   Building2 as BuildingOffice,
   ClipboardList,
   MessageCircle,
-  Bot
+  Bot,
+  Menu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
@@ -119,7 +120,7 @@ const getPageTitle = (pathname, userType) => {
     switch (pathname) {
       case '/trainee':
       case '/trainee/':
-        return 'Dashboard';
+        return 'Home';
       case '/trainee/chatbot':
         return 'AI Assistant';
       case '/trainee/todo':
@@ -132,7 +133,7 @@ const getPageTitle = (pathname, userType) => {
         if (pathname.startsWith('/trainee/content/')) {
           return 'Content';
         }
-        return 'Dashboard';
+        return 'Home';
     }
   }
   return 'Dashboard';
@@ -237,6 +238,7 @@ const getPageIcon = (pathname, userType) => {
 export const UnifiedTopbar = ({ 
   userType = 'admin',
   companyName = 'Your Company',
+  onMobileMenuToggle = () => {},
   className = ''
 }) => {
   const location = useLocation();
@@ -256,10 +258,10 @@ export const UnifiedTopbar = ({
   const pageTitle = getPageTitle(location.pathname, userType);
   const PageIcon = getPageIcon(location.pathname, userType);
 
-  // Get username for trainee from localStorage and API
+  // Get username for trainee, supervisor, or webOwner from localStorage and API
   useEffect(() => {
-    if (userType === 'trainee') {
-      const fetchTraineeName = async () => {
+    if (userType === 'trainee' || userType === 'supervisor' || userType === 'webOwner') {
+      const fetchUserName = async () => {
         try {
           // First try to get from localStorage for immediate display
           const storedUser = localStorage.getItem('user');
@@ -280,8 +282,11 @@ export const UnifiedTopbar = ({
           // Then fetch from API for more accurate data
           const token = localStorage.getItem('token');
           const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+          const endpoint = userType === 'trainee' ? '/api/trainee/me' : 
+                          userType === 'supervisor' ? '/api/supervisor/me' : 
+                          '/api/webowner/me';
           
-          const response = await fetch(`${API_BASE}/api/trainee/me`, {
+          const response = await fetch(`${API_BASE}${endpoint}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -290,25 +295,30 @@ export const UnifiedTopbar = ({
 
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.trainee) {
-              const traineeName = data.trainee.firstName || 
-                (data.trainee.email ? data.trainee.email.split('@')[0].split('.').map(part => 
+            const userData = userType === 'trainee' ? data.trainee : 
+                            userType === 'supervisor' ? data.supervisor : 
+                            data.webOwner;
+            if (data.success && userData) {
+              const firstName = userData.firstName || '';
+              const lastName = userData.lastName || '';
+              const displayName = `${firstName} ${lastName}`.trim() || 
+                (userData.email ? userData.email.split('@')[0].split('.').map(part => 
                   part.charAt(0).toUpperCase() + part.slice(1)
-                ).join(' ') : 'Trainee');
-              setUserName(traineeName);
+                ).join(' ') : (userType === 'trainee' ? 'Trainee' : userType === 'supervisor' ? 'Supervisor' : 'Web Owner'));
+              setUserName(displayName);
             }
           }
         } catch (e) {
-          console.error('Error fetching trainee name:', e);
+          console.error(`Error fetching ${userType} name:`, e);
           // Keep localStorage value if API fails, or set default
           const storedUser = localStorage.getItem('user');
           if (!storedUser) {
-            setUserName('Trainee');
+            setUserName(userType === 'trainee' ? 'Trainee' : userType === 'supervisor' ? 'Supervisor' : 'Web Owner');
           }
         }
       };
 
-      fetchTraineeName();
+      fetchUserName();
     }
   }, [userType]);
 
@@ -332,13 +342,20 @@ export const UnifiedTopbar = ({
           const data = await response.json();
           
           if (data.ok && data.admin) {
+            const adminFirstName = data.admin.firstName || 'Admin';
+            const adminLastName = data.admin.lastName || 'User';
+            const fullName = `${adminFirstName} ${adminLastName}`.trim();
             setAdminData({
-              firstName: data.admin.firstName || 'Admin',
-              lastName: data.admin.lastName || 'User',
-              name: `${data.admin.firstName || ''} ${data.admin.lastName || ''}`.trim() || 'Admin',
+              firstName: adminFirstName,
+              lastName: adminLastName,
+              name: fullName || 'Admin',
               email: data.admin.email || 'admin@company.com',
               companyName: data.company?.name || 'Your Company'
             });
+            // Set userName for admin welcome message
+            if (userType === 'admin') {
+              setUserName(fullName);
+            }
           }
         }
       } catch (error) {
@@ -350,7 +367,7 @@ export const UnifiedTopbar = ({
     };
 
     fetchAdminData();
-  }, []);
+  }, [userType]);
 
   const handleLogout = async () => {
     try {
@@ -430,7 +447,16 @@ export const UnifiedTopbar = ({
       "bg-blue-50 border-b border-blue-200 shadow-sm w-full sticky top-0 z-50 font-sans antialiased",
       className
     )}>
-      <div className="flex items-center justify-between px-12 py-4">
+      <div className="flex items-center justify-between px-4 lg:px-12 py-4">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={onMobileMenuToggle}
+          className="lg:hidden p-2 rounded-lg hover:bg-blue-100 transition-colors mr-3"
+          aria-label="Toggle menu"
+        >
+          <Menu className="w-6 h-6 text-primary" />
+        </button>
+
         {/* Left: Page Title with Icon */}
         <div className="flex gap-4 items-start">
           <PageIcon className="w-8 h-8 text-primary flex-shrink-0" style={{ 
@@ -440,7 +466,7 @@ export const UnifiedTopbar = ({
             <h1 className="text-4xl font-bold tracking-wide text-foreground leading-tight m-0">
               {pageTitle}
             </h1>
-            {userType === 'trainee' && userName && pageTitle === 'Dashboard' && (
+            {(userType === 'trainee' || userType === 'supervisor' || userType === 'admin' || userType === 'webOwner') && userName && (pageTitle === 'Dashboard' || pageTitle === 'Home') && (
               <p className="text-sm text-gray-600 mt-1 font-medium flex items-center gap-1.5">
                 <span>Welcome, {userName}</span>
                 <WavingHand style={{ display: 'inline-block', marginLeft: '2px' }} />

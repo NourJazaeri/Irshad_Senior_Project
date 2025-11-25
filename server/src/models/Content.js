@@ -34,7 +34,7 @@ const ContentSchema = new Schema(
     ackRequired: { type: Boolean, default: false },
 
     // References for assignment
-    assignedTo_GroupID: { type: Schema.Types.ObjectId, ref: "Group" },
+    assignedTo_GroupID: [{ type: Schema.Types.ObjectId, ref: "Group" }], // Array for multiple groups
     assignedTo_depID: [{ type: Schema.Types.ObjectId, ref: "Department" }], // Array for multiple departments
     assignedTo_traineeID: [{ type: Schema.Types.ObjectId, ref: "Trainee" }], // Array for multiple trainees
 

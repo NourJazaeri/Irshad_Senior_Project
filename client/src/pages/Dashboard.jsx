@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, FolderOpen, UserCog, Building2 } from "lucide-react";
+import { Users, FolderOpen, UserCog, Building2, Building } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -91,15 +91,52 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen -mt-4">
       <div className="container mx-auto px-4 pb-4">
-        {/* Welcome Section */}
-        <div className="mb-4">
-          <h1 className="text-3xl font-semibold text-gray-900 mb-0.5">Admin Dashboard</h1>
-          <p className="text-gray-600 text-lg">
-            Welcome, {userName}!
-          </p>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Company: {companyName}
-          </p>
+        {/* Company Card */}
+        <div style={{ 
+          marginBottom: '24px'
+        }}>
+          <div style={{ 
+            background: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+            border: '1px solid #e5e7eb',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{ 
+              width: '64px', 
+              height: '64px', 
+              margin: 0,
+              flexShrink: 0,
+              background: '#DBEAFE',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Building size={32} color="#2563eb" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ 
+                fontSize: '0.95rem', 
+                marginBottom: '6px',
+                color: '#64748b',
+                marginTop: 0
+              }}>
+                Your Company
+              </p>
+              <p style={{ 
+                fontSize: '1.125rem', 
+                margin: 0,
+                color: '#0b2f55',
+                fontWeight: '600'
+              }}>
+                {companyName}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Dashboard Cards - Individual containers with equal wrapper */}
