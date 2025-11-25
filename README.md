@@ -184,20 +184,6 @@ The Python services provide AI-powered features including an intelligent chatbot
    pip install -r requirements.txt
    ```
 
-5. Set up environment variables:
-   Create a `.env` file in the `python/` directory (or use the root `.env`):
-   ```env
-   # Google Gemini API Key (Required for both services)
-   GOOGLE_API_KEY=your-google-api-key-here
-   GEMINI_API_KEY=your-google-api-key-here
-
-   # Chatbot Service Configuration (Optional)
-   GEMINI_MODEL=gemini-2.0-flash
-   GEMINI_EMBEDDING_MODEL=models/text-embedding-004
-   KNOWLEDGE_BASE_PATH=./majestic_realistic_knowledge_base.csv
-   MAX_HISTORY_MESSAGES=20
-   MAX_HISTORY_AGE_HOURS=24
-   ```
 
    **Important Notes:**
    - Obtain a Google API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
