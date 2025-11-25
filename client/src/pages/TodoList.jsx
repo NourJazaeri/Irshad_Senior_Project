@@ -217,8 +217,8 @@ export default function TodoList() {
 
       {tab === "todo" ? (
         <section className="board">
-          {DAYS.map((day) => (
-          <div className="col" key={day}>
+          {DAYS.map((day, index) => (
+          <div className="col enhanced-card fade-in-up" key={day} style={{ animationDelay: `${index * 0.05}s` }}>
             <div className="col-head">{day}</div>
 
             <ul className="task-list">
@@ -292,11 +292,11 @@ export default function TodoList() {
         ))}
       </section>
       ) : (
-        <section className="completed">
+        <section className="completed enhanced-card fade-in-up delay-0">
           <div className="completed-top">
             <h3>Completed Tasks ({completed.length})</h3>
             {completed.length > 0 && (
-              <button className="btn-delete-all" onClick={handleDeleteAllCompleted}>
+              <button className="btn-delete-all btn-enhanced-danger" onClick={handleDeleteAllCompleted}>
                 Delete All
               </button>
             )}

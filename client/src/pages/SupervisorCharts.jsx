@@ -7,6 +7,7 @@ import ProgressByTraineeChart from "../components/charts/ProgressByTraineeChart"
 import AverageScoreChart from "../components/charts/AverageScoreChart";
 import ExportReportCard from "../components/charts/ExportReportCard";
 import TraineeProgressTable from "../components/charts/TraineeProgressTable";
+import '../styles/supervisor.css';
 
 export default function SupervisorCharts() {
   const [dashboard, setDashboard] = useState(null);
@@ -68,42 +69,82 @@ export default function SupervisorCharts() {
 
   return (
     <div id="supervisor-dashboard-root" style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
-      <div className="flex justify-end items-center mb-6 no-export">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '24px' }} className="no-export">
         <ExportReportCard />
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl shadow p-10 text-center text-lg text-gray-500">Loading…</div>
+        <div className="sv-card sv-card-muted sv-loading-state" style={{ padding: '60px', textAlign: 'center' }}>
+          <div className="sv-spinner"></div>
+          <div style={{ marginTop: '16px', color: '#6b7280', fontSize: '15px' }}>Loading dashboard...</div>
+        </div>
       ) : error ? (
-        <div className="bg-red-100 rounded-xl shadow p-10 text-center text-lg text-red-600">{error}</div>
+        <div className="sv-card" style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', borderColor: '#fecaca' }}>
+          <div style={{ color: '#dc2626', fontSize: '16px', fontWeight: '500' }}>{error}</div>
+        </div>
       ) : dashboard ? (
-        <div className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Row 1: Group Progress Overview */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-            <div className="font-bold text-xl mb-2">Group Progress Overview</div>
-            <div className="text-gray-500 mb-6 text-sm">Real-time completion metrics by team</div>
+          <div 
+            className="sv-card sv-card-pad sv-group-card-enhanced"
+            style={{ 
+              animation: 'fadeInUp 0.5s ease-out forwards',
+              opacity: 0,
+              animationDelay: '0s'
+            }}
+          >
+            <div className="sv-section-title" style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px' }}>Group Progress Overview</div>
+            <div style={{ color: '#6b7280', marginBottom: '24px', fontSize: '14px' }}>Real-time completion metrics by team</div>
             <GroupProgressCard groupStats={dashboard.groupStats} />
           </div>
 
           {/* Row 2: Status Distribution - Full Width for Better Layout */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-            <div className="font-bold text-xl mb-2">Group Performance Comparison</div>
-            <div className="text-gray-500 mb-6 text-sm">Overall performance by team</div>
+          <div 
+            className="sv-card sv-card-pad sv-group-card-enhanced"
+            style={{ 
+              animation: 'fadeInUp 0.5s ease-out forwards',
+              opacity: 0,
+              animationDelay: '0.1s'
+            }}
+          >
+            <div className="sv-section-title" style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px' }}>Group Performance Comparison</div>
+            <div style={{ color: '#6b7280', marginBottom: '24px', fontSize: '14px' }}>Overall performance by team</div>
             <StatusDistributionCard statusDistribution={dashboard.statusDistribution} />
           </div>
 
           {/* Row 3: Progress by Trainee and Average Score */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="sv-grid sv-grid-2">
+            <div 
+              className="sv-card sv-card-pad sv-group-card-enhanced"
+              style={{ 
+                animation: 'fadeInUp 0.5s ease-out forwards',
+                opacity: 0,
+                animationDelay: '0.2s'
+              }}
+            >
               <ProgressByTraineeChart traineeStats={dashboard.traineeStats} />
             </div>
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div 
+              className="sv-card sv-card-pad sv-group-card-enhanced"
+              style={{ 
+                animation: 'fadeInUp 0.5s ease-out forwards',
+                opacity: 0,
+                animationDelay: '0.3s'
+              }}
+            >
               <AverageScoreChart traineeStats={dashboard.traineeStats} />
             </div>
           </div>
 
           {/* Row 4: Trainee Progress Table - Full Width */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+          <div 
+            className="sv-card sv-card-pad sv-group-card-enhanced"
+            style={{ 
+              animation: 'fadeInUp 0.5s ease-out forwards',
+              opacity: 0,
+              animationDelay: '0.4s'
+            }}
+          >
             <TraineeProgressTable traineeStats={dashboard.traineeStats} />
           </div>
         </div>

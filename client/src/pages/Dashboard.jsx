@@ -112,11 +112,12 @@ export default function Dashboard() {
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
         }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
-            {dashboardCards.map((card) => (
+            {dashboardCards.map((card, index) => (
               <Card
                 key={card.id}
                 onClick={() => navigate(card.route)}
-                className="group hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-[1.02] rounded-xl w-full"
+                className="group cursor-pointer enhanced-card fade-in-up rounded-xl w-full"
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <CardContent className="p-12 pt-16 flex flex-col items-center text-center space-y-8 min-h-[280px] justify-start">
                   <div className="p-8 rounded-full bg-blue-100 group-hover:bg-blue-200 transition-colors duration-300">

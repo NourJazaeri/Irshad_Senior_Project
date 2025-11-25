@@ -28,7 +28,7 @@ import ContentDetails from "./pages/ContentDetails.jsx";
 import ContentView from "./pages/ContentView.jsx";
 
 // Import Department and Group Management
-import AdminHome from "./pages/AdminHome.jsx";
+import AdminDepartments from "./pages/AdminDepartments.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import DepartmentDetails from "./pages/DepartmentDetails.jsx";
 import AssignMembers from "./pages/AssignMembers.jsx";
@@ -115,7 +115,7 @@ export default function App() {
 
         {/* Admin Layout Routes */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminHome />} />
+          <Route index element={<AdminDepartments />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="content" element={<ContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />

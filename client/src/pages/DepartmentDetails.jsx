@@ -142,8 +142,9 @@ function DepartmentDetails() {
 
   if (loading) {
     return (
-      <div style={{ background: '#f9fafc', border: '1px solid #e2e6ef', borderRadius: '10px', padding: '40px', margin: '10px 8px' }}>
-        <div className="loading">Loading department details...</div>
+      <div className="loading-state" style={{ background: '#f9fafc', border: '1px solid #e2e6ef', borderRadius: '10px', padding: '40px', margin: '10px 8px' }}>
+        <div className="spinner"></div>
+        <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading department details...</p>
     </div>
   );
 }
@@ -177,13 +178,16 @@ function DepartmentDetails() {
         
         {groups.length > 0 ? (
           <div className="groups-grid">
-            {groups.map((group) => (
+            {groups.map((group, index) => (
               <div 
                 key={group._id} 
-                className="group-card clickable"
+                className="group-card clickable enhanced-card fade-in-up"
                 onClick={() => handleGroupClick(group._id)}
                 title="Click to view group details"
-                style={{ position: 'relative' }}
+                style={{ 
+                  position: 'relative',
+                  animationDelay: `${index * 0.1}s`
+                }}
               >
                 {/* Menu Button */}
                 <button

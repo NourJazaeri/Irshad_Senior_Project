@@ -72,14 +72,26 @@ export default function CompanyDetails() {
     }
   };
 
-  if (loading) return <EmptyState>Loading…</EmptyState>;
+  if (loading) return (
+    <div className="loading-state">
+      <div className="spinner"></div>
+      <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading company details...</p>
+    </div>
+  );
   if (err) return <div className="wo-error">{err}</div>;
-  if (!doc) return <EmptyState>Company not found.</EmptyState>;
+  if (!doc) return (
+    <div className="empty-state">
+      <div className="empty-icon">
+        <FiBriefcase size={48} />
+      </div>
+      <p>Company not found.</p>
+    </div>
+  );
 
   return (
     <div className="wo-details-container" style={{ maxWidth: '100%', padding: '0 16px' }}>
       {/* Main Container Card */}
-      <div className="wo-details-card" style={{ padding: '32px', marginBottom: '24px', width: '100%' }}>
+      <div className="wo-details-card enhanced-card fade-in-up delay-0" style={{ padding: '32px', marginBottom: '24px', width: '100%' }}>
         {/* Breadcrumb Navigation */}
         <div className="wo-breadcrumb" style={{ fontSize: '18px', display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
           <span 
@@ -106,6 +118,7 @@ export default function CompanyDetails() {
           <button
             onClick={handleDeleteClick}
             disabled={isDeleting}
+            className="btn-enhanced-danger"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -118,18 +131,7 @@ export default function CompanyDetails() {
               fontSize: '0.9rem',
               fontWeight: '500',
               cursor: isDeleting ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
               opacity: isDeleting ? 0.6 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isDeleting) {
-                e.target.style.backgroundColor = '#dc2626';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isDeleting) {
-                e.target.style.backgroundColor = '#ef4444';
-              }
             }}
           >
             <FiTrash2 style={{ fontSize: '1rem' }} />
@@ -139,7 +141,7 @@ export default function CompanyDetails() {
       </div>
 
       {/* Company Summary Card */}
-      <div className="wo-details-card" style={{ marginBottom: '24px' }}>
+      <div className="wo-details-card enhanced-card fade-in-up delay-1" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           {doc.logoUrl && (
             <div style={{ 
@@ -265,7 +267,7 @@ export default function CompanyDetails() {
         <div className="wo-details">
           <div className="wo-details-grid">
             {/* Business Information Card */}
-            <div className="wo-details-card">
+            <div className="wo-details-card enhanced-card fade-in-up delay-2">
               <h3 className="wo-card-title">
                 <FiFileText className="wo-card-icon" style={{ fontSize: '1.3rem', color: '#2563eb' }} />
                 Business Information
@@ -291,7 +293,7 @@ export default function CompanyDetails() {
             </div>
 
             {/* Contact & Links Card */}
-            <div className="wo-details-card">
+            <div className="wo-details-card enhanced-card fade-in-up delay-3">
               <h3 className="wo-card-title">
                 <FiLink className="wo-card-icon" style={{ fontSize: '1.3rem', color: '#2563eb' }} />
                 Contact & Links
@@ -319,7 +321,7 @@ export default function CompanyDetails() {
             </div>
 
             {/* Branches Information Card */}
-            <div className="wo-details-card wo-details-card--full">
+            <div className="wo-details-card wo-details-card--full enhanced-card fade-in-up delay-4">
               <h3 className="wo-card-title">
                 <FiMapPin className="wo-card-icon" style={{ fontSize: '1.3rem', color: '#2563eb' }} />
                 Branch Locations
@@ -351,7 +353,7 @@ export default function CompanyDetails() {
       {/* Admin Information Tab */}
       {activeTab === "admin" && (
         <div className="wo-details">
-          <div className="wo-details-card">
+          <div className="wo-details-card enhanced-card fade-in-up delay-2">
             <h3 className="wo-card-title">
               <FiUser className="wo-card-icon" style={{ fontSize: '1.3rem', color: '#2563eb' }} />
               Administrator Details

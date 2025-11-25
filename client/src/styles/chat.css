@@ -159,7 +159,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--light-blue) 100%);
+  background: #2563eb;
   color: white;
   border: none;
   border-radius: 12px;
@@ -172,6 +172,7 @@
 }
 
 .trainee-chat-btn:hover {
+  background: #1d4ed8;
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
 }

@@ -72,6 +72,12 @@ const NotificationSchema = new Schema(
     dueAt: { type: Date, default: null },        // for reminders like deadlines
     deliveredAt: { type: Date, default: null },  // when push/email was sent
 
+    // Optional metadata/context for navigation (e.g., chat participant IDs)
+    metadata: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
+
     // Read state
     isRead: { type: Boolean, default: false },
     readAt: { type: Date, default: null },

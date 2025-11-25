@@ -123,7 +123,7 @@ router.post('/send', requireSupervisor, async (req, res) => {
 
     // Create notification for trainee (non-blocking)
     try {
-      await createTraineeMessageNotification(traineeId, supervisorName, message.trim(), newMessage._id);
+      await createTraineeMessageNotification(traineeId, supervisorId, supervisorName, message.trim(), newMessage._id);
     } catch (notifError) {
       console.error('❌ Failed to create notification for trainee:', notifError);
       // Don't fail the message send if notification fails
@@ -427,7 +427,7 @@ router.post('/trainee/send', requireTrainee, async (req, res) => {
 
     // Create notification for supervisor (non-blocking)
     try {
-      await createSupervisorMessageNotification(supervisorId, traineeName, message.trim(), newMessage._id);
+      await createSupervisorMessageNotification(supervisorId, traineeId, traineeName, message.trim(), newMessage._id);
     } catch (notifError) {
       console.error('❌ Failed to create notification for supervisor:', notifError);
       // Don't fail the message send if notification fails

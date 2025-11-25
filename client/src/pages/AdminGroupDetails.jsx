@@ -423,18 +423,23 @@ export default function AdminGroupDetails() {
   // --- Loading/Error States ---
   if (loading) {
     return (
-      <div className="sv-loading-center">
-        <Loader2 className="sv-loader" />
-        <span className="sv-loader-text">Loading group details…</span>
+      <div className="loading-state">
+        <div className="spinner"></div>
+        <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading group details...</p>
       </div>
     );
   }
   
   if (error) {
     return (
-      <div className="sv-error-message">
-        <p>{error}</p>
-        <button onClick={load} className="sv-button-retry">Try reloading</button>
+      <div className="empty-state">
+        <div className="empty-icon">
+          <AlertTriangle size={48} />
+        </div>
+        <p style={{ color: '#ef4444' }}>{error}</p>
+        <button onClick={load} className="btn-enhanced-primary" style={{ marginTop: '16px', padding: '10px 20px', borderRadius: '8px' }}>
+          Try reloading
+        </button>
       </div>
     );
   }
@@ -459,7 +464,7 @@ export default function AdminGroupDetails() {
         <div className="sv-grid sv-grid-3 sv-spacing-top">
           
           {/* CARD 1: Group Info */}
-          <div className="sv-card" style={{ background: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="sv-card enhanced-card fade-in-up delay-0" style={{ background: '#fff', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Users size={18} color="#0b2b5a" />
@@ -481,7 +486,7 @@ export default function AdminGroupDetails() {
           </div>
 
           {/* CARD 2: Supervisor Details */}
-          <div className="sv-card" style={{ background: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="sv-card enhanced-card fade-in-up delay-1" style={{ background: '#fff', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

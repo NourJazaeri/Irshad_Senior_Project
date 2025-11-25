@@ -45,10 +45,31 @@ const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent }) => {
 export default function StatusDistributionCard({ statusDistribution }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {statusDistribution.map(group => {
+      {statusDistribution.map((group, index) => {
         const data = formatData(group);
         return (
-          <div key={group.groupName} className="flex flex-col items-center space-y-4 bg-gray-50 p-6 rounded-lg shadow-md border-2 border-gray-200">
+          <div 
+            key={group.groupName} 
+            className="flex flex-col items-center space-y-4 bg-gray-50 p-6 rounded-lg shadow-md border-2 border-gray-200"
+            style={{
+              animation: 'fadeInUp 0.5s ease-out forwards',
+              opacity: 0,
+              animationDelay: `${index * 0.1}s`,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.12), 0 6px 12px rgba(0, 0, 0, 0.08)';
+              e.currentTarget.style.borderColor = '#bfdbfe';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+              e.currentTarget.style.borderColor = '#e5e7eb';
+            }}
+          >
             <div className="font-bold text-gray-800 text-lg mb-2">{group.groupName}</div>
             <ResponsiveContainer width="100%" height={320}>
               <PieChart margin={{ top: 20, right: 50, bottom: 20, left: 50 }}>

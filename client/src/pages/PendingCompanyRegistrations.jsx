@@ -148,7 +148,7 @@ export default function PendingCompanyRegistrations() {
     const isOpen = openId === req._id;
 
     return (
-      <div className="reg-card">
+      <div className="reg-card enhanced-card fade-in-up" style={{ animationDelay: `${Math.random() * 0.3}s` }}>
         <div className="reg-head">
           <div>
             <div className="reg-title">
@@ -162,20 +162,20 @@ export default function PendingCompanyRegistrations() {
           </div>
 
           <div className="actions">
-            <button className="btn" onClick={() => setOpenId(isOpen ? null : req._id)}>
+            <button className="btn btn-enhanced-secondary" onClick={() => setOpenId(isOpen ? null : req._id)}>
               {isOpen ? 'Hide Details' : 'View Details'}
             </button>
             {req.status === 'pending' && (
               <>
                 <button
-                  className="btn btn-green"
+                  className="btn btn-green btn-enhanced-success"
                   disabled={busy === req._id}
                   onClick={() => act(req._id, 'approve')}
                 >
                   {busy === req._id ? 'Approving…' : 'Approve'}
                 </button>
                 <button
-                  className="btn btn-red"
+                  className="btn btn-red btn-enhanced-danger"
                   disabled={busy === req._id}
                   onClick={() => act(req._id, 'reject')}
                 >
@@ -286,6 +286,11 @@ export default function PendingCompanyRegistrations() {
             className={`wo-tab ${activeTab === 'approved' ? 'wo-tab--active' : ''}`}
           data-status="approved"
           onClick={() => setActiveTab('approved')}
+          style={activeTab === 'approved' ? {
+            backgroundColor: '#d1fae5',
+            borderColor: '#10b981',
+            color: '#047857'
+          } : {}}
         >
           Approved
           <span className="wo-tab-count">({counts.approved})</span>
@@ -294,6 +299,11 @@ export default function PendingCompanyRegistrations() {
             className={`wo-tab ${activeTab === 'rejected' ? 'wo-tab--active' : ''}`}
           data-status="rejected"
           onClick={() => setActiveTab('rejected')}
+          style={activeTab === 'rejected' ? {
+            backgroundColor: '#fee2e2',
+            borderColor: '#ef4444',
+            color: '#dc2626'
+          } : {}}
         >
           Rejected
           <span className="wo-tab-count">({counts.rejected})</span>

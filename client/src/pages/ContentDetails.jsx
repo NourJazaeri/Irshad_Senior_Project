@@ -894,27 +894,61 @@ const ContentDetails = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div style={{
+        padding: '20px',
+        background: 'white',
+        borderRadius: '12px',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+      }}>
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading content details...</p>
+        </div>
       </div>
     );
   }
 
   if (!content) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Content not found</p>
-        <Button onClick={() => navigate('/admin/content')} className="mt-4">
-          Back to Content Library
-        </Button>
+      <div style={{
+        padding: '20px',
+        background: 'white',
+        borderRadius: '12px',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+      }}>
+        <div className="empty-state">
+          <div className="empty-icon">
+            <FileText size={48} />
+          </div>
+          <p className="text-muted-foreground">Content not found</p>
+          <Button 
+            onClick={() => {
+              const isSupervisor = window.location.pathname.includes('/supervisor');
+              const backRoute = isSupervisor ? '/supervisor/content' : '/admin/content';
+              navigate(backRoute);
+            }} 
+            className="btn-enhanced-primary mt-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Content
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto px-4 py-6" style={{ maxWidth: '95%' }}>
+    <div style={{
+      padding: '20px',
+      background: 'white',
+      borderRadius: '12px',
+      border: '1px solid #E2E8F0',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    }}>
       {/* All Content Wrapped Together */}
-      <div className="bg-card rounded-xl border border-border p-12 shadow-card mb-6">
+      <div>
         {/* Breadcrumb Navigation - only show if not in group context */}
         {!inGroupContext && (
           <div className="mb-6" style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>
@@ -926,7 +960,7 @@ const ContentDetails = () => {
                 navigate(backRoute);
               }}
             >
-              Content Library
+              Content
             </span>
             <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
             <span style={{ color: '#111827', fontWeight: '700' }}>
@@ -936,7 +970,7 @@ const ContentDetails = () => {
         )}
 
         {/* Content Header */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div className="enhanced-card fade-in-up delay-0 bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-6">
             <h1 className="text-3xl font-bold text-foreground leading-tight">
@@ -947,7 +981,7 @@ const ContentDetails = () => {
               {content.contentType !== 'template' && (
                 <Button
                   onClick={handleViewContent}
-                  className="bg-primary hover:bg-primary-hover shadow-soft text-lg px-6 py-3"
+                  className="btn-enhanced-primary bg-primary hover:bg-primary-hover shadow-soft text-lg px-6 py-3"
                 >
                   <FileText className="w-5 h-5 mr-2" />
                   View Content
@@ -957,7 +991,7 @@ const ContentDetails = () => {
                 onClick={() => setShowEditModal(true)}
                 variant="outline"
                 size="default"
-                className="text-lg"
+                className="btn-enhanced-secondary text-lg"
               >
                 <Edit className="w-5 h-5 mr-2" />
                 Edit
@@ -966,7 +1000,7 @@ const ContentDetails = () => {
                 onClick={() => setShowDeleteConfirm(true)}
                 variant="outline"
                 size="default"
-                className="text-lg border-red-500 text-red-500 hover:bg-red-50"
+                className="btn-enhanced-danger text-lg border-red-500 text-red-500 hover:bg-red-50"
               >
                 <Trash2 className="w-5 h-5 mr-2" />
                 Delete
@@ -984,7 +1018,7 @@ const ContentDetails = () => {
         {/* Content Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Category and Type */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-smooth">
+        <div className="enhanced-card fade-in-up delay-1 bg-white rounded-lg border border-gray-200 p-4">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-3 text-foreground">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <FileText className="w-5 h-5 text-primary" />
@@ -1006,7 +1040,7 @@ const ContentDetails = () => {
         </div>
 
           {/* Deadline */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-smooth">
+        <div className="enhanced-card fade-in-up delay-2 bg-white rounded-lg border border-gray-200 p-4">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-3 text-foreground">
             <div className="w-14 h-14 rounded-xl bg-orange-100 flex items-center justify-center">
               <Calendar className="w-8 h-8 text-orange-600" />
@@ -1021,7 +1055,7 @@ const ContentDetails = () => {
         </div>
 
           {/* Acknowledgement */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-smooth">
+        <div className="enhanced-card fade-in-up delay-3 bg-white rounded-lg border border-gray-200 p-4">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-3 text-foreground">
             <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-green-600" />
@@ -1050,7 +1084,27 @@ const ContentDetails = () => {
         </div>
 
           {/* Assigned To */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-smooth">
+        <div 
+          className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-smooth"
+          style={{
+            animation: 'fadeInUp 0.5s ease-out forwards',
+            opacity: 0,
+            animationDelay: '0.3s',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.12), 0 6px 12px rgba(0, 0, 0, 0.08)';
+            e.currentTarget.style.borderColor = '#bfdbfe';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+            e.currentTarget.style.borderColor = '#e5e7eb';
+          }}
+        >
           <h3 className="text-xl font-bold mb-4 flex items-center gap-3 text-foreground">
             <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center">
               <Building className="w-8 h-8 text-blue-600" />

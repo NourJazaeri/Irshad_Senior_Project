@@ -191,7 +191,7 @@ export default function TraineeChatbot() {
   return (
     <div className="chatbot-container">
       {/* Chat Container */}
-      <div style={{ 
+      <div className="enhanced-card fade-in-up delay-0" style={{ 
         display: 'flex', 
         flexDirection: 'column', 
         flex: 1,
@@ -199,8 +199,7 @@ export default function TraineeChatbot() {
         backgroundColor: '#ffffff',
         borderRadius: '0.75rem',
         border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        overflow: 'hidden'
       }}>
         {/* AI Assistant Header inside chat card */}
         <div style={{ 
@@ -248,19 +247,19 @@ export default function TraineeChatbot() {
             <div className="chatbot-suggestions">
               <button
                 onClick={() => setInput('How do I use the trainee dashboard?')}
-                className="suggestion-btn"
+                className="suggestion-btn btn-enhanced-secondary"
               >
                 How do I use the trainee dashboard?
               </button>
               <button
                 onClick={() => setInput('How can I reset my password?')}
-                className="suggestion-btn"
+                className="suggestion-btn btn-enhanced-secondary"
               >
                 How can I reset my password?
               </button>
               <button
                 onClick={() => setInput('Where can I see my quiz score?')}
-                className="suggestion-btn"
+                className="suggestion-btn btn-enhanced-secondary"
               >
                 Where can I see my quiz score?
               </button>
@@ -326,7 +325,7 @@ export default function TraineeChatbot() {
           />
           <button
             type="submit"
-            className="chatbot-send-btn"
+            className="chatbot-send-btn btn-enhanced-primary"
             disabled={!input.trim() || loading}
             title="Send message"
             style={{
@@ -340,22 +339,7 @@ export default function TraineeChatbot() {
               justifyContent: 'center',
               width: '48px',
               height: '48px',
-              transition: 'all 0.2s',
               color: '#0b2f55'
-            }}
-            onMouseEnter={(e) => {
-              if (!e.target.disabled) {
-                e.target.style.borderColor = '#60a5fa';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(96, 165, 250, 0.2)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!e.target.disabled) {
-                e.target.style.borderColor = '#e0f2fe';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
-              }
             }}
           >
             <Send size={20} />

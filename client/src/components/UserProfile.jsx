@@ -173,7 +173,14 @@ const UserProfile = ({ userRole }) => {
   if (loading) {
     return (
       <div className="profile-container">
-        <div className="profile-loading">Loading profile...</div>
+        {userRole === 'Supervisor' ? (
+          <div className="sv-card sv-card-muted sv-loading-state" style={{ padding: '60px', textAlign: 'center' }}>
+            <div className="sv-spinner"></div>
+            <div style={{ marginTop: '16px', color: '#6b7280', fontSize: '15px' }}>Loading profile...</div>
+          </div>
+        ) : (
+          <div className="profile-loading">Loading profile...</div>
+        )}
       </div>
     );
   }
@@ -181,7 +188,13 @@ const UserProfile = ({ userRole }) => {
   if (!profile) {
     return (
       <div className="profile-container">
-        <div className="profile-error">Failed to load profile</div>
+        {userRole === 'Supervisor' ? (
+          <div className="sv-card" style={{ padding: '40px', textAlign: 'center', background: '#fef2f2', borderColor: '#fecaca' }}>
+            <div style={{ color: '#dc2626', fontSize: '16px', fontWeight: '500' }}>Failed to load profile</div>
+          </div>
+        ) : (
+          <div className="profile-error">Failed to load profile</div>
+        )}
       </div>
     );
   }
@@ -189,7 +202,7 @@ const UserProfile = ({ userRole }) => {
   return (
     <div className="profile-container">
       {/* Personal Information */}
-      <div className="profile-card">
+      <div className="profile-card enhanced-card fade-in-up delay-0">
         <div className="profile-card-header">
           <div className="profile-card-title">
             <div className="profile-icon blue">
@@ -267,10 +280,13 @@ const UserProfile = ({ userRole }) => {
           <div className="profile-actions">
             {editingSection === 'personal' ? (
               <>
-                <button className="btn-primary" onClick={handleSaveChanges}>
+                <button 
+                  className="btn-primary btn-enhanced-primary" 
+                  onClick={handleSaveChanges}
+                >
                   Save Changes
                 </button>
-                <button className="btn-secondary" onClick={() => {
+                <button className="btn-secondary btn-enhanced-secondary" onClick={() => {
                   setEditingSection(null);
                   setFormData({
                     fname: profile.fname || '',
@@ -283,7 +299,10 @@ const UserProfile = ({ userRole }) => {
                 </button>
               </>
             ) : (
-              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('personal')}>
+              <button 
+                className="btn-secondary btn-enhanced-secondary" 
+                onClick={() => setEditingSection('personal')}
+              >
                 Edit Information
               </button>
             )}
@@ -292,7 +311,7 @@ const UserProfile = ({ userRole }) => {
       </div>
 
       {/* Account & Security */}
-      <div className="profile-card">
+      <div className="profile-card enhanced-card fade-in-up delay-1">
         <div className="profile-card-header">
           <div className="profile-card-title">
             <div className="profile-icon green">
@@ -329,10 +348,10 @@ const UserProfile = ({ userRole }) => {
           <div className="profile-actions" style={{ marginBottom: '24px' }}>
             {editingSection === 'account' ? (
               <>
-                <button className="btn-primary" onClick={handleSaveChanges}>
+                <button className="btn-primary btn-enhanced-primary" onClick={handleSaveChanges}>
                   Save Email
                 </button>
-                <button className="btn-secondary" onClick={() => {
+                <button className="btn-secondary btn-enhanced-secondary" onClick={() => {
                   setEditingSection(null);
                   setFormData({
                     fname: profile.fname || '',
@@ -345,7 +364,7 @@ const UserProfile = ({ userRole }) => {
                 </button>
               </>
             ) : (
-              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('account')}>
+              <button className="btn-secondary btn-enhanced-secondary" onClick={() => setEditingSection('account')}>
                 Edit Email
               </button>
             )}
@@ -353,7 +372,7 @@ const UserProfile = ({ userRole }) => {
 
           <div className="password-section">
             {!changingPassword ? (
-              <button className="btn-outline" onClick={() => setChangingPassword(true)}>
+              <button className="btn-outline btn-enhanced-secondary" onClick={() => setChangingPassword(true)}>
                 <Shield size={16} /> Change Password
               </button>
             ) : (
@@ -393,10 +412,10 @@ const UserProfile = ({ userRole }) => {
                   />
                 </div>
                 <div className="profile-actions">
-                  <button className="btn-primary" onClick={handleChangePassword}>
+                  <button className="btn-primary btn-enhanced-primary" onClick={handleChangePassword}>
                     Update Password
                   </button>
-                  <button className="btn-secondary" onClick={() => {
+                  <button className="btn-secondary btn-enhanced-secondary" onClick={() => {
                     setChangingPassword(false);
                     setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
                   }}>
@@ -411,7 +430,7 @@ const UserProfile = ({ userRole }) => {
 
       {/* System Information */}
       {userRole !== 'WebOwner' && (
-        <div className="profile-card">
+        <div className="profile-card enhanced-card fade-in-up delay-2">
           <div className="profile-card-header">
             <div className="profile-card-title">
               <div className="profile-icon purple">

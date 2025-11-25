@@ -11,7 +11,7 @@ export default function CompanyCard({ company }) {
 
   return (
     <article 
-      className="wo-card wo-card--enhanced wo-card--clickable" 
+      className="wo-card wo-card--enhanced wo-card--clickable enhanced-card" 
       onClick={handleCardClick}
     >
       <div className="wo-card__content">

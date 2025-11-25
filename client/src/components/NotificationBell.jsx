@@ -84,14 +84,15 @@ export const NotificationBell = ({ userType = 'trainee' }) => {
             : `/trainee/content/${notification.refId}`;
           navigate(contentPath);
         } else if (notification.refType === 'Chat') {
-          // Navigate to chat - for trainee, go to their chat page
-          // For supervisor, we'd need the traineeId from the chat message
+          const metadata = notification.metadata || {};
           if (userType === 'trainee') {
             navigate('/trainee/chat');
           } else if (userType === 'supervisor') {
-            // For supervisor, we'd need to extract traineeId from the chat message
-            // For now, just navigate to groups page
-            navigate('/supervisor/groups');
+            if (metadata.traineeId) {
+              navigate(`/supervisor/chat/${metadata.traineeId}`);
+            } else {
+              navigate('/supervisor/groups');
+            }
           }
         }
       }

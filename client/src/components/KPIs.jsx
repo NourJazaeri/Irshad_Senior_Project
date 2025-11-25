@@ -16,12 +16,12 @@ export default function KPIs({ companyCount, pendingCount }) {
 
   return (
     <section className="kpis">
-      <div className="kpi" onClick={handleCompaniesClick} style={{ cursor: 'pointer' }}>
+      <div className="kpi enhanced-card fade-in-up delay-0" onClick={handleCompaniesClick} style={{ cursor: 'pointer' }}>
         <div className="kpi-label">Total Companies</div>
         <div className="kpi-value">{companyCount}</div>
         <div className="kpi-icon"><FiDatabase /></div>
       </div>
-      <div className="kpi" onClick={handleRegistrationsClick} style={{ cursor: 'pointer' }}>
+      <div className="kpi enhanced-card fade-in-up delay-1" onClick={handleRegistrationsClick} style={{ cursor: 'pointer' }}>
         <div className="kpi-label">Pending Requests</div>
         <div className="kpi-value">{pendingCount}</div>
         <div className="kpi-icon"><FiCalendar /></div>

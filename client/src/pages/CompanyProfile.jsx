@@ -219,7 +219,7 @@ function CompanyProfile() {
   return (
     <div className="profile-container">
       {/* Basic Information */}
-      <div className="profile-card">
+      <div className="profile-card enhanced-card fade-in-up delay-0">
         <div className="profile-card-header">
           <div className="profile-card-title">
             <div className="profile-icon blue">
@@ -305,15 +305,15 @@ function CompanyProfile() {
           <div className="profile-actions">
             {editingSection === 'basic' ? (
               <>
-                <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+                <button className="btn-primary btn-enhanced-primary" onClick={handleSaveChanges} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="btn-secondary" onClick={() => handleCancel('basic')}>
+                <button className="btn-secondary btn-enhanced-secondary" onClick={() => handleCancel('basic')}>
                   Cancel
                 </button>
               </>
             ) : (
-              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('basic')}>
+              <button className="btn-secondary btn-enhanced-secondary" onClick={() => setEditingSection('basic')}>
                 Edit Information
               </button>
             )}
@@ -322,7 +322,7 @@ function CompanyProfile() {
       </div>
 
       {/* Business Details */}
-      <div className="profile-card">
+      <div className="profile-card enhanced-card fade-in-up delay-1">
         <div className="profile-card-header">
           <div className="profile-card-title">
             <div className="profile-icon purple">
@@ -390,15 +390,15 @@ function CompanyProfile() {
           <div className="profile-actions">
             {editingSection === 'business' ? (
               <>
-                <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+                <button className="btn-primary btn-enhanced-primary" onClick={handleSaveChanges} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="btn-secondary" onClick={() => handleCancel('business')}>
+                <button className="btn-secondary btn-enhanced-secondary" onClick={() => handleCancel('business')}>
                   Cancel
                 </button>
               </>
             ) : (
-              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('business')}>
+              <button className="btn-secondary btn-enhanced-secondary" onClick={() => setEditingSection('business')}>
                 Edit Information
               </button>
             )}
@@ -407,7 +407,7 @@ function CompanyProfile() {
       </div>
 
       {/* Online Presence */}
-      <div className="profile-card">
+      <div className="profile-card enhanced-card fade-in-up delay-2">
         <div className="profile-card-header">
           <div className="profile-card-title">
             <div className="profile-icon green">
@@ -523,15 +523,15 @@ function CompanyProfile() {
           <div className="profile-actions">
             {editingSection === 'online' ? (
               <>
-                <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
+                <button className="btn-primary btn-enhanced-primary" onClick={handleSaveChanges} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="btn-secondary" onClick={() => handleCancel('online')}>
+                <button className="btn-secondary btn-enhanced-secondary" onClick={() => handleCancel('online')}>
                   Cancel
                 </button>
               </>
             ) : (
-              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('online')}>
+              <button className="btn-secondary btn-enhanced-secondary" onClick={() => setEditingSection('online')}>
                 Edit Information
               </button>
             )}

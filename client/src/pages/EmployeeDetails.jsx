@@ -84,8 +84,9 @@ export default function EmployeeDetails() {
 
   if (loading) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Loading Employee Details...</h2>
+      <div className="loading-state" style={{ padding: '40px' }}>
+        <div className="spinner"></div>
+        <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading Employee Details...</p>
       </div>
     );
   }
@@ -223,22 +224,12 @@ export default function EmployeeDetails() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div 
+            className="enhanced-card fade-in-up delay-0"
             style={{ 
               padding: '24px', 
               borderRadius: '12px', 
               background: '#f8f9fa',
-              border: '2px solid #e5e7eb',
-              transition: 'all 0.3s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#1976d2';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
-              e.currentTarget.style.transform = 'translateY(-4px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#e5e7eb';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
+              border: '2px solid #e5e7eb'
             }}
           >
             <h3 style={{ color: '#1976d2', marginBottom: '20px', fontSize: '18px', fontWeight: 600 }}>Personal Information</h3>
@@ -257,22 +248,12 @@ export default function EmployeeDetails() {
           </div>
 
           <div 
+            className="enhanced-card fade-in-up delay-1"
             style={{ 
               padding: '24px', 
               borderRadius: '12px', 
               background: '#f8f9fa',
-              border: '2px solid #e5e7eb',
-              transition: 'all 0.3s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#1976d2';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
-              e.currentTarget.style.transform = 'translateY(-4px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#e5e7eb';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
+              border: '2px solid #e5e7eb'
             }}
           >
             <h3 style={{ color: '#1976d2', marginBottom: '20px', fontSize: '18px', fontWeight: 600 }}>Employment Details</h3>
@@ -290,23 +271,13 @@ export default function EmployeeDetails() {
 
         {employee.bio && (
           <div 
+            className="enhanced-card fade-in-up delay-2"
             style={{ 
               marginTop: '32px', 
               padding: '20px', 
               backgroundColor: '#f8f9fa', 
               borderRadius: '12px', 
-              border: '2px solid #e5e7eb',
-              transition: 'all 0.3s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#1976d2';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
-              e.currentTarget.style.transform = 'translateY(-4px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#e5e7eb';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.transform = 'translateY(0)';
+              border: '2px solid #e5e7eb'
             }}
           >
             <h3 style={{ color: '#1976d2', marginBottom: '16px', fontSize: '18px', fontWeight: 600 }}>Biography</h3>
@@ -321,23 +292,13 @@ export default function EmployeeDetails() {
         )}
 
         <div 
+          className="enhanced-card fade-in-up delay-3"
           style={{ 
             marginTop: '32px', 
             padding: '20px', 
             backgroundColor: '#f8f9fa', 
             borderRadius: '12px', 
-            border: '2px solid #e5e7eb',
-            transition: 'all 0.3s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#1976d2';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.2)';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#e5e7eb';
-            e.currentTarget.style.boxShadow = 'none';
-            e.currentTarget.style.transform = 'translateY(0)';
+            border: '2px solid #e5e7eb'
           }}
         >
           <h4 style={{ margin: '0 0 16px 0', color: '#1976d2', fontSize: '18px', fontWeight: 600 }}>Additional Information</h4>
@@ -411,31 +372,27 @@ export default function EmployeeDetails() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
               <button
                 onClick={cancelDelete}
+                className="btn-enhanced-secondary"
                 style={{
-                  background: '#f3f4f6',
-                  color: '#111827',
                   padding: '10px 24px',
                   borderRadius: '8px',
                   border: '1px solid #e5e7eb',
                   cursor: 'pointer',
                   fontWeight: '600',
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease'
+                  fontSize: '14px'
                 }}
-                onMouseEnter={(e) => { e.target.style.background = '#e5e7eb'; }}
-                onMouseLeave={(e) => { e.target.style.background = '#f3f4f6'; }}
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
+                className="btn-enhanced-danger"
                 style={{
-                  background: deleting ? '#ccc' : '#dc2626',
-                  color: '#fff',
                   padding: '10px 24px',
                   borderRadius: '8px',
                   border: 'none',
+                  opacity: deleting ? 0.5 : 1,
                   cursor: deleting ? 'not-allowed' : 'pointer',
                   fontWeight: '600',
                   fontSize: '14px',

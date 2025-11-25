@@ -269,8 +269,9 @@ function TraineeDashboard() {
         <>
           {/* Supervisor Card for Chat */}
           {supervisorLoading ? (
-            <div className="trainee-card trainee-loading" style={{ marginBottom: '24px' }}>
-              <p>Loading supervisor information...</p>
+            <div className="trainee-card trainee-loading enhanced-card fade-in-up delay-0" style={{ marginBottom: '24px' }}>
+              <div className="spinner spinner-sm"></div>
+              <p style={{ marginTop: '8px' }}>Loading supervisor information...</p>
             </div>
           ) : supervisorError ? (
             <div className="trainee-card trainee-error" style={{ marginBottom: '24px' }}>
@@ -287,7 +288,7 @@ function TraineeDashboard() {
             }}>
               {/* Department Card */}
               {assignedData.traineeInfo?.department && (
-                <div className="trainee-card" style={{ 
+                <div className="trainee-card enhanced-card fade-in-up delay-0" style={{ 
                   padding: '20px',
                   display: 'flex',
                   alignItems: 'center',
@@ -331,7 +332,7 @@ function TraineeDashboard() {
 
               {/* Supervisor Card */}
               {supervisorInfo && (
-                <div className="trainee-card supervisor-card" style={{ 
+                <div className="trainee-card supervisor-card enhanced-card fade-in-up delay-1" style={{ 
                   padding: '20px',
                   display: 'flex',
                   alignItems: 'center',
@@ -391,7 +392,6 @@ function TraineeDashboard() {
                   </div>
                   <button className="trainee-chat-btn" onClick={handleChatClick} style={{
                     padding: '8px 16px',
-                    background: '#2563EB',
                     border: 'none',
                     borderRadius: '0.5rem',
                     cursor: 'pointer',
@@ -399,18 +399,11 @@ function TraineeDashboard() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    transition: 'background-color 0.2s',
                     color: '#FFFFFF',
                     fontWeight: '500',
                     fontSize: '14px',
                     flexShrink: 0,
                     position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = '#1D4ED8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = '#2563EB';
                   }}
                   >
                     <FiMessageCircle size={18} color="white" />
@@ -461,11 +454,10 @@ function TraineeDashboard() {
 
           {/* Content Section */}
           {!loading && !error && (
-            <div style={{
+            <div className="enhanced-card fade-in-up delay-2" style={{
               backgroundColor: 'white',
               borderRadius: '8px',
-              padding: '24px',
-              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+              padding: '24px'
             }}>
                 {/* Header */}
                 <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
@@ -485,14 +477,41 @@ function TraineeDashboard() {
                 <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e2e8f0' }}>
                   <h3 style={{ fontSize: '1.125rem', fontWeight: '500', color: '#111827', marginBottom: '16px' }}>Your Onboarding Progress</h3>
                   <div>
-                    <div style={{ width: '100%', backgroundColor: '#f3f4f6', borderRadius: '9999px', height: '24px', overflow: 'hidden' }}>
+                    <div 
+                      style={{ 
+                        width: '100%', 
+                        backgroundColor: '#f3f4f6', 
+                        borderRadius: '9999px', 
+                        height: '24px', 
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.2)';
+                        e.currentTarget.style.transform = 'scale(1.02)';
+                        e.currentTarget.style.backgroundColor = '#e5e7eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      }}
+                    >
                       <div
                         style={{
                           height: '100%',
                           borderRadius: '9999px',
-                          transition: 'width 0.3s ease-in-out, background-color 0.3s ease-in-out',
+                          transition: 'width 0.3s ease-in-out, background-color 0.3s ease-in-out, box-shadow 0.3s ease',
                           width: `${Math.max(0, Math.min(100, completionPercentage))}%`,
                           backgroundColor: progressBarColor
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.boxShadow = '0 0 8px rgba(37, 99, 235, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.boxShadow = 'none';
                         }}
                       />
                     </div>
@@ -512,17 +531,29 @@ function TraineeDashboard() {
                     <button
                       onClick={() => setActiveTab('all')}
                       style={{
-                        paddingBottom: '8px',
+                        padding: '8px 16px',
                         fontSize: '0.875rem',
                         fontWeight: '500',
-                        borderBottom: activeTab === 'all' ? '2px solid #2563eb' : '2px solid transparent',
+                        border: activeTab === 'all' ? '2px solid #2563eb' : '2px solid transparent',
                         color: activeTab === 'all' ? '#2563eb' : '#6b7280',
-                        background: 'none',
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
+                        background: activeTab === 'all' ? '#dbeafe' : 'none',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeTab !== 'all') {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.border = '2px solid #93c5fd';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeTab !== 'all') {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.border = '2px solid transparent';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
                       All Content ({assignedData.metrics.total})
@@ -530,17 +561,29 @@ function TraineeDashboard() {
                     <button
                       onClick={() => setActiveTab('notStarted')}
                       style={{
-                        paddingBottom: '8px',
+                        padding: '8px 16px',
                         fontSize: '0.875rem',
                         fontWeight: '500',
-                        borderBottom: activeTab === 'notStarted' ? '2px solid #2563eb' : '2px solid transparent',
+                        border: activeTab === 'notStarted' ? '2px solid #2563eb' : '2px solid transparent',
                         color: activeTab === 'notStarted' ? '#2563eb' : '#6b7280',
-                        background: 'none',
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
+                        background: activeTab === 'notStarted' ? '#dbeafe' : 'none',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeTab !== 'notStarted') {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.border = '2px solid #93c5fd';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeTab !== 'notStarted') {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.border = '2px solid transparent';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
                       Not Started ({assignedData.metrics.notStarted || 0})
@@ -548,17 +591,29 @@ function TraineeDashboard() {
                     <button
                       onClick={() => setActiveTab('inProgress')}
                       style={{
-                        paddingBottom: '8px',
+                        padding: '8px 16px',
                         fontSize: '0.875rem',
                         fontWeight: '500',
-                        borderBottom: activeTab === 'inProgress' ? '2px solid #2563eb' : '2px solid transparent',
+                        border: activeTab === 'inProgress' ? '2px solid #2563eb' : '2px solid transparent',
                         color: activeTab === 'inProgress' ? '#2563eb' : '#6b7280',
-                        background: 'none',
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
+                        background: activeTab === 'inProgress' ? '#dbeafe' : 'none',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeTab !== 'inProgress') {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.border = '2px solid #93c5fd';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeTab !== 'inProgress') {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.border = '2px solid transparent';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
                       In Progress ({assignedData.metrics.inProgress})
@@ -566,17 +621,29 @@ function TraineeDashboard() {
                     <button
                       onClick={() => setActiveTab('completed')}
                       style={{
-                        paddingBottom: '8px',
+                        padding: '8px 16px',
                         fontSize: '0.875rem',
                         fontWeight: '500',
-                        borderBottom: activeTab === 'completed' ? '2px solid #2563eb' : '2px solid transparent',
+                        border: activeTab === 'completed' ? '2px solid #2563eb' : '2px solid transparent',
                         color: activeTab === 'completed' ? '#2563eb' : '#6b7280',
-                        background: 'none',
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
+                        background: activeTab === 'completed' ? '#dbeafe' : 'none',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeTab !== 'completed') {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.border = '2px solid #93c5fd';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeTab !== 'completed') {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.border = '2px solid transparent';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
                       Completed ({assignedData.metrics.completed})
@@ -584,17 +651,29 @@ function TraineeDashboard() {
                     <button
                       onClick={() => setActiveTab('overdue')}
                       style={{
-                        paddingBottom: '8px',
+                        padding: '8px 16px',
                         fontSize: '0.875rem',
                         fontWeight: '500',
-                        borderBottom: activeTab === 'overdue' ? '2px solid #2563eb' : '2px solid transparent',
+                        border: activeTab === 'overdue' ? '2px solid #2563eb' : '2px solid transparent',
                         color: activeTab === 'overdue' ? '#2563eb' : '#6b7280',
-                        background: 'none',
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
+                        background: activeTab === 'overdue' ? '#dbeafe' : 'none',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeTab !== 'overdue') {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.border = '2px solid #93c5fd';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeTab !== 'overdue') {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.border = '2px solid transparent';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
                       Overdue ({assignedData.metrics.overdue})
@@ -602,17 +681,29 @@ function TraineeDashboard() {
                     <button
                       onClick={() => setActiveTab('dueSoon')}
                       style={{
-                        paddingBottom: '8px',
+                        padding: '8px 16px',
                         fontSize: '0.875rem',
                         fontWeight: '500',
-                        borderBottom: activeTab === 'dueSoon' ? '2px solid #2563eb' : '2px solid transparent',
+                        border: activeTab === 'dueSoon' ? '2px solid #2563eb' : '2px solid transparent',
                         color: activeTab === 'dueSoon' ? '#2563eb' : '#6b7280',
-                        background: 'none',
-                        borderTop: 'none',
-                        borderLeft: 'none',
-                        borderRight: 'none',
+                        background: activeTab === 'dueSoon' ? '#dbeafe' : 'none',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        transition: 'color 0.2s'
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeTab !== 'dueSoon') {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.border = '2px solid #93c5fd';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeTab !== 'dueSoon') {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.border = '2px solid transparent';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }
                       }}
                     >
                       Due Soon ({assignedData.metrics.dueSoon})

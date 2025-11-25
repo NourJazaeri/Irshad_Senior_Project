@@ -73,41 +73,46 @@ const ContentManagement = () => {
              </div>
              <div className="flex gap-3">
                <Button
-                 onClick={() => setIsModalOpen(true)}
-                 className="bg-primary hover:bg-primary-hover shadow-soft text-base font-semibold px-6 py-3"
-               >
-                 <Plus className="w-5 h-5 mr-2" />
-                 Add New Content
-               </Button>
+                onClick={() => setIsModalOpen(true)}
+                className="btn-enhanced-primary bg-primary hover:bg-primary-hover shadow-soft text-base font-semibold px-6 py-3"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add New Content
+              </Button>
              </div>
            </div>
 
       {/* Content Grid */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-10 h-10 border-4 border-border border-t-primary rounded-full animate-spin mb-4" />
-          <p className="text-lg text-muted-foreground font-medium">Loading content...</p>
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading content...</p>
         </div>
       ) : contentList.length === 0 ? (
-        <div className="text-center py-16 bg-card rounded-xl border-2 border-dashed border-border">
-          <div className="text-6xl mb- presented-4">📚</div>
+        <div className="empty-state">
+          <div className="empty-icon">📚</div>
           <h3 className="text-2xl font-bold text-foreground mb-3">No content yet</h3>
           <p className="text-lg text-muted-foreground mb-6">
             Get started by adding your first piece of content.
           </p>
-          <Button onClick={() => setIsModalOpen(true)} size="lg" className="text-base font-semibold px-6 py-3">
+          <Button onClick={() => setIsModalOpen(true)} size="lg" className="btn-enhanced-primary text-base font-semibold px-6 py-3">
             <Plus className="w-5 h-5 mr-2" />
             Add Content
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {contentList.map(content => (
-            <ContentCard
+          {contentList.map((content, index) => (
+            <div 
               key={content._id}
-              content={content}
-              onClick={handleContentClick}
-            />
+              className="enhanced-card fade-in-up"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <ContentCard
+                content={content}
+                onClick={handleContentClick}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -80,7 +80,7 @@ const TraineeContentCard = ({ content, onContentSelect, traineeInfo }) => {
 
   return (
     <div 
-      className="bg-white rounded-xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer min-h-64 flex flex-col hover:border-blue-300"
+      className="bg-white rounded-xl border border-gray-200 p-6 cursor-pointer min-h-64 flex flex-col enhanced-card"
       onClick={handleContentClick}
     >
       {/* Header with Icon and Badge */}

@@ -144,7 +144,10 @@ export default function ActivityLog() {
     return (
       <div className="wo-page">
         <div className="wo-page-content">
-          <div className="loading">Loading...</div>
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading activity report...</p>
+          </div>
         </div>
       </div>
     );
@@ -153,19 +156,50 @@ export default function ActivityLog() {
   return (
     <div className="wo-page">
       <div className="wo-page-content">
-        <div className="wo-search-wrapper">
-          <div className="wo-search-input-container">
-            <Search className="wo-search-icon" />
+        <div className="wo-search-wrapper enhanced-card fade-in-up delay-0" style={{ 
+          padding: '24px', 
+          marginBottom: '24px',
+          background: '#ffffff',
+          borderRadius: '12px'
+        }}>
+          <div className="wo-search-input-container" style={{
+            position: 'relative',
+            maxWidth: '500px'
+          }}>
+            <Search className="wo-search-icon" style={{
+              position: 'absolute',
+              left: '16px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#6b7280'
+            }} />
             <input
               className="wo-search-input"
               placeholder="Search companies, status, or reviewer…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 16px 12px 48px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'all 0.2s ease'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#2563eb';
+                e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e5e7eb';
+                e.target.style.boxShadow = 'none';
+              }}
             />
           </div>
         </div>
 
-        <div className="wo-table-container">
+        <div className="wo-table-container enhanced-card fade-in-up delay-1">
           <table className="wo-table">
           <thead>
             <tr>
@@ -208,8 +242,12 @@ export default function ActivityLog() {
             </tr>
           </thead>
           <tbody>
-            {filteredCompanies.map((company) => (
-              <tr key={company._id}>
+            {filteredCompanies.map((company, index) => (
+              <tr 
+                key={company._id}
+                className="fade-in-up"
+                style={{ animationDelay: `${0.1 + (index * 0.05)}s` }}
+              >
                 <td>
                   <div className="wo-company-name">{company.companyName}</div>
                 </td>
@@ -245,7 +283,10 @@ export default function ActivityLog() {
           </div>
 
         {filteredCompanies.length === 0 && !loading && (
-          <div className="wo-empty">
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Building2 size={48} />
+            </div>
             <p>No companies found matching your search criteria.</p>
           </div>
         )}

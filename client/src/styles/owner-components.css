@@ -220,6 +220,11 @@
 }
 
 .wo-th-icon {
+  color: #2563eb;
+  opacity: 0.8;
+}
+
+.wo-th-icon {
   width: 16px;
   height: 16px;
   color: #2563eb;
@@ -233,9 +238,14 @@
   font-size: 0.875rem;
 }
 
+.wo-table tbody tr {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .wo-table tbody tr:hover {
   background: #f9fafb;
-  transition: background-color 0.15s ease;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .wo-table tr:last-child td {

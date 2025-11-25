@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle, Eye, Calendar, FileText, Tag, HelpCircle, Lightbulb, BarChart3, Zap, Target, TrendingUp, Wrench, Trophy, Flame, Users, Award, MapPin, MessageCircle, Link, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Eye, Calendar, FileText, Tag, HelpCircle, Lightbulb, BarChart3, Zap, Target, TrendingUp, Wrench, Trophy, Flame, Users, Award, MapPin, MessageCircle, Link, Clock, AlertCircle, ExternalLink, Download } from 'lucide-react';
 
 import KnowledgeCardsTemplate from '../components/KnowledgeCardsTemplate.jsx';
 import RecognitionTemplate from '../components/RecognitionTemplate.jsx';
@@ -1429,13 +1429,14 @@ Your unique skills and perspective will be invaluable as we work towards our sha
         });
         
         return (
-          <div className="w-full h-full flex flex-col items-center justify-center">
-            <div className="w-full h-[700px] flex items-center justify-center">
+          <div className="w-full flex flex-col items-center justify-center">
+            <div className="w-full flex items-center justify-center">
               <div className="relative group">
                 <img
                   src={resourceUrl}
                   alt={content.title}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                  className="max-w-full h-auto object-contain rounded-lg shadow-2xl"
+                  style={{ maxHeight: '80vh' }}
                   onError={(e) => {
                     console.error('Image load error:', e);
                     e.target.style.display = 'none';
@@ -1560,13 +1561,14 @@ Your unique skills and perspective will be invaluable as we work towards our sha
         if (isImage) {
           console.log('🖼️ FALLBACK: Rendering as image despite unknown type');
           return (
-            <div className="w-full h-full flex flex-col items-center justify-center">
-              <div className="w-full h-full max-w-6xl max-h-[80vh] flex items-center justify-center">
+            <div className="w-full flex flex-col items-center justify-center">
+              <div className="w-full max-w-6xl flex items-center justify-center">
                 <div className="relative group">
                   <img
                     src={resourceUrl}
                     alt={content.title}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-pointer transition-transform duration-200 hover:scale-105"
+                    className="max-w-full h-auto object-contain rounded-lg shadow-2xl cursor-pointer transition-transform duration-200 hover:scale-105"
+                    style={{ maxHeight: '80vh' }}
                     onError={(e) => {
                       console.error('Image load error:', e);
                       e.target.style.display = 'none';
@@ -1934,273 +1936,321 @@ Your unique skills and perspective will be invaluable as we work towards our sha
     return (
       <>
       <div className="w-full px-6 pb-6">
-        {/* Header */}
-        <div className="bg-white border border-gray-200 px-6 py-4 mb-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => {
-                if (inlineMode && onBack) {
-                  onBack();
-                } else {
-                  // Use browser history to go back to previous page
-                  navigate(-1);
-                }
-              }}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Back
-            </button>
-          </div>
+        {/* Breadcrumb */}
+        <div style={{ fontSize: '18px', display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+          <span 
+            style={{ color: '#6b7280', cursor: 'pointer' }} 
+            onClick={() => {
+              if (inlineMode && onBack) {
+                onBack();
+              } else {
+                navigate('/trainee');
+              }
+            }}
+          >
+            All Content
+          </span>
+          <span style={{ margin: '0 8px', color: '#6b7280' }}>&gt;</span>
+          <span style={{ color: '#111827', fontWeight: '700' }}>
+            {content?.title || 'Content'}
+          </span>
         </div>
 
-        {/* Content Header */}
-        <div className="bg-white px-6 py-6 min-h-fit">
+        {/* Content Summary Card */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm enhanced-card fade-in-up delay-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {content?.title || 'Loading...'}
-            </h1>
-            <p className="text-gray-600 text-lg leading-relaxed mb-4 break-words">
-              {content?.description || 'Learn best practices for handling sensitive company and customer data'}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {content?.title || 'Loading...'}
+              </h1>
+              <div className="flex items-center gap-4">
+                {/* Category Tag */}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {content?.category || content?.contentType || 'Training'}
+                </span>
+                {/* Deadline */}
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-orange-600" />
+                  <span className="text-gray-900">
+                    {content?.deadline ? formatDate(content?.deadline) : 'No deadline'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-gray-600 text-lg leading-relaxed break-words">
+              {content?.description || 'No description provided'}
             </p>
           </div>
         </div>
 
         {/* Content Display */}
-        <div className="px-6 py-4">
-          <div>
-            {/* Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Category & Type */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-start gap-3 mb-4">
-                  <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <h3 className="font-semibold text-gray-900">Category & Type</h3>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-sm text-gray-500">Category</span>
-                    <div className="mt-1">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {content?.category || content?.contentType || 'Training'}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Content Type</span>
-                    <p className="text-sm text-gray-900 mt-1">
-                      {content?.contentType || content?.type || 'link'}
-                    </p>
-                  </div>
-                </div>
+        <div className="mb-6">
+          {/* Content Actions */}
+          {(() => {
+            const contentUrl = content?.contentUrl || content?.url || content?.linkUrl || content?.fileUrl;
+            if (!contentUrl) return null;
+            
+            const toAbsoluteUrl = (url) => {
+              if (!url) return '';
+              if (url.startsWith('http://') || url.startsWith('https://')) return url;
+              if (url.startsWith('/')) return url;
+              return url;
+            };
+            
+            const resourceUrl = toAbsoluteUrl(contentUrl);
+            const actualType = content?.contentType || content?.type || 'link';
+            const isDownloadable = ['pdf', 'image', 'doc', 'docx', 'png', 'jpg', 'jpeg'].includes(actualType?.toLowerCase()) || 
+                                  resourceUrl.match(/\.(pdf|doc|docx|png|jpg|jpeg|gif|bmp|webp)$/i);
+            
+            if (!isDownloadable && actualType !== 'link') return null;
+            
+            const getFileExtension = (url) => {
+              if (!url) return '';
+              const match = url.match(/\.([^.?]+)(?:\?|$)/);
+              return match ? match[1].toLowerCase() : '';
+            };
+            
+            const fileExtension = getFileExtension(resourceUrl);
+            const fileName = content?.title + (fileExtension ? `.${fileExtension}` : '');
+            
+            return (
+              <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
+                <button
+                  onClick={() => window.open(resourceUrl, '_blank', 'noopener,noreferrer')}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm bg-blue-600 text-white hover:bg-blue-700 btn-enhanced-primary"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open in new tab
+                </button>
+                {isDownloadable && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Fetch the file as a blob to force download
+                        const response = await fetch(resourceUrl);
+                        const blob = await response.blob();
+                        
+                        // Create a blob URL
+                        const blobUrl = window.URL.createObjectURL(blob);
+                        
+                        // Create a temporary link and trigger download
+                        const link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        
+                        // Clean up
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(blobUrl);
+                      } catch (error) {
+                        console.error('Download failed:', error);
+                        // Fallback: try direct download
+                        const link = document.createElement('a');
+                        link.href = resourceUrl;
+                        link.download = fileName;
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }
+                    }}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm bg-blue-600 text-white hover:bg-blue-700 btn-enhanced-primary"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                )}
               </div>
-
-              {/* Deadline */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-start gap-3 mb-4">
-                  <Calendar className="w-5 h-5 text-orange-600 mt-0.5" />
-                  <h3 className="font-semibold text-gray-900">Deadline</h3>
-                </div>
-                <div>
-                  <p className="text-lg font-medium text-gray-900">
-                    {formatDate(content?.deadline)}
-                  </p>
-                  {getDeadlineStatus() && (
-                    <div className="flex items-center gap-1 mt-2">
-                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                      <span className={`text-sm font-medium ${getDeadlineStatus().color}`}>
-                        {getDeadlineStatus().text}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Content Display */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            );
+          })()}
+          
+          {/* Content Display */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm enhanced-card fade-in-up delay-1">
               <div className={`${
                 content?.contentType === 'template' || content?.type === 'template' 
                   ? 'p-0'
-                  : 'p-6'
-              }`}>
-                <div className={`${
-                  content?.contentType === 'link' || content?.type === 'link' 
-                    ? 'min-h-[400px]' 
+                  : (content?.contentType === 'image' || content?.type === 'image')
+                    ? 'p-4'
                     : (content?.contentType === 'pdf' || content?.type === 'pdf')
-                      ? 'min-h-[900px]'
-                      : (content?.contentType === 'template' || content?.type === 'template')
-                        ? 'min-h-fit'
-                        : 'min-h-[800px]'
-                }`}>
+                      ? 'p-6'
+                      : (content?.contentType === 'link' || content?.type === 'link')
+                        ? 'p-4'
+                        : 'p-4'
+              }`}>
+                <div className="w-full" style={{ 
+                  minHeight: (content?.contentType === 'pdf' || content?.type === 'pdf') ? '600px' : 'auto',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: (content?.contentType === 'image' || content?.type === 'image') ? 'center' : 'flex-start'
+                }}>
                   {renderContent()}
                 </div>
               </div>
             </div>
+        </div>
 
-            {/* Action Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 my-8">
-              {/* Acknowledge Card */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1">
-                <div className="flex flex-col items-center h-full">
-                  <div className="p-3 bg-green-100 rounded-lg mb-3">
-                    <Eye className="w-5 h-5 text-green-600" />
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 my-8">
+          {/* Acknowledge Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1 enhanced-card fade-in-up delay-2">
+            <div className="flex flex-col items-center h-full">
+              <div className="p-3 bg-green-100 rounded-lg mb-3">
+                <Eye className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Acknowledge</h3>
+              <p className="text-gray-600 text-xs mb-3 flex-grow">
+                {content?.ackRequired 
+                  ? "Confirm you've reviewed this content"
+                  : "Acknowledgment not required for this content"
+                }
+              </p>
+              <button
+                onClick={handleAcknowledge}
+                disabled={acknowledgeLoading || userProgress?.acknowledged || !content?.ackRequired}
+                className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                  !content?.ackRequired
+                    ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
+                    : userProgress?.acknowledged
+                      ? 'bg-green-50 text-green-700 border border-green-200 cursor-not-allowed'
+                      : acknowledgeLoading
+                        ? 'bg-green-400 text-white cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+              >
+                {!content?.ackRequired ? (
+                  'Acknowledgment Not Required'
+                ) : acknowledgeLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 text-sm">Acknowledge</h3>
-                  <p className="text-gray-600 text-xs mb-3 flex-grow">
-                    {content?.ackRequired 
-                      ? "Confirm you've reviewed this content"
-                      : "Acknowledgment not required for this content"
-                    }
-                  </p>
-                  <button
-                    onClick={handleAcknowledge}
-                    disabled={acknowledgeLoading || userProgress?.acknowledged || !content?.ackRequired}
-                    className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
-                      !content?.ackRequired
-                        ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
-                        : userProgress?.acknowledged
-                          ? 'bg-green-50 text-green-700 border border-green-200 cursor-not-allowed'
-                          : acknowledgeLoading
-                            ? 'bg-green-400 text-white cursor-not-allowed'
-                            : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                  >
-                    {!content?.ackRequired ? (
-                      'Acknowledgment Not Required'
-                    ) : acknowledgeLoading ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processing...
-                      </div>
-                    ) : userProgress?.acknowledged ? (
+                ) : userProgress?.acknowledged ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    Acknowledged ✓
+                  </div>
+                ) : (
+                  'Acknowledge Content'
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Complete Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1 enhanced-card fade-in-up delay-3">
+            <div className="flex flex-col items-center h-full">
+              <div className="p-3 bg-blue-100 rounded-lg mb-3">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Complete</h3>
+              <p className="text-gray-600 text-xs mb-3 flex-grow">
+                Finish and close this content
+              </p>
+              <button
+                onClick={handleComplete}
+                disabled={completeLoading || userProgress?.status === 'completed'}
+                className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                  userProgress?.status === 'completed'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200 cursor-not-allowed'
+                    : (content?.ackRequired && !userProgress?.acknowledged) ||
+                      (content?.quiz && content.quiz.questions && content.quiz.questions.length > 0 && 
+                       (userProgress?.score === null || userProgress?.score === undefined))
+                      ? 'bg-gray-300 text-gray-500 border border-gray-200 cursor-not-allowed'
+                      : completeLoading
+                        ? 'bg-blue-400 text-white cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                title={
+                  userProgress?.status === 'completed'
+                    ? 'Content is already completed'
+                    : (() => {
+                        const needsAck = content?.ackRequired && !userProgress?.acknowledged;
+                        const needsQuiz = content?.quiz && content.quiz.questions && content.quiz.questions.length > 0 && 
+                                        (userProgress?.score === null || userProgress?.score === undefined);
+                        
+                        if (needsAck && needsQuiz) {
+                          return 'You must acknowledge this content and take the quiz before marking it as complete.';
+                        } else if (needsAck) {
+                          return 'You must acknowledge this content before marking it as complete.';
+                        } else if (needsQuiz) {
+                          return 'You must take the quiz before marking this content as complete.';
+                        }
+                        return undefined;
+                      })()
+                }
+              >
+                {completeLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </div>
+                ) : userProgress?.status === 'completed' ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    Completed ✓
+                  </div>
+                ) : (
+                  'Mark as Complete'
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quiz Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1 enhanced-card fade-in-up delay-4">
+            <div className="flex flex-col items-center h-full">
+              <div className="p-3 bg-red-100 rounded-lg mb-3">
+                <HelpCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Take the Quiz</h3>
+              <p className="text-gray-600 text-xs mb-3 flex-grow">
+                {(() => {
+                  const hasQuiz = content?.quiz && content?.quiz.questions && content?.quiz.questions.length > 0;
+                  const quizTaken = content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0);
+                  
+                  if (!hasQuiz) {
+                    return "No quiz available for this content";
+                  }
+                  
+                  if (quizTaken) {
+                    return `Quiz completed - Score: ${content?.quizScore || userProgress?.score}%`;
+                  }
+                  
+                  return "Test your knowledge of this content";
+                })()}
+              </p>
+              <button
+                onClick={handleTakeQuiz}
+                disabled={!content?.quiz || !content?.quiz.questions || content?.quiz.questions.length === 0 || content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0)}
+                className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                  (!content?.quiz || !content?.quiz.questions || content?.quiz.questions.length === 0)
+                    ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
+                    : (content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0))
+                    ? 'bg-red-50 text-red-700 border border-red-200 cursor-not-allowed'
+                    : 'bg-red-500 text-white hover:bg-red-600'
+                }`}
+              >
+                {(() => {
+                  const hasQuiz = content?.quiz && content?.quiz.questions && content?.quiz.questions.length > 0;
+                  const quizTaken = content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0);
+                  
+                  if (!hasQuiz) {
+                    return 'No Quiz Available';
+                  }
+                  
+                  if (quizTaken) {
+                    return (
                       <div className="flex items-center justify-center gap-2">
                         <CheckCircle className="w-3 h-3" />
-                        Acknowledged ✓
+                        Quiz Completed ✓
                       </div>
-                    ) : (
-                      'Acknowledge Content'
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Complete Card */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1">
-                <div className="flex flex-col items-center h-full">
-                  <div className="p-3 bg-blue-100 rounded-lg mb-3">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 text-sm">Complete</h3>
-                  <p className="text-gray-600 text-xs mb-3 flex-grow">
-                    Finish and close this content
-                  </p>
-                  <button
-                    onClick={handleComplete}
-                    disabled={completeLoading || userProgress?.status === 'completed'}
-                    className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
-                      userProgress?.status === 'completed'
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200 cursor-not-allowed'
-                        : (content?.ackRequired && !userProgress?.acknowledged) ||
-                          (content?.quiz && content.quiz.questions && content.quiz.questions.length > 0 && 
-                           (userProgress?.score === null || userProgress?.score === undefined))
-                          ? 'bg-gray-300 text-gray-500 border border-gray-200 cursor-not-allowed'
-                          : completeLoading
-                            ? 'bg-blue-400 text-white cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                    title={
-                      userProgress?.status === 'completed'
-                        ? 'Content is already completed'
-                        : (() => {
-                            const needsAck = content?.ackRequired && !userProgress?.acknowledged;
-                            const needsQuiz = content?.quiz && content.quiz.questions && content.quiz.questions.length > 0 && 
-                                            (userProgress?.score === null || userProgress?.score === undefined);
-                            
-                            if (needsAck && needsQuiz) {
-                              return 'You must acknowledge this content and take the quiz before marking it as complete.';
-                            } else if (needsAck) {
-                              return 'You must acknowledge this content before marking it as complete.';
-                            } else if (needsQuiz) {
-                              return 'You must take the quiz before marking this content as complete.';
-                            }
-                            return undefined;
-                          })()
-                    }
-                  >
-                    {completeLoading ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processing...
-                      </div>
-                    ) : userProgress?.status === 'completed' ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <CheckCircle className="w-3 h-3" />
-                        Completed ✓
-                      </div>
-                    ) : (
-                      'Mark as Complete'
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Quiz Card */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4 text-center flex-1">
-                <div className="flex flex-col items-center h-full">
-                  <div className="p-3 bg-red-100 rounded-lg mb-3">
-                    <HelpCircle className="w-5 h-5 text-red-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 text-sm">Take the Quiz</h3>
-                  <p className="text-gray-600 text-xs mb-3 flex-grow">
-                    {(() => {
-                      const hasQuiz = content?.quiz && content?.quiz.questions && content?.quiz.questions.length > 0;
-                      const quizTaken = content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0);
-                      
-                      if (!hasQuiz) {
-                        return "No quiz available for this content";
-                      }
-                      
-                      if (quizTaken) {
-                        return `Quiz completed - Score: ${content?.quizScore || userProgress?.score}%`;
-                      }
-                      
-                      return "Test your knowledge of this content";
-                    })()}
-                  </p>
-                  <button
-                    onClick={handleTakeQuiz}
-                    disabled={!content?.quiz || !content?.quiz.questions || content?.quiz.questions.length === 0 || content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0)}
-                    className={`w-full py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
-                      (!content?.quiz || !content?.quiz.questions || content?.quiz.questions.length === 0)
-                        ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
-                        : (content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0))
-                        ? 'bg-red-50 text-red-700 border border-red-200 cursor-not-allowed'
-                        : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}
-                  >
-                    {(() => {
-                      const hasQuiz = content?.quiz && content?.quiz.questions && content?.quiz.questions.length > 0;
-                      const quizTaken = content?.quizTaken || (userProgress?.score !== undefined && userProgress?.score !== null && userProgress?.score !== 0);
-                      
-                      if (!hasQuiz) {
-                        return 'No Quiz Available';
-                      }
-                      
-                      if (quizTaken) {
-                        return (
-                          <div className="flex items-center justify-center gap-2">
-                            <CheckCircle className="w-3 h-3" />
-                            Quiz Completed ✓
-                          </div>
-                        );
-                      }
-                      
-                      return 'Start Quiz';
-                    })()}
-                  </button>
-                </div>
-              </div>
+                    );
+                  }
+                  
+                  return 'Start Quiz';
+                })()}
+              </button>
             </div>
           </div>
         </div>

@@ -199,7 +199,7 @@ export async function createBulkContentUpdateNotifications(traineeIds, content) 
 /**
  * Create notification when trainee receives a message from supervisor
  */
-export async function createTraineeMessageNotification(traineeId, supervisorName, messageText, chatMessageId) {
+export async function createTraineeMessageNotification(traineeId, supervisorId, supervisorName, messageText, chatMessageId) {
   try {
     // Truncate message for notification body
     const truncatedMessage = messageText.length > 100 
@@ -219,7 +219,12 @@ export async function createTraineeMessageNotification(traineeId, supervisorName
       refType: 'Chat',
       refId: chatMessageId,
       title: `New message from ${supervisorName}`,
-      body: truncatedMessage
+      body: truncatedMessage,
+      metadata: {
+        traineeId,
+        supervisorId,
+        chatMessageId
+      }
     });
 
     console.log(`✅ Message notification created for trainee ${traineeId} from ${supervisorName} - Notification ID: ${notification._id}`);
@@ -238,7 +243,7 @@ export async function createTraineeMessageNotification(traineeId, supervisorName
 /**
  * Create notification when supervisor receives a message from trainee
  */
-export async function createSupervisorMessageNotification(supervisorId, traineeName, messageText, chatMessageId) {
+export async function createSupervisorMessageNotification(supervisorId, traineeId, traineeName, messageText, chatMessageId) {
   try {
     // Truncate message for notification body
     const truncatedMessage = messageText.length > 100 
@@ -258,7 +263,12 @@ export async function createSupervisorMessageNotification(supervisorId, traineeN
       refType: 'Chat',
       refId: chatMessageId,
       title: `New message from ${traineeName}`,
-      body: truncatedMessage
+      body: truncatedMessage,
+      metadata: {
+        traineeId,
+        supervisorId,
+        chatMessageId
+      }
     });
 
     console.log(`✅ Message notification created for supervisor ${supervisorId} from ${traineeName} - Notification ID: ${notification._id}`);

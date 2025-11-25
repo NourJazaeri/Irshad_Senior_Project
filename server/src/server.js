@@ -142,6 +142,7 @@ io.on('connection', (socket) => {
           
           await createTraineeMessageNotification(
             normalizedTraineeId, 
+            normalizedSupervisorId,
             supervisorName, 
             normalizedMessage, 
             newMessage._id
@@ -157,6 +158,7 @@ io.on('connection', (socket) => {
           
           await createSupervisorMessageNotification(
             normalizedSupervisorId, 
+            normalizedTraineeId,
             traineeName, 
             normalizedMessage, 
             newMessage._id

@@ -109,6 +109,22 @@ export default function ExportReportCard() {
       className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
       onClick={handleExport}
       disabled={exporting}
+      style={{
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+      }}
+      onMouseEnter={(e) => {
+        if (!exporting) {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 8px 20px rgba(37, 99, 235, 0.35)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!exporting) {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.2)';
+        }
+      }}
     >
       {exporting ? "Generating..." : "Export PDF"}
     </button>

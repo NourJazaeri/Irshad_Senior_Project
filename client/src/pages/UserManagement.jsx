@@ -124,10 +124,24 @@ export default function UserManagement() {
   }, []);
 
   const renderTable = (users, type) => {
-    if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+    if (loading) return (
+      <div className="loading-state" style={{ padding: '40px' }}>
+        <div className="spinner"></div>
+        <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading users...</p>
+      </div>
+    );
     if (error) return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
     if (!users || users.length === 0) {
-      return <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>No {type} found</div>;
+      return (
+        <div className="empty-state" style={{ padding: '40px' }}>
+          <div className="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <p>No {type} found</p>
+        </div>
+      );
     }
 
     // Filter users based on search term
@@ -202,7 +216,10 @@ export default function UserManagement() {
         )}
 
         {/* Search Bar */}
-        <div style={{ marginBottom: '20px', marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="enhanced-card fade-in-up delay-0" style={{ marginBottom: '20px', marginTop: '20px', padding: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg width="20" height="20" fill="none" stroke="#6b7280" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <input
             type="text"
             placeholder={`Search ${type} by name, position, or department...`}
@@ -214,30 +231,11 @@ export default function UserManagement() {
             style={{
               flex: 1,
               padding: '10px 15px',
-              border: '1px solid #ddd',
+              border: 'none',
               borderRadius: '8px',
               fontSize: '14px',
               outline: 'none',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = '#007bff';
-              e.target.style.boxShadow = '0 2px 8px rgba(0,123,255,0.1)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = '#ddd';
-              e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
-            }}
-            onMouseEnter={(e) => {
-              if (document.activeElement !== e.target) {
-                e.target.style.borderColor = '#c0c0c0';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (document.activeElement !== e.target) {
-                e.target.style.borderColor = '#ddd';
-              }
+              background: 'transparent'
             }}
           />
           {searchTerm[type] && (
@@ -246,11 +244,10 @@ export default function UserManagement() {
                 setSearchTerm(prev => ({ ...prev, [type]: '' }));
                 setPage(prev => ({ ...prev, [type]: 1 }));
               }}
+              className="btn-enhanced-secondary"
               style={{
                 padding: '10px 15px',
-                border: 'none',
                 borderRadius: '8px',
-                background: '#f8f9fa',
                 color: '#666',
                 cursor: 'pointer',
                 fontSize: '14px',
@@ -272,18 +269,39 @@ export default function UserManagement() {
         
         {/* Results info */}
         {searchTerm[type] && (
-          <div style={{ marginBottom: '15px', color: '#666', fontSize: '14px' }}>
+          <div style={{ marginBottom: '15px', color: '#6b7280', fontSize: '14px', fontWeight: '500' }}>
             Found {filteredUsers.length} result{filteredUsers.length !== 1 ? 's' : ''} for "{searchTerm[type]}"
           </div>
         )}
 
+        <div className="enhanced-card fade-in-up delay-1" style={{ overflow: 'hidden', borderRadius: '12px' }}>
         <table style={tableStyle}>
           <thead style={theadStyle}>
-            <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #ddd' }}>
-              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Name</th>
-              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Email</th>
-              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Position</th>
-              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#333' }}>Department</th>
+            <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #e5e7eb' }}>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Name
+              </th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>
+                <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Email
+              </th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>
+                <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Position
+              </th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>
+                <svg width="16" height="16" fill="none" stroke="#2563eb" viewBox="0 0 24 24" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Department
+              </th>
             </tr>
           </thead>
           <tbody style={tbodyStyle}>
@@ -321,29 +339,31 @@ export default function UserManagement() {
               }
               return (
                 <tr 
-                  key={employeeId || index} 
+                  key={employeeId || index}
+                  className="fade-in-up"
                   onClick={() => {
                     if (employeeId) {
                       navigate(`/admin/employees/${employeeId}?from=${type}`);
                     }
                   }}
                   style={{ 
-                    borderBottom: '1px solid #eee', 
+                    borderBottom: '1px solid #e5e7eb', 
                     display: 'table', 
                     width: '100%', 
                     tableLayout: 'fixed',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    background: 'transparent'
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: 'transparent',
+                    animationDelay: `${index * 0.05}s`
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f8f9ff';
-                    e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.background = '#f9fafb';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
@@ -367,33 +387,21 @@ export default function UserManagement() {
             })}
           </tbody>
         </table>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px', alignItems: 'center' }}>
           <button 
             onClick={() => setPage(p => ({ ...p, [type]: Math.max(1, currentPage - 1) }))} 
-            disabled={currentPage === 1} 
+            disabled={currentPage === 1}
+            className={currentPage === 1 ? '' : 'btn-enhanced-secondary'}
             style={{ 
               marginRight: 8, 
               padding: '8px 20px', 
               borderRadius: '8px', 
-              border: '1px solid #ccc', 
-              background: currentPage === 1 ? '#eee' : '#fff', 
+              border: '1px solid #e5e7eb', 
+              background: currentPage === 1 ? '#f3f4f6' : '#fff', 
               cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              fontWeight: 500
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 1) {
-                e.target.style.background = '#007bff';
-                e.target.style.color = 'white';
-                e.target.style.borderColor = '#007bff';
-                e.target.style.transform = 'scale(1.05)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = currentPage === 1 ? '#eee' : '#fff';
-              e.target.style.color = currentPage === 1 ? '#999' : 'inherit';
-              e.target.style.borderColor = '#ccc';
-              e.target.style.transform = 'scale(1)';
+              fontWeight: 500,
+              opacity: currentPage === 1 ? 0.5 : 1
             }}
           >
             Previous
@@ -401,30 +409,17 @@ export default function UserManagement() {
           <span style={{ alignSelf: 'center', fontWeight: 500, padding: '0 16px' }}>Page {currentPage} of {totalPages}</span>
           <button 
             onClick={() => setPage(p => ({ ...p, [type]: Math.min(totalPages, currentPage + 1) }))} 
-            disabled={currentPage === totalPages} 
+            disabled={currentPage === totalPages}
+            className={currentPage === totalPages ? '' : 'btn-enhanced-secondary'}
             style={{ 
               marginLeft: 8, 
               padding: '8px 20px', 
               borderRadius: '8px', 
-              border: '1px solid #ccc', 
-              background: currentPage === totalPages ? '#eee' : '#fff', 
+              border: '1px solid #e5e7eb', 
+              background: currentPage === totalPages ? '#f3f4f6' : '#fff', 
               cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              fontWeight: 500
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== totalPages) {
-                e.target.style.background = '#007bff';
-                e.target.style.color = 'white';
-                e.target.style.borderColor = '#007bff';
-                e.target.style.transform = 'scale(1.05)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = currentPage === totalPages ? '#eee' : '#fff';
-              e.target.style.color = currentPage === totalPages ? '#999' : 'inherit';
-              e.target.style.borderColor = '#ccc';
-              e.target.style.transform = 'scale(1)';
+              fontWeight: 500,
+              opacity: currentPage === totalPages ? 0.5 : 1
             }}
           >
             Next

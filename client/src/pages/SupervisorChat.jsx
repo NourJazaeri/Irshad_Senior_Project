@@ -18,6 +18,7 @@ export default function SupervisorChat() {
 
   const [messages, setMessages] = useState([]);
   const [traineeInfo, setTraineeInfo] = useState(null);
+  const [groupInfo, setGroupInfo] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -164,6 +165,11 @@ export default function SupervisorChat() {
 
         setMessages(data.messages || []);
         setTraineeInfo(data.trainee);
+        
+        // Extract group info from trainee data
+        if (data.trainee?.group) {
+          setGroupInfo(data.trainee.group);
+        }
         console.log('✨ State updated with messages');
 
         // Mark messages as read when opening chat (non-blocking)
@@ -269,39 +275,40 @@ export default function SupervisorChat() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Back link */}
-      <div style={{ marginBottom: '1rem' }}>
-        <button 
-          onClick={() => navigate('/supervisor')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            backgroundColor: 'transparent',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
-            cursor: 'pointer',
-            color: '#64748b',
-            fontSize: '0.875rem',
-            fontWeight: '500'
-          }}
+      {/* Breadcrumb */}
+      <div style={{ fontSize: '18px', display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
+        <span 
+          style={{ color: '#6b7280', cursor: 'pointer' }} 
+          onClick={() => navigate('/supervisor/groups')}
         >
-          <FiArrowLeft /> Back to Dashboard
-        </button>
+          Groups
+        </span>
+        {groupInfo && (
+          <>
+            <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
+            <span 
+              style={{ color: '#6b7280', cursor: 'pointer' }} 
+              onClick={() => navigate(`/supervisor/groups/${groupInfo._id}`)}
+            >
+              {groupInfo.groupName}
+            </span>
+          </>
+        )}
+        <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
+        <span style={{ color: '#111827', fontWeight: '700' }}>
+          Chat with {traineeInfo ? `${traineeInfo.fname} ${traineeInfo.lname}` : 'Trainee'}
+        </span>
       </div>
 
       {/* Chat Container */}
-      <div className="chat-container-full" style={{ 
+      <div className="chat-container-full sv-card sv-group-card-enhanced" style={{ 
         display: 'flex', 
         flexDirection: 'column', 
         flex: 1,
         minHeight: 0,
-        backgroundColor: '#ffffff',
-        borderRadius: '0.75rem',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        animation: 'fadeInUp 0.5s ease-out forwards',
+        opacity: 0,
+        overflow: 'hidden'
       }}>
         {/* Trainee Name Header inside chat card */}
         <div style={{ 
@@ -414,8 +421,8 @@ export default function SupervisorChat() {
               title="Send message"
             style={{
                 padding: '0.75rem',
-                background: 'transparent',
-                border: '2px solid #e0f2fe',
+                background: '#2563eb',
+                border: '2px solid #2563eb',
               borderRadius: '0.5rem',
               cursor: 'pointer',
               display: 'flex',
@@ -423,21 +430,24 @@ export default function SupervisorChat() {
               justifyContent: 'center',
                 width: '48px',
                 height: '48px',
-              transition: 'all 0.2s',
-                color: '#0b2f55'
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                color: '#ffffff',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
             }}
               onMouseEnter={(e) => {
                 if (!e.target.disabled) {
-                  e.target.style.borderColor = '#60a5fa';
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(96, 165, 250, 0.2)';
+                  e.target.style.background = '#1d4ed8';
+                  e.target.style.borderColor = '#1d4ed8';
+                  e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                  e.target.style.boxShadow = '0 8px 20px rgba(37, 99, 235, 0.35)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!e.target.disabled) {
-                  e.target.style.borderColor = '#e0f2fe';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = 'none';
+                  e.target.style.background = '#2563eb';
+                  e.target.style.borderColor = '#2563eb';
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.2)';
                 }
               }}
             >

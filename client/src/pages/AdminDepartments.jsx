@@ -22,7 +22,7 @@ const getDepartmentIcon = (departmentName) => {
   return <Building2 className="w-8 h-8" />; // Default icon
 };
 
-export default function AdminHome() {
+export default function AdminDepartments() {
   const navigate = useNavigate();
   const [departments, setDepartments] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -172,13 +172,13 @@ export default function AdminHome() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-lg hover:scale-105"
+              className="btn-enhanced-primary bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
             >
               + Create Department
             </button>
             <button
               onClick={() => setShowAddContentModal(true)}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-lg hover:scale-105"
+              className="btn-enhanced-secondary bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
             >
               + Add Content
             </button>
@@ -195,7 +195,7 @@ export default function AdminHome() {
 
       {/* Summary Section */}
       <div className="container mx-auto max-w-7xl px-2 mb-6">
-        <Card>
+        <Card className="enhanced-card fade-in-up delay-0">
           <CardContent className="px-6 pt-5 pb-7 flex items-center">
             <div className="flex flex-col md:flex-row items-center justify-between gap-5 w-full">
               <div className="flex flex-col justify-center">
@@ -229,7 +229,10 @@ export default function AdminHome() {
       {/* Departments Grid */}
       <main className="container mx-auto max-w-7xl px-2 pb-4">
         {departments.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Building2 size={48} />
+            </div>
             <p className="text-xl text-muted-foreground">
               No departments yet. Create your first one!
             </p>
@@ -237,34 +240,22 @@ export default function AdminHome() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4" style={{ gap: '20px' }}>
-              {departments.map((dept) => (
+              {departments.map((dept, index) => (
                 <Card
                   key={dept._id}
                   onClick={() =>
                     navigate(`/admin/departments/${dept.departmentName}/details`)
                   }
-                  className="cursor-pointer relative"
+                  className="cursor-pointer relative enhanced-card fade-in-up"
                   style={{
+                    animationDelay: `${index * 0.1}s`,
                     background: '#fff',
-                    border: '1px solid #e5e7eb',
                     borderRadius: '12px',
                     padding: '24px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    transition: 'all 0.3s ease',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     textAlign: 'center'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(11, 91, 211, 0.35)';
-                    e.currentTarget.style.transform = 'scale(1.02)';
-                    e.currentTarget.style.borderColor = '#3b82f6';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.borderColor = '#e5e7eb';
                   }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -539,3 +530,4 @@ const deleteBtn = {
   fontSize: "14px",
   transition: "all 0.2s ease",
 };
+

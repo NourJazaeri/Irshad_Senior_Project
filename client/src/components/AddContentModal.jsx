@@ -41,6 +41,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
   const [numQuestionsToGenerate, setNumQuestionsToGenerate] = useState(5); // Number of questions for AI generation
   const [showQuestionCountDialog, setShowQuestionCountDialog] = useState(false); // Show chat-style dialog
   const [customAlert, setCustomAlert] = useState({ show: false, title: '', message: '', icon: '' }); // Custom alert state
+  const [quizWarningAcknowledged, setQuizWarningAcknowledged] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -76,6 +77,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     if (isOpen) {
       setShowContentOptions(true);
       setCurrentStep(1);
+      setQuizWarningAcknowledged(false);
     }
   }, [isOpen]);
 
@@ -593,13 +595,22 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
     // Validation for step 4 (MCQ step) - only in create mode, not when completing template
     const isCompletingTemplate = templateData && (userRole === 'Admin' || userRole === 'Supervisor');
     if (currentStep === 4 && !editMode && !isCompletingTemplate) {
+      const hasMcqs = formData.mcqs && formData.mcqs.length > 0;
       // Only validate if user has added questions
-      if (formData.mcqs && formData.mcqs.length > 0) {
+      if (hasMcqs) {
         const validation = validateQuestions();
         if (!validation.valid) {
           showAlert('Some Quiz Questions Are Incomplete', validation.errors.join('\n\n'), '⚠️');
           return;
         }
+      } else if (userRole === 'Supervisor' && !quizWarningAcknowledged) {
+        showAlert(
+          'Quiz Reminder',
+          'Once you publish this content you cannot add a quiz later.\n\nIf you need trainees to take a quiz, please generate or add the questions before proceeding.',
+          '⚠️'
+        );
+        setQuizWarningAcknowledged(true);
+        return;
       }
     }
 
@@ -2037,8 +2048,8 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                     }
                   `}
                   style={{
-                    background: 'linear-gradient(90deg, #06B6D4 0%, #3B82F6 50%, #8B5CF6 100%)',
-                    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+                    background: 'linear-gradient(135deg, #2FD5FF 0%, #1B7CFF 100%)',
+                    boxShadow: '0 12px 30px rgba(27, 124, 255, 0.35)'
                   }}
                 >
                   {isLoading ? (
@@ -2058,7 +2069,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                         <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6zm12 9.8L22 14l-1.4 2.5L22 19l-2.5-1.4L17 19l1.4-2.5L17 14l2.5 1.4zM22 2l-1.4 2.5L22 7l-2.5-1.4L17 7l1.4-2.5L17 2l2.5 1.4L22 2zm-8.66 10.78l2.44-2.44c.2-.2.2-.51 0-.71l-2.37-2.37c-.2-.2-.51-.2-.71 0l-2.44 2.44-5.66-5.66c-.59-.59-1.54-.59-2.12 0L1.17 5.36c-.59.58-.59 1.53 0 2.12l5.66 5.66-2.44 2.44c-.2.2-.2.51 0 .71l2.37 2.37c.2.2.51.2.71 0l2.44-2.44 5.66 5.66c.59.59 1.54.59 2.12 0l1.31-1.31c.59-.59.59-1.54 0-2.12l-5.66-5.67z"/>
                       </svg>
                       <span className="font-semibold">
-                        Generate
+                        Generate with AI
                       </span>
                     </>
                   )}
@@ -2085,7 +2096,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
                     <div 
                       className="w-20 h-20 rounded-full flex items-center justify-center animate-pulse"
                       style={{
-                        background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 50%, #8B5CF6 100%)'
+                        background: 'linear-gradient(135deg, #2FD5FF 0%, #1B7CFF 100%)'
                       }}
                     >
                       <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">

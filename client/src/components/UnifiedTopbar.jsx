@@ -48,11 +48,11 @@ const getPageTitle = (pathname, userType) => {
       default:
         // Check if it's a group detail page
         if (pathname.match(/^\/admin\/groups\/\d+$/)) {
-          return 'Departments';
+          return 'Groups';
         }
         // Check if it's a department detail page
         if (pathname.startsWith('/admin/departments/')) {
-          return 'Departments';
+          return 'Groups';
         }
         // Check if it's a content detail or view page
         if (pathname.startsWith('/admin/content/')) {
