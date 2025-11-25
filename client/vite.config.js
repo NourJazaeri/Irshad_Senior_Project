@@ -6,7 +6,7 @@ import path from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { '/api': 'https://irshad-server.onrender.com' } },
+  server: { proxy: { '/api': http://localhost:5000 } },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
