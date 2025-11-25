@@ -61,8 +61,35 @@ Manage platform-level operations including company registration requests, approv
 - **File Storage**: Supabase for image/file hosting
 - **Email Service**: Gmail SMTP via Nodemailer
   
+## Folder Structure
 
-## Client
+```
+Irshad_Senior_Project-main_Branche/
+├── client/                 # React frontend application
+│   ├── src/
+│   │   ├── components/     # Reusable React components
+│   │   ├── pages/          # Page components (routes)
+│   │   ├── services/       # API service functions
+│   │   ├── styles/          # CSS stylesheets
+│   │   └── utils/          # Utility functions
+│   ├── public/             # Static assets
+│   └── dist/               # Production build output
+├── server/                 # Node.js backend application
+│   ├── src/
+│   │   ├── config/         # Configuration files (DB, etc.)
+│   │   ├── middleware/     # Express middleware (auth, etc.)
+│   │   ├── models/         # Mongoose data models
+│   │   ├── routes/         # API route handlers
+│   │   ├── services/       # Business logic services
+│   │   └── scripts/        # Migration and utility scripts
+│   └── uploads/            # Uploaded files storage
+├── python/                 # Python AI services
+│   ├── chatbot_service.py  # AI chatbot service
+│   ├── quiz_service.py     # Quiz generation service
+│   └── majestic_realistic_knowledge_base.csv  # Knowledge base data
+
+```
+
 
 ### Client – Full Setup
 
@@ -90,7 +117,6 @@ Manage platform-level operations including company registration requests, approv
 **Note**: The client is configured to proxy API requests to `http://localhost:5000` during development. Ensure the server is running for full functionality.
 
 
-## Server
 
 ### Server – Full Setup
 
@@ -129,8 +155,6 @@ Once running, verify the server is working:
 curl http://localhost:5000/api/health
 ```
 
-
-## Python
 
 The Python services provide AI-powered features including an intelligent chatbot and automated quiz generation.
 
@@ -244,34 +268,7 @@ The service will be available at `http://localhost:8001`
 - Lubaba Raed
 
 
-## Folder Structure
 
-```
-Irshad_Senior_Project-main_Branche/
-├── client/                 # React frontend application
-│   ├── src/
-│   │   ├── components/     # Reusable React components
-│   │   ├── pages/          # Page components (routes)
-│   │   ├── services/       # API service functions
-│   │   ├── styles/          # CSS stylesheets
-│   │   └── utils/          # Utility functions
-│   ├── public/             # Static assets
-│   └── dist/               # Production build output
-├── server/                 # Node.js backend application
-│   ├── src/
-│   │   ├── config/         # Configuration files (DB, etc.)
-│   │   ├── middleware/     # Express middleware (auth, etc.)
-│   │   ├── models/         # Mongoose data models
-│   │   ├── routes/         # API route handlers
-│   │   ├── services/       # Business logic services
-│   │   └── scripts/        # Migration and utility scripts
-│   └── uploads/            # Uploaded files storage
-├── python/                 # Python AI services
-│   ├── chatbot_service.py  # AI chatbot service
-│   ├── quiz_service.py     # Quiz generation service
-│   └── majestic_realistic_knowledge_base.csv  # Knowledge base data
-
-```
 
 **Access the application**:
    - Frontend: `http://localhost:5173`
