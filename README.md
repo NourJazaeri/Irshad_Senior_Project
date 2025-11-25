@@ -164,71 +164,31 @@ The Python services provide AI-powered features including an intelligent chatbot
 - Python 3.8 or higher
 - pip package manager
 
-**Steps:**
+**Setup Steps:**
 
-1. Navigate to the python directory:
+1. Navigate to the python directory and install dependencies:
    ```bash
    cd python
-   ```
-
-2. (Recommended) Create a virtual environment:
-   ```bash
-   python -m venv venv
-   ```
-
-3. Activate the virtual environment:
-   - **macOS/Linux:**
-     ```bash
-     source venv/bin/activate
-     ```
-   - **Windows:**
-     ```bash
-     venv\Scripts\activate
-     ```
-
-4. Install dependencies:
-   ```bash
    pip install -r requirements.txt
    ```
 
+2. (Optional) Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # macOS/Linux
+   # or
+   venv\Scripts\activate     # Windows
+   ```
 
-   **Important Notes:**
-   - Obtain a Google API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - The same API key can be used for both `GOOGLE_API_KEY` and `GEMINI_API_KEY`
-   - The knowledge base CSV file should be present in the `python/` directory
-
-5. Verify knowledge base file:
+3. Verify knowledge base file:
    - Ensure `majestic_realistic_knowledge_base.csv` exists in the `python/` directory
-   - This CSV should contain columns:  `_id, company_id, category, Question, Answer, keywords`  
+   - This CSV should contain columns: `_id, company_id, category, Question, Answer, keywords`
 
+**Important Notes:**
+- Obtain a Google API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- The same API key can be used for both `GOOGLE_API_KEY` and `GEMINI_API_KEY`
 
 ### Python – Running Python Components
-
-#### Chatbot Service
-
-The chatbot service provides an AI assistant that answers questions based on company-specific knowledge bases.
-
-**Start the chatbot service:**
-```bash
-python chatbot_service.py --serve --port 8002
-```
-
-Or using uvicorn directly:
-```bash
-uvicorn chatbot_service:app --host 0.0.0.0 --port 8002
-```
-
-The service will be available at `http://localhost:8002`
-
-**Endpoints:**
-- `GET /health` - Health check
-- `POST /chat` - Send a chat message
-- `POST /chat/reset` - Reset chat history
-
-**CLI Mode (for testing):**
-```bash
-python chatbot_service.py
-```
 
 #### Quiz Service
 
@@ -236,12 +196,8 @@ The quiz service generates multiple-choice questions from various content source
 
 **Start the quiz service:**
 ```bash
+cd python
 python quiz_service.py --serve
-```
-
-Or using uvicorn directly:
-```bash
-uvicorn quiz_service:app --host 0.0.0.0 --port 8001
 ```
 
 The service will be available at `http://localhost:8001`
@@ -256,8 +212,24 @@ The service will be available at `http://localhost:8001`
 - **Image Files**: Analyzes images (PNG, JPG, etc.)
 - **Raw Text**: Direct text input
 
-**Note**: The backend server should be configured to proxy requests to these Python services, or update the client/server code to point to the correct Python service URLs.
+#### Chatbot Service
 
+The chatbot service provides an AI assistant that answers questions based on company-specific knowledge bases.
+
+**Start the chatbot service:**
+```bash
+cd python
+python chatbot_service.py --serve
+```
+
+The service will be available at `http://localhost:8002`
+
+**Endpoints:**
+- `GET /health` - Health check
+- `POST /chat` - Send a chat message
+- `POST /chat/reset` - Reset chat history
+
+**Note**: The backend server should be configured to proxy requests to these Python services, or update the client/server code to point to the correct Python service URLs.
 
 ## Team Members
 
