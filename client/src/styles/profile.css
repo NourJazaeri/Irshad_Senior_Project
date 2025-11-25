@@ -1,8 +1,8 @@
 /* Profile Container */
 .profile-container {
-  max-width: 100%; /* Use full width of parent container */
-  margin: 0;
-  padding: 0; /* Remove padding - will be handled by the white card container */
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
 /* Profile Header */

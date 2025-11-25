@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { getSupervisorGroupDetails, getSupervisorUnreadCount } from '../services/api';
-import { FiMail, FiArrowLeft, FiUser, FiPlus, FiEye, FiMessageCircle } from 'react-icons/fi';
+import { FiMail, FiArrowLeft, FiUser, FiPlus, FiEye, FiMessageCircle, FiUsers } from 'react-icons/fi';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import AddContentModal from '../components/AddContentModal';
 import ContentCard from '../components/ContentCard';
 import '../styles/supervisor.css';
@@ -151,54 +153,82 @@ export default function SupervisorGroupDetails() {
   };
 
   return (
-    <div>
-          {/* Breadcrumb */}
-          <div className="sv-backline">
-            <Link to="/supervisor" className="sv-backlink">
-              <FiArrowLeft /> Groups
-            </Link>
-            <span className="sv-crumb-sep">/</span>
-            <span className="sv-crumb-current">{meta.groupName || 'Group'}</span>
-            {meta.departmentName && <span className="sv-crumb-sub">({meta.departmentName})</span>}
-          </div>
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+          {/* Breadcrumb and Actions - Aligned */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            {/* Breadcrumb */}
+            <div style={{ fontSize: '18px', display: 'flex', alignItems: 'center' }}>
+              <span 
+                style={{ color: '#6b7280', cursor: 'pointer' }} 
+                onClick={() => navigate('/supervisor/groups')}
+              >
+                Groups
+              </span>
+              <span style={{ margin: '0 8px', color: '#9ca3af' }}>›</span>
+              <span style={{ color: '#111827', fontWeight: '700' }}>
+                {meta.groupName || 'Group'}
+              </span>
+            </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            <button
+            {/* Actions */}
+            <Button
               onClick={() => setIsModalOpen(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
+              className="bg-primary hover:bg-primary-hover shadow-soft text-base font-semibold px-6 py-3"
             >
-              <FiPlus size={18} />
+              <Plus className="w-5 h-5 mr-2" />
               Add Content to Group
-            </button>
+            </Button>
           </div>
 
           {/* Overview KPI */}
-          <div className="sv-grid sv-grid-2" style={{ gap: 22, marginTop: 14 }}>
-            <div className="sv-card sv-card-pad">
+          <div className="sv-grid sv-grid-2" style={{ gap: 22, marginTop: 24 }}>
+            <div className="sv-card sv-card-pad sv-kpi-card-enhanced">
+              <div className="sv-kpi-icon-wrapper">
+                <FiUsers className="sv-kpi-icon" />
+              </div>
               <div className="sv-kpi-title">Group Overview</div>
-              <div className="sv-kpi-caption">Members</div>
+              <div className="sv-kpi-caption">Total Members</div>
               <div className="sv-kpi-number">{meta.membersCount}</div>
+            </div>
+            <div className="sv-card sv-card-pad sv-kpi-card-enhanced">
+              <div className="sv-kpi-icon-wrapper">
+                <FiEye className="sv-kpi-icon" />
+              </div>
+              <div className="sv-kpi-title">Assigned Content</div>
+              <div className="sv-kpi-caption">Items Available</div>
+              <div className="sv-kpi-number">{contentList.length}</div>
             </div>
           </div>
 
           {/* Members Table */}
-          <div className="sv-table-card" style={{ marginTop: 22 }}>
+          <div className="sv-table-card sv-table-card-enhanced" style={{ marginTop: 24 }}>
+            <div className="sv-table-header" style={{ 
+              padding: '20px 24px', 
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ 
+                fontSize: '20px', 
+                fontWeight: '700', 
+                color: '#111827',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <FiUsers size={22} style={{ color: '#2563eb' }} />
+                Group Members
+              </h3>
+              <span style={{ 
+                fontSize: '14px', 
+                color: '#6b7280',
+                fontWeight: '500'
+              }}>
+                {members.length} {members.length === 1 ? 'Member' : 'Members'}
+              </span>
+            </div>
             <div className="sv-table-wrap">
               <table className="sv-table">
                 <thead>
@@ -206,7 +236,7 @@ export default function SupervisorGroupDetails() {
                     <th className="sv-col-name">Name</th>
                     <th className="sv-col-email">Email</th>
                     <th className="sv-col-id">Employee ID</th>
-                    <th className="sv-col-actions"></th>
+                    <th className="sv-col-actions">Actions</th>
                   </tr>
                 </thead>
 
@@ -227,7 +257,7 @@ export default function SupervisorGroupDetails() {
                     members.map((m, idx) => (
                       <tr 
                         key={m.traineeId || idx} 
-                        className="hoverable"
+                        className="hoverable sv-table-row-enhanced"
                         onClick={() => {
                           // Navigate to trainee details page, passing group info for breadcrumb
                           navigate(`/supervisor/trainees/${m.traineeId}`, {
@@ -237,7 +267,10 @@ export default function SupervisorGroupDetails() {
                             }
                           });
                         }}
-                        style={{ cursor: 'pointer' }}
+                        style={{ 
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
                       >
                         {/* NAME */}
                         <td className="sv-col-name">
@@ -316,47 +349,74 @@ export default function SupervisorGroupDetails() {
           </div>
 
           {/* Content Section */}
-          <div className="sv-table-card" style={{ marginTop: 22 }}>
+          <div className="sv-table-card sv-table-card-enhanced" style={{ marginTop: 24 }}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center',
-              marginBottom: '16px'
+              padding: '20px 24px',
+              borderBottom: '1px solid #e5e7eb'
             }}>
               <h2 style={{ 
-                fontSize: '18px', 
-                fontWeight: '600', 
+                fontSize: '20px', 
+                fontWeight: '700', 
                 color: '#111827',
-                margin: 0
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
               }}>
+                <FiEye size={22} style={{ color: '#2563eb' }} />
                 Assigned Content
               </h2>
+              <span style={{ 
+                fontSize: '14px', 
+                color: '#6b7280',
+                fontWeight: '500'
+              }}>
+                {contentList.length} {contentList.length === 1 ? 'Item' : 'Items'}
+              </span>
             </div>
 
-            {loadingContent ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
-                Loading content...
-              </div>
-            ) : contentList.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
-                No content assigned to this group yet.
-              </div>
-            ) : (
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-                gap: '16px' 
-              }}>
-                {contentList.map(content => (
-                  <div key={content._id} onClick={() => navigate(`/supervisor/content/${content._id}`)}>
-                    <ContentCard 
-                      content={content} 
-                      onClick={() => navigate(`/supervisor/content/${content._id}`)}
-                    />
+            <div style={{ padding: '24px' }}>
+              {loadingContent ? (
+                <div className="sv-loading-state" style={{ padding: 60, textAlign: 'center', color: '#6b7280' }}>
+                  <div className="sv-spinner"></div>
+                  <div style={{ marginTop: '16px', fontSize: '15px' }}>Loading content...</div>
+                </div>
+              ) : contentList.length === 0 ? (
+                <div className="sv-empty-state" style={{ padding: 60, textAlign: 'center', color: '#6b7280' }}>
+                  <div className="sv-empty-icon">
+                    <FiEye size={48} />
                   </div>
-                ))}
-              </div>
-            )}
+                  <div style={{ marginTop: '16px', fontSize: '16px', fontWeight: '500' }}>No content assigned yet</div>
+                  <div style={{ marginTop: '8px', color: '#9ca3af', fontSize: '14px' }}>Add content to this group to get started</div>
+                </div>
+              ) : (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                  gap: '20px' 
+                }}>
+                  {contentList.map((content, index) => (
+                    <div 
+                      key={content._id} 
+                      onClick={() => navigate(`/supervisor/content/${content._id}`)}
+                      style={{
+                        animationDelay: `${index * 0.05}s`,
+                        animation: 'fadeInUp 0.4s ease-out forwards',
+                        opacity: 0
+                      }}
+                    >
+                      <ContentCard 
+                        content={content} 
+                        onClick={() => navigate(`/supervisor/content/${content._id}`)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Add Content Modal */}

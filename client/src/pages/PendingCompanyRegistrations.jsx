@@ -8,6 +8,7 @@ export default function PendingCompanyRegistrations() {
   const [busy, setBusy] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [activeTab, setActiveTab] = useState('pending');
+  const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
 
   const load = async (status = activeTab) => {
     try {
@@ -27,7 +28,23 @@ export default function PendingCompanyRegistrations() {
       
       const data = await res.json();
       console.log(`📊 Received ${data.length} ${status} requests:`, data);
-      setItems(Array.isArray(data) ? data : []);
+      
+      // Sort items: approved/rejected by reviewedAt (newest first), pending by submittedAt (newest first)
+      const sortedData = Array.isArray(data) ? [...data].sort((a, b) => {
+        if (status === 'approved' || status === 'rejected') {
+          // Sort by reviewedAt (newest first)
+          const dateA = a.reviewedAt ? new Date(a.reviewedAt).getTime() : 0;
+          const dateB = b.reviewedAt ? new Date(b.reviewedAt).getTime() : 0;
+          return dateB - dateA; // Descending (newest first)
+        } else {
+          // Sort by submittedAt (newest first)
+          const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+          const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+          return dateB - dateA; // Descending (newest first)
+        }
+      }) : [];
+      
+      setItems(sortedData);
       
       if (data.length === 0) {
         console.log('⚠️ No requests found. This could mean:');
@@ -43,8 +60,41 @@ export default function PendingCompanyRegistrations() {
     }
   };
 
+  // Load counts for all statuses
+  const loadCounts = async () => {
+    try {
+      const statuses = ['pending', 'approved', 'rejected'];
+      const countPromises = statuses.map(async (status) => {
+        try {
+          let res = await fetch(`${API}/api/webowner/request-management?status=${status}`);
+          if (!res.ok) {
+            res = await fetch(`${API}/api/company-registration-forms?status=${status}`);
+          }
+          if (res.ok) {
+            const data = await res.json();
+            return { status, count: Array.isArray(data) ? data.length : 0 };
+          }
+          return { status, count: 0 };
+        } catch (error) {
+          console.error(`Error loading ${status} count:`, error);
+          return { status, count: 0 };
+        }
+      });
+
+      const results = await Promise.all(countPromises);
+      const newCounts = { pending: 0, approved: 0, rejected: 0 };
+      results.forEach(({ status, count }) => {
+        newCounts[status] = count;
+      });
+      setCounts(newCounts);
+    } catch (error) {
+      console.error('Error loading counts:', error);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadCounts();
   }, [activeTab]);
 
   const act = async (id, action) => {
@@ -73,7 +123,16 @@ export default function PendingCompanyRegistrations() {
         throw new Error(errorData.message || 'Request failed');
       }
       
-      await load();
+      // After successful approval/rejection, switch to the appropriate tab
+      if (action === 'approve') {
+        setActiveTab('approved');
+      } else if (action === 'reject') {
+        setActiveTab('rejected');
+      }
+      
+      // Refresh counts after action
+      await loadCounts();
+      // load() will be called automatically by useEffect when activeTab changes
       alert(`${verb}d successfully.`);
     } catch (e) {
       console.error(`${verb} error:`, e);
@@ -221,6 +280,7 @@ export default function PendingCompanyRegistrations() {
           onClick={() => setActiveTab('pending')}
         >
           Pending
+          <span className="wo-tab-count">({counts.pending})</span>
         </button>
         <button 
             className={`wo-tab ${activeTab === 'approved' ? 'wo-tab--active' : ''}`}
@@ -228,6 +288,7 @@ export default function PendingCompanyRegistrations() {
           onClick={() => setActiveTab('approved')}
         >
           Approved
+          <span className="wo-tab-count">({counts.approved})</span>
         </button>
         <button 
             className={`wo-tab ${activeTab === 'rejected' ? 'wo-tab--active' : ''}`}
@@ -235,6 +296,7 @@ export default function PendingCompanyRegistrations() {
           onClick={() => setActiveTab('rejected')}
         >
           Rejected
+          <span className="wo-tab-count">({counts.rejected})</span>
         </button>
       </div>
 

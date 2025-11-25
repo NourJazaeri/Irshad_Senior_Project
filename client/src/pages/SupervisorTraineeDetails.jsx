@@ -98,18 +98,12 @@ export default function SupervisorTraineeDetails() {
   const department = employee.ObjectDepartmentID || {};
 
   return (
-    <div style={{ 
-      padding: '40px 20px',
-      margin: '10px 8px',
-      minHeight: '100vh',
-    }}>
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ 
         backgroundColor: '#fff', 
         padding: '32px', 
         borderRadius: '12px', 
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        maxWidth: '1400px',
-        margin: '0 auto',
         width: '100%'
       }}>
         {/* Breadcrumb */}

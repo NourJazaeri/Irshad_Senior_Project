@@ -163,8 +163,17 @@ router.put('/:role/:userId', async (req, res) => {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
 
-      if (newPassword.length < 8) {
-        return res.status(400).json({ message: 'New password must be at least 8 characters' });
+      // Validate password strength
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+      }
+      
+      if (!/[A-Z]/.test(newPassword)) {
+        return res.status(400).json({ message: 'Password must contain at least one capital letter' });
+      }
+      
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword)) {
+        return res.status(400).json({ message: 'Password must contain at least one special character' });
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);

@@ -140,7 +140,6 @@ router.delete("/:id", requireAdmin, async (req, res) => {
       details: {
         groupName: deletedGroup.groupName,
         traineesUnassigned: totalModified,
-        membersRemoved: memberCount,
         verificationPassed: remainingTrainees.length === 0
       }
     });

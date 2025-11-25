@@ -23,8 +23,8 @@ export default function QuickLinks() {
   const handleViewActivityLog = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Navigating to Activity Log page...');
-    navigate('/owner/reports');
+    console.log('Navigating to Activity Report page...');
+    navigate('/owner/activity-log');
   };
 
   return (
@@ -43,8 +43,8 @@ export default function QuickLinks() {
       </div>
       <div className="card">
         <div className="card-icon"><FiTrendingUp /></div>
-        <div className="card-title">Reports & Activity Log</div>
-        <p className="card-text">View detailed activity logs and company registration history.</p>
+        <div className="card-title">Reports & Activity Report</div>
+        <p className="card-text">View detailed activity reports and company registration history.</p>
         <button className="btn" onClick={handleViewActivityLog} data-testid="activity-log-btn">View Details</button>
       </div>
     </section>

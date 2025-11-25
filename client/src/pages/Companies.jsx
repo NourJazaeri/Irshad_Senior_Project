@@ -15,7 +15,8 @@ export default function CompaniesPage() {
     (async () => {
       setLoading(true); setErr("");
       try {
-        const res = await fetchCompanies({ q, page: 1, pageSize: 20 });
+        // Fetch all companies from Company table
+        const res = await fetchCompanies({ q, page: 1, pageSize: 10000 });
         if (!ignore) setData(res);
       } catch (e) {
         if (!ignore) setErr(e.message || "Failed to load");

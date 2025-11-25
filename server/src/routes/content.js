@@ -68,45 +68,130 @@ function normalizeIdField(value) {
   return value;
 }
 
-/**
- * GET /api/content/test
- * Simple test endpoint
- */
-router.get('/test', (req, res) => {
-  res.json({ ok: true, message: 'Content API is working' });
-});
+// Helper: Parse department IDs (can be array or single ID, string or object)
+function parseDepartmentIds(assignedTo_depID, validateObjectIds = false) {
+  let departmentIds = [];
+  if (assignedTo_depID) {
+    try {
+      departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
+      if (!Array.isArray(departmentIds)) {
+        departmentIds = [departmentIds];
+      }
+      
+      // Optional: Validate ObjectId format (used in PUT endpoint)
+      if (validateObjectIds) {
+        departmentIds = departmentIds.filter(id => {
+          if (!id || typeof id !== 'string' || id.length === 0) return false;
+          return /^[0-9a-fA-F]{24}$/.test(id);
+        });
+      }
+    } catch {
+      departmentIds = [assignedTo_depID];
+    }
+  }
+  return departmentIds;
+}
 
-/**
- * GET /api/content/debug
- * Debug endpoint without auth
- */
-router.get('/debug', (req, res) => {
-  res.json({ 
-    ok: true, 
-    message: 'Debug endpoint working',
-    timestamp: new Date().toISOString(),
-    method: req.method,
-    url: req.url
-  });
-});
+// Helper: Parse trainee IDs (can be array or single ID, string or object)
+function parseTraineeIds(assignedTo_traineeID, validateObjectIds = false) {
+  let traineeIds = [];
+  if (assignedTo_traineeID) {
+    try {
+      traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
+      if (!Array.isArray(traineeIds)) {
+        traineeIds = [traineeIds];
+      }
+      
+      // Optional: Validate ObjectId format (used in PUT endpoint)
+      if (validateObjectIds) {
+        traineeIds = traineeIds.filter(id => {
+          if (!id || typeof id !== 'string' || id.length === 0) return false;
+          return /^[0-9a-fA-F]{24}$/.test(id);
+        });
+      }
+    } catch {
+      traineeIds = [assignedTo_traineeID];
+    }
+  }
+  return traineeIds;
+}
 
-/**
- * POST /api/content/debug-update
- * Debug update endpoint without auth
- */
-router.post('/debug-update', (req, res) => {
-  console.log('🔍 Debug update request received');
-  console.log('📝 Request body:', req.body);
-  console.log('📝 Request params:', req.params);
-  console.log('📝 Request headers:', req.headers);
+// Helper: Determine content type from file extension and mimetype
+function detectContentTypeFromFile(file) {
+  let contentTypeValue = 'pdf'; // default
+  const fileExtension = path.extname(file.originalname).toLowerCase();
   
-  res.json({ 
-    ok: true, 
-    message: 'Debug update endpoint working',
-    receivedData: req.body,
-    timestamp: new Date().toISOString()
-  });
-});
+  if (fileExtension === '.pdf') {
+    contentTypeValue = 'pdf';
+  } else if (fileExtension === '.doc' || fileExtension === '.docx') {
+    contentTypeValue = 'doc';
+  } else if (fileExtension === '.png') {
+    contentTypeValue = 'png';
+  } else if (fileExtension === '.jpg' || fileExtension === '.jpeg') {
+    contentTypeValue = 'jpg';
+  } else if (fileExtension === '.gif') {
+    contentTypeValue = 'png'; // treat gif as png for simplicity
+  } else if (fileExtension === '.webp') {
+    contentTypeValue = 'png'; // treat webp as png for simplicity
+  } else if (fileExtension === '.txt' || fileExtension === '.rtf') {
+    contentTypeValue = 'doc'; // treat text files as doc
+  } else {
+    // For other file types, try to determine from mimetype
+    if (file.mimetype.startsWith('image/')) {
+      contentTypeValue = 'png';
+    } else if (file.mimetype.includes('document') || file.mimetype.includes('text')) {
+      contentTypeValue = 'doc';
+    } else if (file.mimetype === 'application/pdf') {
+      contentTypeValue = 'pdf';
+    }
+  }
+  
+  return contentTypeValue;
+}
+
+// Template definitions (shared between POST /template and PUT /:id)
+const TEMPLATE_DEFINITIONS = {
+  'training_module': {
+    title: 'Training Module',
+    description: 'Complete this training module to enhance your skills and knowledge.',
+    type: 'template',
+    contentUrl: '/templates/training-module',
+    templateData: {
+      sections: ['Introduction', 'Learning Objectives', 'Content', 'Assessment', 'Conclusion'],
+      estimatedTime: '2 hours'
+    }
+  },
+  'onboarding_checklist': {
+    title: 'Onboarding Checklist',
+    description: 'Follow this checklist to complete your onboarding process.',
+    type: 'template',
+    contentUrl: '/templates/onboarding-checklist',
+    templateData: {
+      items: ['Complete HR paperwork', 'Set up workstation', 'Attend orientation', 'Meet team members', 'Review company policies'],
+      priority: 'high'
+    }
+  },
+  'project_guideline': {
+    title: 'Project Guidelines',
+    description: 'Follow these guidelines for successful project completion.',
+    type: 'template',
+    contentUrl: '/templates/project-guideline',
+    templateData: {
+      phases: ['Planning', 'Execution', 'Review', 'Delivery'],
+      deliverables: ['Project plan', 'Progress reports', 'Final documentation']
+    }
+  },
+  'safety_protocol': {
+    title: 'Safety Protocol',
+    description: 'Review and acknowledge this safety protocol.',
+    type: 'template',
+    contentUrl: '/templates/safety-protocol',
+    templateData: {
+      sections: ['General Safety Rules', 'Emergency Procedures', 'Equipment Safety', 'Reporting Incidents'],
+      ackRequired: true
+    }
+  }
+};
 
 /**
  * GET /api/content/test-department/:departmentId
@@ -446,31 +531,9 @@ router.post('/save-content', requireAdminOrSupervisor, async (req, res) => {
     
     console.log('✅ Validation passed - proceeding with save');
 
-    // Parse department IDs (can be array or single ID)
-    let departmentIds = [];
-    if (assignedTo_depID) {
-      try {
-        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
-        if (!Array.isArray(departmentIds)) {
-          departmentIds = [departmentIds];
-        }
-      } catch {
-        departmentIds = [assignedTo_depID];
-      }
-    }
-
-    // Parse trainee IDs (can be array or single ID)
-    let traineeIds = [];
-    if (assignedTo_traineeID) {
-      try {
-        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
-        if (!Array.isArray(traineeIds)) {
-          traineeIds = [traineeIds];
-        }
-      } catch {
-        traineeIds = [assignedTo_traineeID];
-      }
-    }
+    // Parse department and trainee IDs
+    const departmentIds = parseDepartmentIds(assignedTo_depID);
+    const traineeIds = parseTraineeIds(assignedTo_traineeID);
 
     // Prepare the content data based on who assigned it
     const contentData = {
@@ -689,31 +752,9 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
 
     const { title, description, category, deadline, ackRequired, assignedTo_GroupID, assignedTo_depID, assignedTo_traineeID } = req.body;
     
-    // Parse department IDs (can be array or single ID)
-    let departmentIds = [];
-    if (assignedTo_depID) {
-      try {
-        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
-        if (!Array.isArray(departmentIds)) {
-          departmentIds = [departmentIds];
-        }
-      } catch {
-        departmentIds = [assignedTo_depID];
-      }
-    }
-    
-    // Parse trainee IDs (can be array or single ID)
-    let traineeIds = [];
-    if (assignedTo_traineeID) {
-      try {
-        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
-        if (!Array.isArray(traineeIds)) {
-          traineeIds = [traineeIds];
-        }
-      } catch {
-        traineeIds = [assignedTo_traineeID];
-      }
-    }
+    // Parse department and trainee IDs using helper functions
+    const departmentIds = parseDepartmentIds(assignedTo_depID);
+    const traineeIds = parseTraineeIds(assignedTo_traineeID);
     
     let contentUrl = null;
     
@@ -777,39 +818,9 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
     }
     
     // Automatically determine content type based on file extension
-    let contentTypeValue = 'pdf'; // default
-    const fileExtension = path.extname(req.file.originalname).toLowerCase();
-    
-    if (fileExtension === '.pdf') {
-      contentTypeValue = 'pdf';
-    } else if (fileExtension === '.doc' || fileExtension === '.docx') {
-      contentTypeValue = 'doc';
-    } else if (fileExtension === '.png') {
-      contentTypeValue = 'png';
-    } else if (fileExtension === '.jpg' || fileExtension === '.jpeg') {
-      contentTypeValue = 'jpg';
-    } else if (fileExtension === '.gif') {
-      contentTypeValue = 'png'; // treat gif as png for simplicity
-    } else if (fileExtension === '.webp') {
-      contentTypeValue = 'png'; // treat webp as png for simplicity
-    } else if (fileExtension === '.txt' || fileExtension === '.rtf') {
-      contentTypeValue = 'doc'; // treat text files as doc
-    } else {
-      // For other file types, try to determine from mimetype
-      if (req.file.mimetype.startsWith('image/')) {
-        contentTypeValue = 'png';
-      } else if (req.file.mimetype.includes('document') || req.file.mimetype.includes('text')) {
-        contentTypeValue = 'doc';
-      } else if (req.file.mimetype === 'application/pdf') {
-        contentTypeValue = 'pdf';
-      }
-    }
+    const contentTypeValue = detectContentTypeFromFile(req.file);
     
     const normGroupId = normalizeIdField(assignedTo_GroupID);
-    const normTraineeId = normalizeIdField(assignedTo_traineeID);
-    console.log('🧭 Normalized IDs:', { normGroupId, normTraineeId, rawGroup: assignedTo_GroupID, rawTrainee: assignedTo_traineeID });
-
-    const normGroupId2 = normalizeIdField(assignedTo_GroupID);
     const content = new Content({
       title: title || req.file.originalname,
       description: description || '',
@@ -863,99 +874,6 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
   }
 });
 
-/**
- * POST /api/content/youtube
- * Create content entry for YouTube video
- */
-router.post('/youtube', requireAdminOrSupervisor, async (req, res) => {
-  try {
-    const { title, description, category, youtubeUrl, deadline, ackRequired, assignedTo_GroupID, assignedTo_depID, assignedTo_traineeID } = req.body;
-    
-    if (!youtubeUrl) {
-      return res.status(400).json({ ok: false, error: 'YouTube URL is required' });
-    }
-
-    // Extract video ID from YouTube URL
-    const videoId = extractYouTubeVideoId(youtubeUrl);
-    if (!videoId) {
-      return res.status(400).json({ ok: false, error: 'Invalid YouTube URL format' });
-    }
-    
-    // Parse department IDs (can be array or single ID)
-    let departmentIds = [];
-    if (assignedTo_depID) {
-      try {
-        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
-        if (!Array.isArray(departmentIds)) {
-          departmentIds = [departmentIds];
-        }
-      } catch {
-        departmentIds = [assignedTo_depID];
-      }
-    }
-    
-    // Parse trainee IDs (can be array or single ID)
-    let traineeIds = [];
-    if (assignedTo_traineeID) {
-      try {
-        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
-        if (!Array.isArray(traineeIds)) {
-          traineeIds = [traineeIds];
-        }
-      } catch {
-        traineeIds = [assignedTo_traineeID];
-      }
-    }
-    
-    console.log('🔍 YOUTUBE UPLOAD - Parsed trainee IDs:', traineeIds);
-    console.log('🔍 YOUTUBE UPLOAD - Parsed department IDs:', departmentIds);
-    
-    const content = new Content({
-      title: title || 'YouTube Video',
-      description: description || '',
-      contentType: 'link', // YouTube videos are automatically treated as links
-      category: category || 'Training',
-      contentUrl: youtubeUrl,
-      youtubeVideoId: videoId,
-      deadline: deadline ? new Date(deadline) : null,
-      ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
-      assignedTo_depID: departmentIds,
-      assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
-      assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
-      assignedBy_supervisorID: req.user.role === 'Supervisor' ? req.user.id : null
-    });
-
-    await content.save();
-    
-    console.log('✅ YouTube content created with trainee IDs:', content.assignedTo_traineeID);
-    console.log('✅ YouTube content created successfully, now creating progress records...');
-    console.log('✅ Saved content assignedTo_GroupID:', content.assignedTo_GroupID);
-    
-    // Re-fetch content from database to ensure ObjectId types are correct
-    const contentForProgress = await Content.findById(content._id);
-    
-    // Create progress records for assigned trainees with "not started" status
-    await createInitialProgressRecords(contentForProgress);
-    
-    res.json({ 
-      ok: true, 
-      message: 'YouTube video content created successfully',
-      content: {
-        _id: content._id,
-        title: content.title,
-        contentType: content.contentType,
-        category: content.category,
-        contentUrl: content.contentUrl,
-        youtubeVideoId: content.youtubeVideoId
-      }
-    });
-  } catch (error) {
-    console.error('Error creating YouTube content:', error);
-    res.status(500).json({ ok: false, error: error.message });
-  }
-});
-
 // Helper function to extract YouTube video ID
 function extractYouTubeVideoId(url) {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -982,31 +900,9 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Invalid URL format' });
     }
     
-    // Parse department IDs (can be array or single ID)
-    let departmentIds = [];
-    if (assignedTo_depID) {
-      try {
-        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
-        if (!Array.isArray(departmentIds)) {
-          departmentIds = [departmentIds];
-        }
-      } catch {
-        departmentIds = [assignedTo_depID];
-      }
-    }
-    
-    // Parse trainee IDs (can be array or single ID)
-    let traineeIds = [];
-    if (assignedTo_traineeID) {
-      try {
-        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
-        if (!Array.isArray(traineeIds)) {
-          traineeIds = [traineeIds];
-        }
-      } catch {
-        traineeIds = [assignedTo_traineeID];
-      }
-    }
+    // Parse department and trainee IDs using helper functions
+    const departmentIds = parseDepartmentIds(assignedTo_depID);
+    const traineeIds = parseTraineeIds(assignedTo_traineeID);
     
     // Automatically determine if it's a YouTube link or regular link
     let contentTypeValue = 'link';
@@ -1081,81 +977,18 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
   try {
     const { templateType, title, description, category, deadline, ackRequired, assignedTo_GroupID, assignedTo_depID, assignedTo_traineeID } = req.body;
     
-    // Parse department IDs (can be array or single ID)
-    let departmentIds = [];
-    if (assignedTo_depID) {
-      try {
-        departmentIds = typeof assignedTo_depID === 'string' ? JSON.parse(assignedTo_depID) : assignedTo_depID;
-        if (!Array.isArray(departmentIds)) {
-          departmentIds = [departmentIds];
-        }
-      } catch {
-        departmentIds = [assignedTo_depID];
-      }
-    }
+    // Parse department and trainee IDs using helper functions
+    const departmentIds = parseDepartmentIds(assignedTo_depID);
+    const traineeIds = parseTraineeIds(assignedTo_traineeID);
     
-    // Parse trainee IDs (can be array or single ID)
-    let traineeIds = [];
-    if (assignedTo_traineeID) {
-      try {
-        traineeIds = typeof assignedTo_traineeID === 'string' ? JSON.parse(assignedTo_traineeID) : assignedTo_traineeID;
-        if (!Array.isArray(traineeIds)) {
-          traineeIds = [traineeIds];
-        }
-      } catch {
-        traineeIds = [assignedTo_traineeID];
-      }
-    }
-    
-    // Define template structures
-    const templates = {
-      'training_module': {
-        title: title || 'Training Module',
-        description: description || 'Complete this training module to enhance your skills and knowledge.',
-        type: 'template',
-        contentUrl: '/templates/training-module',
-        templateData: {
-          sections: ['Introduction', 'Learning Objectives', 'Content', 'Assessment', 'Conclusion'],
-          estimatedTime: '2 hours'
-        }
-      },
-      'onboarding_checklist': {
-        title: title || 'Onboarding Checklist',
-        description: description || 'Follow this checklist to complete your onboarding process.',
-        type: 'template',
-        contentUrl: '/templates/onboarding-checklist',
-        templateData: {
-          items: ['Complete HR paperwork', 'Set up workstation', 'Attend orientation', 'Meet team members', 'Review company policies'],
-          priority: 'high'
-        }
-      },
-      'project_guideline': {
-        title: title || 'Project Guidelines',
-        description: description || 'Follow these guidelines for successful project completion.',
-        type: 'template',
-        contentUrl: '/templates/project-guideline',
-        templateData: {
-          phases: ['Planning', 'Execution', 'Review', 'Delivery'],
-          deliverables: ['Project plan', 'Progress reports', 'Final documentation']
-        }
-      },
-      'safety_protocol': {
-        title: title || 'Safety Protocol',
-        description: description || 'Review and acknowledge this safety protocol.',
-        type: 'template',
-        contentUrl: '/templates/safety-protocol',
-        templateData: {
-          sections: ['General Safety Rules', 'Emergency Procedures', 'Equipment Safety', 'Reporting Incidents'],
-          ackRequired: true
-        }
-      }
-    };
-
-    if (!templates[templateType]) {
+    if (!TEMPLATE_DEFINITIONS[templateType]) {
       return res.status(400).json({ ok: false, error: 'Invalid template type' });
     }
 
-    const template = templates[templateType];
+    const template = { ...TEMPLATE_DEFINITIONS[templateType] };
+    // Override title/description if provided
+    if (title) template.title = title;
+    if (description) template.description = description;
     
     console.log('🔍 TEMPLATE UPLOAD - Parsed trainee IDs:', traineeIds);
     console.log('🔍 TEMPLATE UPLOAD - Parsed department IDs:', departmentIds);
@@ -1225,21 +1058,6 @@ router.get('/content', requireAdminOrSupervisor, async (req, res) => {
       console.log('🔍 Supervisor filter applied:', filter);
       console.log('👤 Supervisor ID from token:', userId, typeof userId);
       
-      // Check the specific content ID you mentioned
-      const specificContent = await Content.findById('68eac70ba4666fa52db0f1df');
-      if (specificContent) {
-        console.log('📋 Specific content found:', {
-          id: specificContent._id,
-          title: specificContent.title,
-          assignedBy_supervisorID: specificContent.assignedBy_supervisorID,
-          assignedBy_adminID: specificContent.assignedBy_adminID,
-          supervisorIdType: typeof specificContent.assignedBy_supervisorID,
-          tokenIdType: typeof userId,
-          idsMatch: String(specificContent.assignedBy_supervisorID) === String(userId)
-        });
-      } else {
-        console.log('❌ Specific content not found in database');
-      }
     } else if (userRole === 'Admin') {
       // Admins can view all content or filter by assignedBy
       if (assignedBy && assignedByModel) {
@@ -1462,8 +1280,6 @@ router.get('/:id', requireAdminOrSupervisor, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
-    // Debug: Log the assignedTo_GroupID to see what was populated
-    console.log('🔍 GET /api/content/:id - assignedTo_GroupID:', JSON.stringify(content.assignedTo_GroupID, null, 2));
 
     res.json({ ok: true, content });
   } catch (error) {
@@ -1497,63 +1313,9 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       assignedTo_traineeID 
     } = req.body;
     
-    // Parse department IDs (can be array or single ID)
-    let departmentIds = [];
-    if (assignedTo_depID) {
-      try {
-        if (typeof assignedTo_depID === 'string') {
-          departmentIds = JSON.parse(assignedTo_depID);
-        } else {
-          departmentIds = assignedTo_depID;
-        }
-        
-        if (!Array.isArray(departmentIds)) {
-          departmentIds = [departmentIds];
-        }
-        
-        // Ensure all IDs are valid ObjectIds
-        departmentIds = departmentIds.filter(id => {
-          if (!id || typeof id !== 'string' || id.length === 0) return false;
-          // Check if it's a valid ObjectId format (24 hex characters)
-          return /^[0-9a-fA-F]{24}$/.test(id);
-        });
-        
-        console.log('📊 Parsed department IDs:', departmentIds);
-      } catch (parseError) {
-        console.error('❌ Error parsing department IDs:', parseError);
-        console.error('❌ Raw assignedTo_depID:', assignedTo_depID);
-        departmentIds = [];
-      }
-    }
-    
-    // Parse trainee IDs (can be array or single ID)
-    let traineeIds = [];
-    if (assignedTo_traineeID) {
-      try {
-        if (typeof assignedTo_traineeID === 'string') {
-          traineeIds = JSON.parse(assignedTo_traineeID);
-        } else {
-          traineeIds = assignedTo_traineeID;
-        }
-        
-        if (!Array.isArray(traineeIds)) {
-          traineeIds = [traineeIds];
-        }
-        
-        // Ensure all IDs are valid ObjectIds
-        traineeIds = traineeIds.filter(id => {
-          if (!id || typeof id !== 'string' || id.length === 0) return false;
-          // Check if it's a valid ObjectId format (24 hex characters)
-          return /^[0-9a-fA-F]{24}$/.test(id);
-        });
-        
-        console.log('📊 Parsed trainee IDs:', traineeIds);
-      } catch (parseError) {
-        console.error('❌ Error parsing trainee IDs:', parseError);
-        console.error('❌ Raw assignedTo_traineeID:', assignedTo_traineeID);
-        traineeIds = [];
-      }
-    }
+    // Parse department and trainee IDs (with ObjectId validation for PUT endpoint)
+    const departmentIds = parseDepartmentIds(assignedTo_depID, true);
+    const traineeIds = parseTraineeIds(assignedTo_traineeID, true);
     
     // Validate required fields
     if (!title || !category) {
@@ -1591,19 +1353,6 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       });
     }
 
-    console.log('🔍 Found existing content:');
-    console.log('📝 Content ID:', existingContent._id);
-    console.log('📝 Content title:', existingContent.title);
-    console.log('📝 Content assignedBy_adminID:', existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID type:', typeof existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID constructor:', existingContent.assignedBy_adminID ? existingContent.assignedBy_adminID.constructor.name : 'null');
-
-    console.log('🔍 Ownership check:');
-    console.log('📝 Content assignedBy_adminID:', existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID type:', typeof existingContent.assignedBy_adminID);
-    console.log('📝 Content assignedBy_adminID toString:', existingContent.assignedBy_adminID ? existingContent.assignedBy_adminID.toString() : 'null');
-    console.log('📝 Request user ID:', req.user.id);
-    console.log('📝 Request user ID type:', typeof req.user.id);
     
     // Check ownership based on user role
     let hasOwnership = false;
@@ -1631,9 +1380,6 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
     const validContentTypes = ['pdf', 'doc', 'png', 'jpg', 'link', 'template'];
     const finalContentType = contentType || existingContent.contentType;
     
-    console.log('🔍 Final content type:', finalContentType);
-    console.log('🔍 Original contentType:', contentType);
-    console.log('🔍 Existing content type:', existingContent.contentType);
     
     if (!validContentTypes.includes(finalContentType)) {
       console.error('❌ Invalid contentType:', finalContentType);
@@ -1758,40 +1504,13 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       }
 
       // Automatically determine content type based on file extension
-      let contentTypeValue = 'pdf'; // default
-      const fileExtension = path.extname(req.file.originalname).toLowerCase();
-      
-      if (fileExtension === '.pdf') {
-        contentTypeValue = 'pdf';
-      } else if (fileExtension === '.doc' || fileExtension === '.docx') {
-        contentTypeValue = 'doc';
-      } else if (fileExtension === '.png') {
-        contentTypeValue = 'png';
-      } else if (fileExtension === '.jpg' || fileExtension === '.jpeg') {
-        contentTypeValue = 'jpg';
-      } else if (fileExtension === '.gif') {
-        contentTypeValue = 'png'; // treat gif as png for simplicity
-      } else if (fileExtension === '.webp') {
-        contentTypeValue = 'png'; // treat webp as png for simplicity
-      } else if (fileExtension === '.txt' || fileExtension === '.rtf') {
-        contentTypeValue = 'doc'; // treat text files as doc
-      } else {
-        // For other file types, try to determine from mimetype
-        if (req.file.mimetype.startsWith('image/')) {
-          contentTypeValue = 'png';
-        } else if (req.file.mimetype.includes('document') || req.file.mimetype.includes('text')) {
-          contentTypeValue = 'doc';
-        } else if (req.file.mimetype === 'application/pdf') {
-          contentTypeValue = 'pdf';
-        }
-      }
+      const contentTypeValue = detectContentTypeFromFile(req.file);
 
       updateData.contentUrl = contentUrl;
       updateData.contentType = contentTypeValue;
       
       console.log('🔄 FILE UPDATE - New contentUrl:', contentUrl);
       console.log('🔄 FILE UPDATE - New contentType:', contentTypeValue);
-      console.log('🔄 FILE UPDATE - File extension:', fileExtension);
     }
 
     // Handle link content updates
@@ -1816,40 +1535,8 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
     if (finalContentType === 'template' && templateType) {
       console.log('🔄 Updating template content with type:', templateType);
       
-      // Define template structures (same as in POST /template)
-      const templates = {
-        'training_module': {
-          contentUrl: '/templates/training-module',
-          templateData: {
-            sections: ['Introduction', 'Learning Objectives', 'Content', 'Assessment', 'Conclusion'],
-            estimatedTime: '2 hours'
-          }
-        },
-        'onboarding_checklist': {
-          contentUrl: '/templates/onboarding-checklist',
-          templateData: {
-            items: ['Complete HR paperwork', 'Set up workstation', 'Attend orientation', 'Meet team members', 'Review company policies'],
-            priority: 'high'
-          }
-        },
-        'project_guideline': {
-          contentUrl: '/templates/project-guideline',
-          templateData: {
-            phases: ['Planning', 'Execution', 'Review', 'Delivery'],
-            deliverables: ['Project plan', 'Progress reports', 'Final documentation']
-          }
-        },
-        'safety_protocol': {
-          contentUrl: '/templates/safety-protocol',
-          templateData: {
-            sections: ['General Safety Rules', 'Emergency Procedures', 'Equipment Safety', 'Reporting Incidents'],
-            ackRequired: true
-          }
-        }
-      };
-
-      if (templates[templateType]) {
-        const template = templates[templateType];
+      if (TEMPLATE_DEFINITIONS[templateType]) {
+        const template = TEMPLATE_DEFINITIONS[templateType];
         updateData.contentUrl = template.contentUrl;
         updateData.templateData = template.templateData;
         console.log('✅ Template data set:', template);
@@ -2485,14 +2172,7 @@ router.post('/:id/quiz', requireAdminOrSupervisor, upload.none(), async (req, re
   }
 });
 
-// ============================================
-// TRAINEE ROUTES
-// ============================================
 
-/**
- * GET /trainee/assigned
- * Fetch all content assigned to the authenticated trainee
- */
 router.get('/trainee/assigned', requireTrainee, async (req, res) => {
   try {
     console.log('🔍 Fetching assigned content for trainee:', req.user.id);
@@ -2539,10 +2219,7 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
       console.log(`  📋 ${c.title} - Group ID: ${contentGroupId} (type: ${typeof contentGroupId}, string: ${contentGroupId?.toString()}), Matches trainee group: ${matchesTraineeGroup}`);
     });
 
-    // Build query to find content assigned to:
-    // 1. The trainee's department - handle both array and single ID formats
-    // 2. The trainee's group (if they have one) - IMPORTANT: Properly compare ObjectIds
-    // 3. Directly to this trainee
+    
     const queryConditions = [
       // Department assignment: assignedTo_depID can be an array or single ID
       { 
@@ -2735,78 +2412,6 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
   } catch (err) {
     console.error('❌ Error fetching trainee assigned content:', err);
     return res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-/**
- * PUT /trainee/view/:contentId
- * Mark content as viewed by trainee
- */
-router.put('/trainee/view/:contentId', requireTrainee, async (req, res) => {
-  try {
-    const { contentId } = req.params;
-    console.log('👁️ Marking content as viewed:', contentId, 'by trainee:', req.user.id);
-
-    // Validate content exists
-    const content = await Content.findById(contentId);
-    if (!content) {
-      return res.status(404).json({ ok: false, error: 'Content not found' });
-    }
-
-    // Validate trainee exists
-    const trainee = await Trainee.findById(req.user.id);
-    if (!trainee) {
-      return res.status(404).json({ ok: false, error: 'Trainee not found' });
-    }
-
-    // Check if content has an associated quiz
-    const quiz = await Quiz.findOne({ ObjectContentID: contentId });
-    const quizId = quiz ? quiz._id : null;
-
-    // Find or create progress record
-    let progress = await Progress.findOne({
-      TraineeObjectUserID: trainee._id,
-      ObjectContentID: content._id
-    });
-
-    if (!progress) {
-      console.log('➕ Creating new progress record');
-      progress = new Progress({
-        TraineeObjectUserID: trainee._id,
-        ObjectContentID: content._id,
-        ObjectQuizID: quizId,
-        status: 'in progress',
-        viewedAt: new Date()
-      });
-    } else {
-      // Update quiz ID if it wasn't set before
-      if (!progress.ObjectQuizID && quizId) {
-        progress.ObjectQuizID = quizId;
-      }
-      
-      if (progress.status === 'not started') {
-        console.log('📝 Updating progress status to "in progress"');
-        progress.status = 'in progress';
-        progress.viewedAt = new Date();
-      }
-    }
-
-    await progress.save();
-    console.log('✅ Progress updated successfully');
-
-    return res.json({ 
-      ok: true, 
-      progress: {
-        status: progress.status,
-        viewedAt: progress.viewedAt,
-        completedAt: progress.completedAt,
-        score: progress.score,
-        acknowledged: progress.acknowledged
-      }
-    });
-  } catch (err) {
-    console.error('❌ Error marking content as viewed:', err);
-    return res.status(500).json({ ok: false, error: err.message });
   }
 });
 

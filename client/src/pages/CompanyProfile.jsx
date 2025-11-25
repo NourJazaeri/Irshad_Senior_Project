@@ -6,7 +6,7 @@ function CompanyProfile() {
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState(null); // 'basic', 'business', 'online', or null
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [formData, setFormData] = useState({
@@ -99,7 +99,7 @@ function CompanyProfile() {
       const data = await response.json();
       if (data.ok && data.company) {
         setCompany(data.company);
-        setEditing(false);
+        setEditingSection(null);
         alert('Changes saved successfully!');
       } else {
         throw new Error(data.message || 'Failed to save changes');
@@ -113,8 +113,8 @@ function CompanyProfile() {
   };
 
   // Cancel editing
-  const handleCancel = () => {
-    setEditing(false);
+  const handleCancel = (section) => {
+    setEditingSection(null);
     if (company) {
       setFormData({
         name: company.name || '',
@@ -243,7 +243,7 @@ function CompanyProfile() {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'basic'}
                 className="profile-input"
               />
             </div>
@@ -256,7 +256,7 @@ function CompanyProfile() {
                 name="industry"
                 value={formData.industry}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'basic'}
                 className="profile-input"
               >
                 <option value="">Select industry</option>
@@ -281,7 +281,7 @@ function CompanyProfile() {
                 name="branches"
                 value={formData.branches}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'basic'}
                 className="profile-input"
               />
             </div>
@@ -294,7 +294,7 @@ function CompanyProfile() {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'basic'}
                 className="profile-input"
                 rows="4"
                 style={{ resize: 'vertical', minHeight: '100px' }}
@@ -303,17 +303,17 @@ function CompanyProfile() {
           </div>
 
           <div className="profile-actions">
-            {editing ? (
+            {editingSection === 'basic' ? (
               <>
                 <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="btn-secondary" onClick={handleCancel}>
+                <button className="btn-secondary" onClick={() => handleCancel('basic')}>
                   Cancel
                 </button>
               </>
             ) : (
-              <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('basic')}>
                 Edit Information
               </button>
             )}
@@ -346,7 +346,7 @@ function CompanyProfile() {
                 name="CRN"
                 value={formData.CRN}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'business'}
                 className="profile-input"
               />
             </div>
@@ -360,7 +360,7 @@ function CompanyProfile() {
                 name="taxNo"
                 value={formData.taxNo}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'business'}
                 className="profile-input"
               />
             </div>
@@ -373,7 +373,7 @@ function CompanyProfile() {
                 name="size"
                 value={formData.size}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'business'}
                 className="profile-input"
               >
                 <option value="">Select size</option>
@@ -388,17 +388,17 @@ function CompanyProfile() {
           </div>
 
           <div className="profile-actions">
-            {editing ? (
+            {editingSection === 'business' ? (
               <>
                 <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="btn-secondary" onClick={handleCancel}>
+                <button className="btn-secondary" onClick={() => handleCancel('business')}>
                   Cancel
                 </button>
               </>
             ) : (
-              <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('business')}>
                 Edit Information
               </button>
             )}
@@ -431,7 +431,7 @@ function CompanyProfile() {
                 name="linkedin"
                 value={formData.linkedin}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'online'}
                 className="profile-input"
                 placeholder="https://linkedin.com/company/your-company"
               />
@@ -447,8 +447,8 @@ function CompanyProfile() {
                   id="logo-upload"
                   accept="image/jpeg,image/png,image/gif"
                   onChange={handleLogoUpload}
-                  style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: editing ? 'pointer' : 'not-allowed', zIndex: 1 }}
-                  disabled={uploadingLogo || !editing}
+                  style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: editingSection === 'online' ? 'pointer' : 'not-allowed', zIndex: 1 }}
+                  disabled={uploadingLogo || editingSection !== 'online'}
                 />
                 <div 
                   style={{
@@ -458,8 +458,8 @@ function CompanyProfile() {
                     textAlign: 'center',
                     background: '#F9FAFB',
                     transition: 'all 0.2s',
-                    cursor: editing ? 'pointer' : 'not-allowed',
-                    opacity: editing ? 1 : 0.6,
+                    cursor: editingSection === 'online' ? 'pointer' : 'not-allowed',
+                    opacity: editingSection === 'online' ? 1 : 0.6,
                     minHeight: '200px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -468,13 +468,13 @@ function CompanyProfile() {
                     gap: '12px'
                   }}
                   onMouseEnter={(e) => {
-                    if (editing) {
+                    if (editingSection === 'online') {
                       e.currentTarget.style.borderColor = '#4F46E5';
                       e.currentTarget.style.background = '#F3F4F6';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (editing) {
+                    if (editingSection === 'online') {
                       e.currentTarget.style.borderColor = '#D1D5DB';
                       e.currentTarget.style.background = '#F9FAFB';
                     }
@@ -521,17 +521,17 @@ function CompanyProfile() {
           </div>
 
           <div className="profile-actions">
-            {editing ? (
+            {editingSection === 'online' ? (
               <>
                 <button className="btn-primary" onClick={handleSaveChanges} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="btn-secondary" onClick={handleCancel}>
+                <button className="btn-secondary" onClick={() => handleCancel('online')}>
                   Cancel
                 </button>
               </>
             ) : (
-              <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('online')}>
                 Edit Information
               </button>
             )}

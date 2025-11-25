@@ -61,7 +61,7 @@ const SupervisorContentManagement = () => {
   };
 
   return (
-    <div className="p-8">
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header with Add Button */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">

@@ -100,7 +100,7 @@ router.post("/", requireAdmin, async (req, res) => {
         AdminObjectUserID: adminId,
       });
       
-      console.log(`\n✅ Department created successfully:`);
+      console.log(`\n[SUCCESS] Department created successfully:`);
       console.log(`   Name: "${department.departmentName}"`);
       console.log(`   ID: ${department._id}`);
       console.log(`   Company ID: ${department.ObjectCompanyID} (type: ${typeof department.ObjectCompanyID})`);
@@ -130,11 +130,11 @@ router.post("/", requireAdmin, async (req, res) => {
     const escapedDeptName = trimmedDeptName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const deptCompanyId = department.ObjectCompanyID; // Use the department's company ID (already ObjectId)
     
-    console.log(`\n🔍 ===== EMPLOYEE LINKING PROCESS =====`);
-    console.log(`📝 Department created: "${trimmedDeptName}"`);
-    console.log(`🏢 Department Company ID: ${deptCompanyId} (${deptCompanyId.constructor.name})`);
-    console.log(`🆔 Department ID: ${department._id}`);
-    console.log(`🔎 Searching for employees with:`);
+    console.log(`\n[INFO] ===== EMPLOYEE LINKING PROCESS =====`);
+    console.log(`[INFO] Department created: "${trimmedDeptName}"`);
+    console.log(`[INFO] Department Company ID: ${deptCompanyId} (${deptCompanyId.constructor.name})`);
+    console.log(`[INFO] Department ID: ${department._id}`);
+    console.log(`[INFO] Searching for employees with:`);
     console.log(`   - depName matching: "${trimmedDeptName}" (case-insensitive, trimmed)`);
     console.log(`   - ObjectCompanyID: ${deptCompanyId}`);
     
@@ -145,7 +145,7 @@ router.post("/", requireAdmin, async (req, res) => {
         .select('_id email fname lname depName ObjectCompanyID')
         .lean();
       
-      console.log(`\n📊 Total employees in company: ${allCompanyEmployees.length}`);
+      console.log(`\n[INFO] Total employees in company: ${allCompanyEmployees.length}`);
       if (allCompanyEmployees.length > 0) {
         console.log(`   Employee depNames in company:`);
         allCompanyEmployees.forEach(emp => {
@@ -165,7 +165,7 @@ router.post("/", requireAdmin, async (req, res) => {
         ]
       }).select('_id email fname lname depName ObjectCompanyID').lean();
 
-      console.log(`\n📋 Found ${matchingEmployees.length} employee(s) matching criteria`);
+      console.log(`\n[INFO] Found ${matchingEmployees.length} employee(s) matching criteria`);
       if (matchingEmployees.length > 0) {
         console.log(`   Matching employees:`);
         matchingEmployees.forEach(emp => {
@@ -174,7 +174,7 @@ router.post("/", requireAdmin, async (req, res) => {
           console.log(`       ObjectCompanyID: ${emp.ObjectCompanyID} (${emp.ObjectCompanyID?.constructor?.name || 'unknown'})`);
         });
       } else {
-        console.log(`   ⚠️  No employees matched. Checking why...`);
+        console.log(`   [WARN] No employees matched. Checking why...`);
         // Check if any employees have similar depName
         const similarEmployees = await Employee.find({
           ObjectCompanyID: deptCompanyId,
@@ -188,14 +188,14 @@ router.post("/", requireAdmin, async (req, res) => {
             const deptNameLower = trimmedDeptName.toLowerCase();
             const empDepNameLower = empDepNameTrimmed.toLowerCase();
             const matches = empDepNameLower === deptNameLower;
-            console.log(`     - ${emp.fname} ${emp.lname}: depName="${emp.depName}" -> trimmed="${empDepNameTrimmed}" ${matches ? '✅ MATCHES' : '❌ NO MATCH'}`);
+            console.log(`     - ${emp.fname} ${emp.lname}: depName="${emp.depName}" -> trimmed="${empDepNameTrimmed}" ${matches ? '[MATCH]' : '[NO MATCH]'}`);
             if (!matches) {
               console.log(`       Expected: "${trimmedDeptName}" (lowercase: "${deptNameLower}")`);
               console.log(`       Got: "${empDepNameTrimmed}" (lowercase: "${empDepNameLower}")`);
             }
           });
         } else {
-          console.log(`   ⚠️  No employees found in this company with any depName set`);
+          console.log(`   [WARN] No employees found in this company with any depName set`);
         }
       }
 

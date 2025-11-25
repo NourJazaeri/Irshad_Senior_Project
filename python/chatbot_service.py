@@ -53,9 +53,9 @@ except ImportError:
 # -------------------------------------------------
 # Config
 # -------------------------------------------------
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")  # Use GEMINI_API_KEY for consistency with quiz_service
 if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_API_KEY environment variable must be set")
+    raise ValueError("GEMINI_API_KEY environment variable must be set")
 
 MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 EMBEDDING_MODEL = os.environ.get("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")

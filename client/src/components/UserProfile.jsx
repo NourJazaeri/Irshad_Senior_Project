@@ -8,7 +8,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 const UserProfile = ({ userRole }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState(null); // 'personal', 'account', or null
   const [changingPassword, setChangingPassword] = useState(false);
 
   // Form states
@@ -119,8 +119,23 @@ const UserProfile = ({ userRole }) => {
         return;
       }
 
+      // Password validation with clear requirements
+      const validationErrors = [];
+      
       if (passwordData.newPassword.length < 8) {
-        showToast('Password must be at least 8 characters', 'error');
+        validationErrors.push('at least 8 characters');
+      }
+      
+      if (!/[A-Z]/.test(passwordData.newPassword)) {
+        validationErrors.push('1 capital letter');
+      }
+      
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passwordData.newPassword)) {
+        validationErrors.push('1 special character');
+      }
+      
+      if (validationErrors.length > 0) {
+        showToast(`Password must contain: ${validationErrors.join(', ')}`, 'error');
         return;
       }
 
@@ -198,7 +213,7 @@ const UserProfile = ({ userRole }) => {
                 name="fname"
                 value={formData.fname}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'personal'}
                 className="profile-input"
               />
             </div>
@@ -212,7 +227,7 @@ const UserProfile = ({ userRole }) => {
                 name="lname"
                 value={formData.lname}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'personal'}
                 className="profile-input"
               />
             </div>
@@ -228,7 +243,7 @@ const UserProfile = ({ userRole }) => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    disabled={!editing}
+                    disabled={editingSection !== 'personal'}
                     className="profile-input"
                     placeholder="Enter phone number"
                   />
@@ -250,13 +265,13 @@ const UserProfile = ({ userRole }) => {
           </div>
 
           <div className="profile-actions">
-            {editing ? (
+            {editingSection === 'personal' ? (
               <>
                 <button className="btn-primary" onClick={handleSaveChanges}>
                   Save Changes
                 </button>
                 <button className="btn-secondary" onClick={() => {
-                  setEditing(false);
+                  setEditingSection(null);
                   setFormData({
                     fname: profile.fname || '',
                     lname: profile.lname || '',
@@ -268,7 +283,7 @@ const UserProfile = ({ userRole }) => {
                 </button>
               </>
             ) : (
-              <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('personal')}>
                 Edit Information
               </button>
             )}
@@ -301,24 +316,24 @@ const UserProfile = ({ userRole }) => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                disabled={!editing}
+                disabled={editingSection !== 'account'}
                 className="profile-input"
                 placeholder="Enter email address"
               />
             </div>
-            {!editing && (
+            {editingSection !== 'account' && (
               <p className="field-hint">This email is used for login and all notifications</p>
             )}
           </div>
 
           <div className="profile-actions" style={{ marginBottom: '24px' }}>
-            {editing ? (
+            {editingSection === 'account' ? (
               <>
                 <button className="btn-primary" onClick={handleSaveChanges}>
                   Save Email
                 </button>
                 <button className="btn-secondary" onClick={() => {
-                  setEditing(false);
+                  setEditingSection(null);
                   setFormData({
                     fname: profile.fname || '',
                     lname: profile.lname || '',
@@ -330,7 +345,7 @@ const UserProfile = ({ userRole }) => {
                 </button>
               </>
             ) : (
-              <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <button className={editingSection ? "btn-secondary" : "btn-secondary"} onClick={() => setEditingSection('account')}>
                 Edit Email
               </button>
             )}
@@ -363,7 +378,7 @@ const UserProfile = ({ userRole }) => {
                     value={passwordData.newPassword}
                     onChange={handlePasswordChange}
                     className="profile-input"
-                    placeholder="Enter new password (min 8 characters)"
+                    placeholder="Min 8 chars, 1 capital, 1 special char"
                   />
                 </div>
                 <div className="profile-form-group" style={{ maxWidth: '400px' }}>

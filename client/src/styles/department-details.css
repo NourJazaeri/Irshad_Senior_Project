@@ -173,6 +173,10 @@
 .no-groups-icon {
   font-size: 3rem;
   margin-bottom: 15px;
+  color: #9ca3af;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .no-groups h3 {

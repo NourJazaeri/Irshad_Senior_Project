@@ -48,8 +48,23 @@ function ResetPassword() {
       return;
     }
 
+    // Password validation with clear requirements
+    const validationErrors = [];
+    
     if (newPassword.length < 8) {
-      setMessage("Password must be at least 8 characters long.");
+      validationErrors.push('at least 8 characters');
+    }
+    
+    if (!/[A-Z]/.test(newPassword)) {
+      validationErrors.push('1 capital letter');
+    }
+    
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword)) {
+      validationErrors.push('1 special character');
+    }
+    
+    if (validationErrors.length > 0) {
+      setMessage(`Password must contain: ${validationErrors.join(', ')}.`);
       setMessageType("error");
       setLoading(false);
       return;
@@ -151,7 +166,7 @@ function ResetPassword() {
                 id="newPassword"
                 className="input"
                 type={showPassword ? "text" : "password"}
-                placeholder="Enter new password (min 8 characters)"
+                placeholder="Min 8 chars, 1 capital, 1 special char"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required

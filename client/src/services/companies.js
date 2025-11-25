@@ -66,3 +66,40 @@ export async function fetchCompanyAdmin(id) {
     throw error;
   }
 }
+
+/** Delete a company and all related data (cascade deletion) */
+export async function deleteCompany(id) {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found. Please log in again.');
+    }
+    
+    const response = await fetch(`${API_BASE}/api/companies/${id}`, {
+      method: 'DELETE',
+      credentials: "include",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      let errorMessage = `Failed to delete company (${response.status})`;
+      try {
+        const data = await response.json();
+        errorMessage = data.error || data.message || errorMessage;
+      } catch (e) {
+        const text = await response.text().catch(() => '');
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error deleting company:", error);
+    throw error;
+  }
+}

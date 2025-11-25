@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { FiBriefcase, FiUsers, FiMapPin, FiFileText, FiLink, FiUser, FiMail, FiPhone, FiHash } from "react-icons/fi";
-import { fetchCompany, fetchCompanyAdmin } from "../services/companies";
+import { FiBriefcase, FiUsers, FiMapPin, FiFileText, FiLink, FiUser, FiMail, FiPhone, FiHash, FiTrash2 } from "react-icons/fi";
+import { fetchCompany, fetchCompanyAdmin, deleteCompany } from "../services/companies";
 import EmptyState from "../components/EmptyState.jsx";
 import "../styles/owner-components.css";
 
@@ -14,6 +15,8 @@ export default function CompanyDetails() {
   const [loading, setLoading] = useState(true);
   const [adminLoading, setAdminLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("company");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -50,6 +53,25 @@ export default function CompanyDetails() {
     }
   }, [activeTab, adminDoc]);
 
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setIsDeleting(true);
+      setShowDeleteModal(false);
+      await deleteCompany(id);
+      // Show success message briefly before redirecting
+      alert(`Company "${doc.name}" and all related data have been deleted successfully.`);
+      navigate('/owner/companies');
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      alert(`Failed to delete company: ${error.message}`);
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) return <EmptyState>Loading…</EmptyState>;
   if (err) return <div className="wo-error">{err}</div>;
   if (!doc) return <EmptyState>Company not found.</EmptyState>;
@@ -75,12 +97,44 @@ export default function CompanyDetails() {
         </div>
 
       {/* Header Section */}
-        <div className="wo-details__header" style={{ marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid #e5e7eb' }}>
+        <div className="wo-details__header" style={{ marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="wo-header__left">
           <h1 className="wo-company-title">{doc.name}</h1>
         </div>
-        <div className="wo-header__right">
+        <div className="wo-header__right" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <span className="wo-badge wo-badge--green">Active Company</span>
+          <button
+            onClick={handleDeleteClick}
+            disabled={isDeleting}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              opacity: isDeleting ? 0.6 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!isDeleting) {
+                e.target.style.backgroundColor = '#dc2626';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isDeleting) {
+                e.target.style.backgroundColor = '#ef4444';
+              }
+            }}
+          >
+            <FiTrash2 style={{ fontSize: '1rem' }} />
+            {isDeleting ? 'Deleting...' : 'Delete Company'}
+          </button>
         </div>
       </div>
 
@@ -372,7 +426,143 @@ export default function CompanyDetails() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && createPortal(
+        <ConfirmModal
+          title="Are you sure you want to delete this company?"
+          message={`Deleting "${doc.name}" will permanently remove the company and all associated data including departments, groups, employees, admin/supervisor/trainee accounts, and all related content. This action cannot be undone.`}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteConfirm}
+        />,
+        document.body
+      )}
       </div>
     </div>
   );
+}
+
+/* ========== MODAL COMPONENT ========== */
+function ConfirmModal({ title, message, onClose, onConfirm }) {
+  return (
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+          <div style={iconContainerStyle}>
+            <svg style={{ width: "24px", height: "24px", color: "#dc2626" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 style={titleStyle}>{title}</h2>
+        </div>
+        <p style={messageStyle}>{message}</p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+          <button onClick={onClose} style={cancelBtn} className="modal-cancel-btn">
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={deleteBtn} className="modal-delete-btn">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ========== MODAL STYLES ========== */
+const overlayStyle = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: "100%",
+  height: "100%",
+  background: "rgba(0,0,0,0.6)",
+  backdropFilter: "blur(4px)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 9999,
+  margin: 0,
+  padding: 0,
+};
+
+const modalStyle = {
+  background: "#fff",
+  padding: "32px",
+  borderRadius: "16px",
+  width: "600px",
+  maxWidth: "90vw",
+  boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+  border: "1px solid #e5e7eb",
+};
+
+const iconContainerStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "40px",
+  height: "40px",
+  borderRadius: "50%",
+  background: "#fee2e2",
+  marginRight: "12px",
+  flexShrink: 0,
+};
+
+const titleStyle = {
+  margin: 0,
+  fontWeight: "700",
+  color: "#111827",
+  fontSize: "18px",
+  lineHeight: "1.5",
+  whiteSpace: "nowrap",
+};
+
+const messageStyle = {
+  color: "#6b7280",
+  fontSize: "14px",
+  lineHeight: "1.6",
+  margin: 0,
+};
+
+const cancelBtn = {
+  background: "#f3f4f6",
+  color: "#111827",
+  padding: "10px 24px",
+  borderRadius: "8px",
+  border: "1px solid #e5e7eb",
+  cursor: "pointer",
+  fontWeight: "600",
+  fontSize: "14px",
+  transition: "all 0.2s ease",
+};
+
+const deleteBtn = {
+  background: "#ef4444",
+  color: "#fff",
+  padding: "10px 24px",
+  borderRadius: "8px",
+  border: "none",
+  cursor: "pointer",
+  fontWeight: "600",
+  fontSize: "14px",
+  transition: "all 0.2s ease",
+};
+
+// Add hover effects via CSS classes
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    .modal-cancel-btn:hover {
+      background: #e5e7eb !important;
+    }
+    .modal-delete-btn:hover {
+      background: #dc2626 !important;
+    }
+  `;
+  if (!document.head.querySelector('style[data-modal-styles]')) {
+    style.setAttribute('data-modal-styles', 'true');
+    document.head.appendChild(style);
+  }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { FiUsers } from "react-icons/fi";
 import CreateGroupButton from "../components/CreateGroupButton";
 import "../styles/department-details.css";
 
@@ -297,7 +298,9 @@ function DepartmentDetails() {
           </div>
         ) : (
           <div className="no-groups">
-            <div className="no-groups-icon">👥</div>
+            <div className="no-groups-icon">
+              <FiUsers />
+            </div>
             <h3>No groups yet</h3>
             <p>Create your first group to start organizing this department</p>
           </div>

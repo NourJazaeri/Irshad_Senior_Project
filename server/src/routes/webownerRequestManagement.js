@@ -14,9 +14,15 @@ const listRequests = async (req, res) => {
     
     // Use Mongoose model with population to get referenced data
     const filter = status ? { status } : {};
+    
+    // Sort by reviewedAt for approved/rejected (newest first), submittedAt for pending
+    const sortField = (status === 'approved' || status === 'rejected') 
+      ? { reviewedAt: -1 }  // Newest approved/rejected first
+      : { submittedAt: -1 }; // Newest submitted first for pending
+    
     const items = await RegistrationRequest.find(filter)
       .populate('reviewedBy_userID', 'loginEmail fname lname')
-      .sort({ submittedAt: -1 });
+      .sort(sortField);
     console.log(`🔍 Filtered documents (status: ${status}): ${items.length}`);
     
     res.json(items);

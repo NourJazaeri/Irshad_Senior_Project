@@ -36,6 +36,7 @@ import urllib.request
 import urllib.parse
 import mimetypes
 from typing import Optional, Union
+from pathlib import Path
 
 try:
     from fastapi import FastAPI, UploadFile, File, Form, Request
@@ -52,6 +53,26 @@ except ImportError:
     CORSMiddleware = None  # type: ignore
     JSONResponse = None  # type: ignore
     uvicorn = None  # type: ignore
+
+# --- LOAD .env FILE ---
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"[OK] Loaded .env file from {env_path}")
+    else:
+        # Try loading from parent directory
+        parent_env = Path(__file__).parent.parent / '.env'
+        if parent_env.exists():
+            load_dotenv(parent_env)
+            print(f"[OK] Loaded .env file from {parent_env}")
+        else:
+            print(f"[INFO] No .env file found at {env_path} or {parent_env}")
+except ImportError:
+    # python-dotenv not installed, skip .env loading
+    print("[WARN] python-dotenv not installed. Install with: pip install python-dotenv")
+    print("[WARN] Will use environment variables only.")
 
 # --- CONFIGURE GEMINI ---
 def configure_gemini(api_key=None):
@@ -71,15 +92,14 @@ def configure_gemini(api_key=None):
     return genai.GenerativeModel("gemini-2.0-flash")
 
 # Initialize model (will raise error if API key not set)
-# ⭐ IMPORTANT: Set environment variable before running: 
-#    $env:GEMINI_API_KEY = "your_key" (PowerShell) 
-#    export GEMINI_API_KEY="your_key" (Linux/Mac)
+# ⭐ IMPORTANT: Set GEMINI_API_KEY in .env file or as environment variable
 try:
     model = configure_gemini()
     print("[OK] Gemini API configured successfully")
 except ValueError as e:
     print(f"[ERROR] {e}")
     print("[ERROR] Cannot start service without valid API key!")
+    print("[INFO] Make sure GEMINI_API_KEY is set in your .env file or as an environment variable.")
     model = None
 
 def extract_text_from_pdf(file_path):
@@ -379,7 +399,6 @@ def extract_youtube_transcript(url: str) -> str:
                         
                         if transcript_text and len(transcript_text) >= 50:
                             print(f"[OK] Successfully extracted {len(transcript_text)} characters from '{lang}' subtitles")
-                            print(f"[INFO] Preview: {transcript_text[:200]}...")
                             return transcript_text
                         else:
                             print(f"[WARN] Transcript too short for {lang}: {len(transcript_text)} chars")

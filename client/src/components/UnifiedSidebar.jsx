@@ -9,7 +9,6 @@ import {
   User, 
   Menu,
   LogOut,
-  Settings,
   BarChart3,
   ClipboardList,
   Building,
@@ -17,7 +16,8 @@ import {
   FolderOpen,
   Building2 as BuildingOffice,
   MessageCircle,
-  Bot
+  Bot,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
@@ -44,7 +44,7 @@ const navigationConfigs = {
       { name: 'Dashboard', href: '/owner', icon: Home },
       { name: 'Companies', href: '/owner/companies', icon: Building2 },
       { name: 'Registrations', href: '/owner/registrations', icon: ClipboardList },
-      { name: 'Settings', href: '/owner/settings', icon: Settings },
+      { name: 'Activity Report', href: '/owner/activity-log', icon: History },
       { name: 'My Profile', href: '/owner/my-profile', icon: User },
     ]
   },

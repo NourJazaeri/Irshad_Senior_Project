@@ -14,7 +14,8 @@ import {
   Building2 as BuildingOffice,
   ClipboardList,
   MessageCircle,
-  Bot
+  Bot,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logoutUser } from '../services/api';
@@ -76,8 +77,8 @@ const getPageTitle = (pathname, userType) => {
         return 'Companies';
       case '/owner/registrations':
         return 'Registrations';
-      case '/owner/settings':
-        return 'Settings';
+      case '/owner/activity-log':
+        return 'Activity Report';
       case '/owner/my-profile':
         return 'My Profile';
       default:
@@ -187,8 +188,8 @@ const getPageIcon = (pathname, userType) => {
         return Building2;
       case '/owner/registrations':
         return UserCog;
-      case '/owner/settings':
-        return UserCog;
+      case '/owner/activity-log':
+        return History;
       case '/owner/my-profile':
         return User;
       default:

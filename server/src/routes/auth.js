@@ -229,6 +229,23 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 
+// Password validation helper function
+function validatePassword(password) {
+  if (!password || password.length < 8) {
+    return { valid: false, message: "Password must be at least 8 characters long" };
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: "Password must contain at least one capital letter" };
+  }
+  
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return { valid: false, message: "Password must contain at least one special character" };
+  }
+  
+  return { valid: true };
+}
+
 // RESET PASSWORD route
 router.post("/reset-password", async (req, res) => {
   try {
@@ -238,6 +255,12 @@ router.post("/reset-password", async (req, res) => {
     // Validation
     if (!token || !uid || !role || !newPassword) {
       return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ message: passwordValidation.message });
     }
 
     const UserModel = roleModels[role];

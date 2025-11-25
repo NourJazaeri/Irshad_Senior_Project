@@ -313,10 +313,158 @@ export const sendPasswordResetEmail = async (email, resetLink) => {
   }
 };
 
+// Send registration approval email
+export const sendRegistrationApprovalEmail = async (adminEmail, companyName) => {
+  try {
+    console.log(`📧 Attempting to send approval email to: ${adminEmail}`);
+    
+    const transporter = createTransporter();
+    
+    if (!transporter) {
+      console.error('❌ Email transporter not available - credentials not configured');
+      return { success: false, error: 'Email credentials not configured' };
+    }
+
+    // Verify transporter connection
+    try {
+      await transporter.verify();
+      console.log('✅ Email transporter verified successfully');
+    } catch (verifyError) {
+      console.error('❌ Email transporter verification failed:', verifyError);
+      return { success: false, error: `Email verification failed: ${verifyError.message}` };
+    }
+    
+    const mailOptions = {
+      from: `"Irshad Platform" <${process.env.EMAIL_USER}>`,
+      to: adminEmail,
+      subject: `Registration Approved - ${companyName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h1 style="color: #28a745; text-align: center; margin-bottom: 30px;">✅ Registration Approved</h1>
+            
+            <div style="background-color: white; padding: 20px; border-radius: 6px; border-left: 4px solid #28a745;">
+              <h2 style="color: #333; margin-top: 0;">Congratulations!</h2>
+              <p>Your company registration request for <strong>${companyName}</strong> has been <strong style="color: #28a745;">approved</strong> by the platform administrator.</p>
+              
+              <div style="background-color: #d4edda; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                <h3 style="color: #155724; margin-top: 0;">What's Next?</h3>
+                <ul style="color: #155724; margin-bottom: 0;">
+                  <li>Your company account has been created successfully</li>
+                  <li>You can now log in to the platform using your registered email and password</li>
+                  <li>Access your company profile and start managing your organization</li>
+                </ul>
+              </div>
+              
+              <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                <h4 style="color: #856404; margin-top: 0;">📝 Important Information</h4>
+                <p style="color: #856404; margin-bottom: 0;">If you have any questions or need assistance, please contact the platform support team.</p>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; color: #666;">
+              <p>Thank you for choosing Irshad Platform!</p>
+              <p style="font-size: 12px; color: #999;">This is an automated system notification. Please do not reply to this email.</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ Approval email sent successfully to ${adminEmail}:`, result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error(`❌ Failed to send approval email to ${adminEmail}:`, error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response
+    });
+    return { success: false, error: error.message };
+  }
+};
+
+// Send registration rejection email
+export const sendRegistrationRejectionEmail = async (adminEmail, companyName) => {
+  try {
+    console.log(`📧 Attempting to send rejection email to: ${adminEmail}`);
+    
+    const transporter = createTransporter();
+    
+    if (!transporter) {
+      console.error('❌ Email transporter not available - credentials not configured');
+      return { success: false, error: 'Email credentials not configured' };
+    }
+
+    // Verify transporter connection
+    try {
+      await transporter.verify();
+      console.log('✅ Email transporter verified successfully');
+    } catch (verifyError) {
+      console.error('❌ Email transporter verification failed:', verifyError);
+      return { success: false, error: `Email verification failed: ${verifyError.message}` };
+    }
+    
+    const mailOptions = {
+      from: `"Irshad Platform" <${process.env.EMAIL_USER}>`,
+      to: adminEmail,
+      subject: `Registration Request Update - ${companyName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <h1 style="color: #dc3545; text-align: center; margin-bottom: 30px;">Registration Request Update</h1>
+            
+            <div style="background-color: white; padding: 20px; border-radius: 6px; border-left: 4px solid #dc3545;">
+              <h2 style="color: #333; margin-top: 0;">Registration Request Status</h2>
+              <p>We regret to inform you that your company registration request for <strong>${companyName}</strong> has been <strong style="color: #dc3545;">rejected</strong> by the platform administrator.</p>
+              
+              <div style="background-color: #f8d7da; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                <h3 style="color: #721c24; margin-top: 0;">What This Means</h3>
+                <ul style="color: #721c24; margin-bottom: 0;">
+                  <li>Your registration request has been reviewed and cannot be approved at this time</li>
+                  <li>The company account has not been created</li>
+                  <li>You may need to review your submission and resubmit if needed</li>
+                </ul>
+              </div>
+              
+              <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #ffc107; margin-top: 20px;">
+                <h4 style="color: #856404; margin-top: 0;">💡 Next Steps</h4>
+                <p style="color: #856404; margin-bottom: 0;">If you believe this was an error or have questions about the rejection, please contact the platform support team for assistance.</p>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; color: #666;">
+              <p>Thank you for your interest in Irshad Platform.</p>
+              <p style="font-size: 12px; color: #999;">This is an automated system notification. Please do not reply to this email.</p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ Rejection email sent successfully to ${adminEmail}:`, result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error(`❌ Failed to send rejection email to ${adminEmail}:`, error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response
+    });
+    return { success: false, error: error.message };
+  }
+};
+
 export default {
   generateRandomPassword,
   sendLoginCredentials,
   sendGroupCreationNotification,
   sendPasswordResetEmail,
-  testEmailConfiguration
+  testEmailConfiguration,
+  sendRegistrationApprovalEmail,
+  sendRegistrationRejectionEmail
 };

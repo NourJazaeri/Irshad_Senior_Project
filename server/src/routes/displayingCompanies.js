@@ -3,6 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { ObjectId } from 'mongodb';
 import Company from '../models/Company.js';
+import { authenticateWebOwner } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -10,7 +11,8 @@ const router = express.Router();
 router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '10', 10), 1), 50);
+    // Allow larger pageSize to fetch all companies (max 10000 to prevent abuse)
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '10', 10), 1), 10000);
     const q = (req.query.q || '').trim();
 
     const match = q
@@ -115,6 +117,148 @@ router.get('/:id', async (req, res, next) => {
     console.log('Logo field type:', typeof doc.logoUrl);
     res.json(doc);
   } catch (err) { next(err); }
+});
+
+/**
+ * DELETE /api/companies/:id
+ * Delete a company and all related data (cascade deletion)
+ * Requires WebOwner authentication
+ * NOTE: This route must be defined before GET /:id/admin to avoid route conflicts
+ */
+router.delete('/:id', authenticateWebOwner, async (req, res, next) => {
+  try {
+    const companyId = new ObjectId(req.params.id);
+    
+    // Verify company exists
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({ ok: false, error: 'Company not found' });
+    }
+
+    const companyName = company.name;
+    console.log(`[INFO] Starting cascade deletion for company: ${companyName} (${companyId})`);
+
+    // Use direct collection access for efficiency
+    const db = mongoose.connection.db;
+    const companyObjectId = companyId;
+
+    // 1. Find all departments for this company
+    const departments = await db.collection('Department').find({ 
+      ObjectCompanyID: companyObjectId 
+    }).toArray();
+    console.log(`[INFO] Found ${departments.length} department(s) to delete`);
+
+    // 2. For each department, find all groups and handle trainees
+    let totalGroups = 0;
+    let totalTraineesUnassigned = 0;
+    
+    for (const dept of departments) {
+      const deptId = dept._id;
+      
+      // Find all groups in this department
+      const groups = await db.collection('Group').find({ 
+        ObjectDepartmentID: deptId 
+      }).toArray();
+      
+      totalGroups += groups.length;
+      console.log(`[INFO] Found ${groups.length} group(s) in department "${dept.departmentName}"`);
+
+      // Unassign all trainees from these groups
+      for (const group of groups) {
+        const unassignResult = await db.collection('Trainee').updateMany(
+          { ObjectGroupID: group._id },
+          { $unset: { ObjectGroupID: "" } }
+        );
+        totalTraineesUnassigned += unassignResult.modifiedCount;
+      }
+
+      // Delete all groups in this department
+      if (groups.length > 0) {
+        const groupIds = groups.map(g => g._id);
+        await db.collection('Group').deleteMany({ _id: { $in: groupIds } });
+        console.log(`[INFO] Deleted ${groups.length} group(s) from department "${dept.departmentName}"`);
+      }
+    }
+
+    // 3. Delete all departments
+    if (departments.length > 0) {
+      const deptIds = departments.map(d => d._id);
+      await db.collection('Department').deleteMany({ _id: { $in: deptIds } });
+      console.log(`[INFO] Deleted ${departments.length} department(s)`);
+    }
+
+    // 4. Find all employees for this company
+    const employees = await db.collection('Employee').find({ 
+      ObjectCompanyID: companyObjectId 
+    }).toArray();
+    console.log(`[INFO] Found ${employees.length} employee(s) to process`);
+
+    // 5. For each employee, find and delete related Admin, Supervisor, Trainee records
+    let deletedAdmins = 0;
+    let deletedSupervisors = 0;
+    let deletedTrainees = 0;
+
+    for (const employee of employees) {
+      const empId = employee._id;
+
+      // Delete Admin records linked to this employee
+      const adminResult = await db.collection('Admin').deleteMany({ 
+        EmpObjectUserID: empId 
+      });
+      deletedAdmins += adminResult.deletedCount;
+
+      // Delete Supervisor records linked to this employee
+      const supervisorResult = await db.collection('Supervisor').deleteMany({ 
+        EmpObjectUserID: empId 
+      });
+      deletedSupervisors += supervisorResult.deletedCount;
+
+      // Delete Trainee records linked to this employee
+      const traineeResult = await db.collection('Trainee').deleteMany({ 
+        EmpObjectUserID: empId 
+      });
+      deletedTrainees += traineeResult.deletedCount;
+    }
+
+    console.log(`[INFO] Deleted ${deletedAdmins} admin(s), ${deletedSupervisors} supervisor(s), ${deletedTrainees} trainee(s)`);
+
+    // 6. Also delete any Admin records directly linked to the company (via AdminObjectUserID)
+    const companyAdminResult = await db.collection('Admin').deleteMany({ 
+      _id: company.AdminObjectUserID 
+    });
+    if (companyAdminResult.deletedCount > 0) {
+      console.log(`[INFO] Deleted ${companyAdminResult.deletedCount} admin(s) directly linked to company`);
+    }
+
+    // 7. Delete all employees
+    if (employees.length > 0) {
+      const empIds = employees.map(e => e._id);
+      await db.collection('Employee').deleteMany({ _id: { $in: empIds } });
+      console.log(`[INFO] Deleted ${employees.length} employee(s)`);
+    }
+
+    // 8. Delete the company itself
+    await Company.findByIdAndDelete(companyId);
+    console.log(`[SUCCESS] Deleted company: ${companyName}`);
+
+    res.json({
+      ok: true,
+      message: `Company "${companyName}" and all related data deleted successfully`,
+      deleted: {
+        company: 1,
+        departments: departments.length,
+        groups: totalGroups,
+        employees: employees.length,
+        admins: deletedAdmins + companyAdminResult.deletedCount,
+        supervisors: deletedSupervisors,
+        trainees: deletedTrainees,
+        traineesUnassigned: totalTraineesUnassigned
+      }
+    });
+  } catch (err) {
+    console.error('[ERROR] Error deleting company:', err);
+    next(err);
+  }
 });
 
 /**

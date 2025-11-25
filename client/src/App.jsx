@@ -8,7 +8,7 @@ import Footer from "./components/Footer.jsx";
 import CompanyRegistration from "./pages/CompanyRegistration.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CompanyProfile from "./pages/CompanyProfile.jsx";
-import SupervisorDashboard from "./pages/SupervisorDashboard.jsx";
+import SupervisorGroups from "./pages/SupervisorGroups.jsx";
 import SupervisorCharts from "./pages/SupervisorCharts.jsx";
 import SupervisorLayout from "./pages/SupervisorLayout.jsx";
 import SupervisorContentManagement from "./pages/SupervisorContentManagement.jsx";
@@ -136,7 +136,7 @@ export default function App() {
         {/* Supervisor Routes */}
         <Route path="/supervisor" element={<SupervisorLayout />}>
           <Route index element={<SupervisorCharts />} />
-          <Route path="groups" element={<SupervisorDashboard />} />
+          <Route path="groups" element={<SupervisorGroups />} />
           <Route path="charts" element={<SupervisorCharts />} />
           <Route path="content" element={<SupervisorContentManagement />} />
           <Route path="content/:id" element={<ContentDetails />} />
@@ -168,8 +168,8 @@ export default function App() {
           <Route path="companies/:id" element={<CompanyDetails />} />
           <Route path="registrations" element={<Registrations />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="activity-log" element={<ActivityLog />} />
           <Route path="my-profile" element={<WebOwnerProfile />} />
-          <Route path="settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain platform settings.</p></div>} />
         </Route>
 
         {/* UsageReport Routes */}
@@ -179,7 +179,6 @@ export default function App() {
         {/* Additional Dashboard Routes */}
         <Route path="/companies" element={<div style={{padding: '20px'}}><h2>Companies Management</h2><p>This page will show all registered companies.</p></div>} />
         <Route path="/registrations" element={<div style={{padding: '20px'}}><h2>Registration Requests</h2><p>This page will show all pending registration requests.</p></div>} />
-        <Route path="/settings" element={<div style={{padding: '20px'}}><h2>Settings</h2><p>This page will contain dashboard settings.</p></div>} />
       </Routes>
       {!isLoginRoute && !isAdminRoute && !isOwnerRoute && !isDashboardRoute && !isRegistrationRoute && <Footer />}
     </>

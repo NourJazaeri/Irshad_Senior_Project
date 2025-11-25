@@ -268,7 +268,7 @@ export default function SupervisorChat() {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Back link */}
       <div style={{ marginBottom: '1rem' }}>
         <button 

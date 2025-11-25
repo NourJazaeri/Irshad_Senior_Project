@@ -67,7 +67,7 @@ export default function SupervisorCharts() {
   }, []); // Empty dependency array - only run once on mount
 
   return (
-    <div id="supervisor-dashboard-root" className="px-6 md:px-10 pb-6 md:pb-10 bg-gray-50 min-h-screen">
+    <div id="supervisor-dashboard-root" style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
       <div className="flex justify-end items-center mb-6 no-export">
         <ExportReportCard />
       </div>

@@ -51,11 +51,19 @@ router.get('/debug/webowners', async (_, res) => {
 });
 
 // ---- List requests ----
-router.get('/', async (_, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const requests = await RegistrationRequest.find()
+    const { status } = req.query;
+    const filter = status ? { status } : {};
+    
+    // Sort by reviewedAt for approved/rejected (newest first), submittedAt for pending
+    const sortField = (status === 'approved' || status === 'rejected') 
+      ? { reviewedAt: -1 }  // Newest approved/rejected first
+      : { submittedAt: -1 }; // Newest submitted first for pending
+    
+    const requests = await RegistrationRequest.find(filter)
       .populate('reviewedBy_userID', 'loginEmail fname lname')
-      .sort({ submittedAt: -1 });
+      .sort(sortField);
     
     // Debug: Log the populated data
     console.log('=== DEBUG: Registration Requests ===');
