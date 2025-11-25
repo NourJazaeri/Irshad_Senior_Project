@@ -30,38 +30,37 @@ Web owners operate at the platform level, managing company registration requests
 ## Tech Stack
 
 ### Client
-- **Framework**: React 19.1.1
-- **Build Tool**: Vite 7.2.2
-- **Routing**: React Router DOM 7.9.1
-- **Styling**: TailwindCSS 3.4.18
-- **UI Components**: Lucide React (icons), React Icons
-- **Charts**: Recharts 3.4.1
-- **HTTP Client**: Axios 1.12.2
-- **Real-Time**: Socket.io Client 4.7.5
-- **PDF Generation**: jsPDF 3.0.4, html2canvas 1.4.1
-- **Progress Indicators**: React Circular Progressbar 2.2.0
+- **Framework**: React 
+- **Build Tool**: Vite
+- **Routing**: React Router DOM
+- **Styling**: TailwindCSS 
+- **Charts**: Recharts
+- **HTTP Client**: Axios
+- **Real-Time**: Socket.io Client
+
 
 ### Server
 - **Runtime**: Node.js
-- **Framework**: Express 5.1.0
-- **Database**: MongoDB (via Mongoose 8.18.2)
-- **Authentication**: JSON Web Tokens (jsonwebtoken 9.0.2), bcrypt 6.0.0
-- **Real-Time**: Socket.io 4.8.1
-- **File Upload**: Multer 1.4.5-lts.1, Cloudinary 1.41.3
+- **Framework**: Express 
+- **Database**: MongoDB (via Mongoose)
+- **Authentication**: JSON Web Tokens (jsonwebtoken), bcrypt 
+- **Real-Time**: Socket.io
+- **File Upload**: Multer, Supabase 
 - **Email**: Nodemailer 7.0.9
-- **Other**: Cookie Parser, CORS, dotenv
+- **Other**: CORS, dotenv
+
 
 ### Python Services
-- **Framework**: FastAPI 0.115.5
+- **Framework**: FastAPI 
 - **AI/ML**: 
-  - Google Generative AI (google-generativeai 0.8.3)
-  - LangChain 0.3.7 (with Google GenAI integration)
-  - FAISS 1.9.0.post1 (vector database)
+  - Google Generative AI (google-generativeai)
+  - LangChain (with Google GenAI integration)
+  - FAISS (vector database)
 - **Content Processing**: 
-  - pdfplumber 0.11.4 (PDF text extraction)
+  - pdfplumber (PDF text extraction)
   - yt-dlp >=2024.10.7 (YouTube transcript extraction)
-- **Data**: pandas 2.2.3, pymongo 4.10.1
-- **Server**: Uvicorn 0.32.0
+- **Data**: pandas, pymongo 
+- **Server**: Uvicorn
 
 ### Database
 - **Primary Database**: MongoDB (via Mongoose ODM)
