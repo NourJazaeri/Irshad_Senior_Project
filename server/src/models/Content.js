@@ -34,7 +34,7 @@ const ContentSchema = new Schema(
     ackRequired: { type: Boolean, default: false },
 
     // References for assignment
-    assignedTo_GroupID: { type: Schema.Types.ObjectId, ref: "Group" },
+    assignedTo_GroupID: [{ type: Schema.Types.ObjectId, ref: "Group" }], // Array for multiple groups
     assignedTo_depID: [{ type: Schema.Types.ObjectId, ref: "Department" }], // Array for multiple departments
     assignedTo_traineeID: [{ type: Schema.Types.ObjectId, ref: "Trainee" }], // Array for multiple trainees
 
@@ -48,7 +48,6 @@ const ContentSchema = new Schema(
 // --- Cleaners to avoid storing null/empty assignment fields ---
 function cleanAssignmentFields(docLike) {
   const maybeUnsetKeys = [
-    'assignedTo_GroupID',
     'youtubeVideoId',
   ];
 
@@ -58,6 +57,12 @@ function cleanAssignmentFields(docLike) {
   }
 
   // Handle array fields separately
+  if (Array.isArray(docLike.assignedTo_GroupID) && docLike.assignedTo_GroupID.length === 0) {
+    delete docLike.assignedTo_GroupID;
+  } else if (docLike.assignedTo_GroupID === null || docLike.assignedTo_GroupID === undefined || docLike.assignedTo_GroupID === '') {
+    delete docLike.assignedTo_GroupID;
+  }
+  
   if (Array.isArray(docLike.assignedTo_depID) && docLike.assignedTo_depID.length === 0) {
     delete docLike.assignedTo_depID;
   }
@@ -79,14 +84,6 @@ ContentSchema.pre('findOneAndUpdate', function(next) {
 
   // Only clean fields if they are explicitly being set to null/undefined
   if (update.$set) {
-    const keys = ['assignedTo_GroupID', 'assignedTo_traineeID'];
-    for (const k of keys) {
-      const v = update.$set[k];
-      if (v === null || v === undefined || v === '') {
-        delete update.$set[k];
-      }
-    }
-    
     // Handle youtubeVideoId more carefully - only remove if explicitly set to null/empty
     if ('youtubeVideoId' in update.$set) {
       const youtubeVal = update.$set.youtubeVideoId;
@@ -95,11 +92,27 @@ ContentSchema.pre('findOneAndUpdate', function(next) {
       }
     }
     
-    // Handle department IDs
+    // Handle group IDs (array)
+    if ('assignedTo_GroupID' in update.$set) {
+      const groupVal = update.$set.assignedTo_GroupID;
+      if (!Array.isArray(groupVal) || groupVal.length === 0) {
+        delete update.$set.assignedTo_GroupID;
+      }
+    }
+    
+    // Handle department IDs (array)
     if ('assignedTo_depID' in update.$set) {
       const depVal = update.$set.assignedTo_depID;
       if (!Array.isArray(depVal) || depVal.length === 0) {
         delete update.$set.assignedTo_depID;
+      }
+    }
+    
+    // Handle trainee IDs (array)
+    if ('assignedTo_traineeID' in update.$set) {
+      const traineeVal = update.$set.assignedTo_traineeID;
+      if (!Array.isArray(traineeVal) || traineeVal.length === 0) {
+        delete update.$set.assignedTo_traineeID;
       }
     }
     

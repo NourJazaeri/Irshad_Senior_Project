@@ -230,7 +230,9 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
       file: null, // Don't pre-populate file
       link: (editContent.contentType === 'link' || editContent.contentType === 'template') ? (editContent.contentUrl || editContent.link || '') : '',
       selectedDepartments: editContent.assignedTo_depID || [],
-      selectedGroups: editContent.assignedTo_GroupID ? [editContent.assignedTo_GroupID] : [],
+      selectedGroups: Array.isArray(editContent.assignedTo_GroupID) 
+        ? editContent.assignedTo_GroupID.map(g => typeof g === 'object' ? g._id : g)
+        : (editContent.assignedTo_GroupID ? [editContent.assignedTo_GroupID] : []),
       selectedTrainees: Array.isArray(editContent.assignedTo_traineeID) 
         ? editContent.assignedTo_traineeID.map(t => typeof t === 'object' ? t._id : t)
         : (editContent.assignedTo_traineeID ? [editContent.assignedTo_traineeID] : []),
@@ -660,7 +662,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
         deadline: formData.deadline?.toISOString(),
         ackRequired: formData.ackRequired,
         assignedTo_depID: formData.selectedDepartments,
-        assignedTo_GroupID: formData.selectedGroups.length > 0 ? formData.selectedGroups[0] : null,
+        assignedTo_GroupID: formData.selectedGroups.length > 0 ? formData.selectedGroups : null, // Send ALL selected groups
         assignedTo_traineeID: formData.selectedTrainees.length > 0 
           ? formData.selectedTrainees.map(t => typeof t === 'object' ? t._id : t)
           : null,
@@ -871,7 +873,7 @@ const AddContentModal = ({ isOpen, onClose, onContentAdded, editMode = false, ed
             assignedBy: currentUser.id,
             assignedByModel: userRole,
             assignedTo_depID: formData.selectedDepartments,
-            assignedTo_GroupID: formData.selectedGroups.length > 0 ? formData.selectedGroups[0] : null,
+            assignedTo_GroupID: formData.selectedGroups.length > 0 ? formData.selectedGroups : null, // Send ALL selected groups
             assignedTo_traineeID: formData.selectedTrainees.length > 0 ? formData.selectedTrainees : null,
           };
 

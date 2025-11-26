@@ -250,11 +250,11 @@ export const UnifiedTopbar = ({
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [adminData, setAdminData] = useState({
-    firstName: 'Admin',
-    lastName: 'User',
-    name: 'Admin',
-    email: 'admin@company.com',
-    companyName: 'Your Company'
+    firstName: '',
+    lastName: '',
+    name: '',
+    email: '',
+    companyName: ''
   });
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -304,14 +304,33 @@ export const UnifiedTopbar = ({
             const userData = userType === 'trainee' ? data.trainee : 
                             userType === 'supervisor' ? data.supervisor : 
                             data.webOwner;
-            if (data.success && userData) {
+            
+            // Check both data.success and data.ok for API response format
+            if ((data.success || data.ok) && userData) {
               const firstName = userData.firstName || '';
               const lastName = userData.lastName || '';
-              const displayName = `${firstName} ${lastName}`.trim() || 
-                (userData.email ? userData.email.split('@')[0].split('.').map(part => 
-                  part.charAt(0).toUpperCase() + part.slice(1)
-                ).join(' ') : (userType === 'trainee' ? 'Trainee' : userType === 'supervisor' ? 'Supervisor' : 'Web Owner'));
-              setUserName(displayName);
+              
+              // For webOwner, use full name if available, otherwise empty (don't use email fallback)
+              if (userType === 'webOwner') {
+                const fullName = `${firstName} ${lastName}`.trim();
+                setUserName(fullName || firstName || '');
+              } else {
+                // For trainee/supervisor, use full name or formatted email
+                const displayName = `${firstName} ${lastName}`.trim() || 
+                  (userData.email ? userData.email.split('@')[0].split('.').map(part => 
+                    part.charAt(0).toUpperCase() + part.slice(1)
+                  ).join(' ') : (userType === 'trainee' ? 'Trainee' : 'Supervisor'));
+                setUserName(displayName);
+              }
+            } else if (userData && (userData.firstName || userData.lastName)) {
+              // Fallback: if userData exists but data.success/ok is false, still use the name
+              const firstName = userData.firstName || '';
+              const lastName = userData.lastName || '';
+              if (userType === 'webOwner') {
+                setUserName(`${firstName} ${lastName}`.trim() || firstName || '');
+              } else {
+                setUserName(`${firstName} ${lastName}`.trim() || (userData.email ? userData.email.split('@')[0] : ''));
+              }
             }
           }
         } catch (e) {
@@ -328,7 +347,7 @@ export const UnifiedTopbar = ({
     }
   }, [userType]);
 
-  // Fetch admin data from employee table
+  // Fetch admin data from employee table (for admin) or profile API (for webOwner/trainee/supervisor)
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
@@ -336,36 +355,90 @@ export const UnifiedTopbar = ({
         const token = localStorage.getItem('token');
         const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
         
-        // Fetch admin profile data
-        const response = await fetch(`${API_BASE}/api/company-profile/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        if (userType === 'admin') {
+          // Fetch admin profile data
+          const response = await fetch(`${API_BASE}/api/company-profile/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
 
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.ok && data.admin) {
-            const adminFirstName = data.admin.firstName || 'Admin';
-            const adminLastName = data.admin.lastName || 'User';
-            const fullName = `${adminFirstName} ${adminLastName}`.trim();
-            setAdminData({
-              firstName: adminFirstName,
-              lastName: adminLastName,
-              name: fullName || 'Admin',
-              email: data.admin.email || 'admin@company.com',
-              companyName: data.company?.name || 'Your Company'
-            });
-            // Set userName for admin welcome message
-            if (userType === 'admin') {
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.ok && data.admin) {
+              const adminFirstName = data.admin.firstName || 'Admin';
+              const adminLastName = data.admin.lastName || 'User';
+              const fullName = `${adminFirstName} ${adminLastName}`.trim();
+              setAdminData({
+                firstName: adminFirstName,
+                lastName: adminLastName,
+                name: fullName || 'Admin',
+                email: data.admin.email || 'admin@company.com',
+                companyName: data.company?.name || 'Your Company'
+              });
+              // Set userName for admin welcome message
               setUserName(fullName);
+            }
+          }
+        } else if (userType === 'webOwner' || userType === 'trainee' || userType === 'supervisor') {
+          // Fetch profile data for webOwner/trainee/supervisor (same as sidebar)
+          const endpoints = {
+            'trainee': '/api/trainee/me',
+            'supervisor': '/api/supervisor/me',
+            'webOwner': '/api/webowner/me'
+          };
+          const endpoint = endpoints[userType];
+          
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const profileMap = {
+              'trainee': data.trainee,
+              'supervisor': data.supervisor,
+              'webOwner': data.webOwner
+            };
+            const profile = profileMap[userType];
+            
+            if ((data.ok || data.success) && profile) {
+              const firstName = profile.firstName || '';
+              const lastName = profile.lastName || '';
+              
+              console.log(`✅ ${userType} - Fetched profile:`, { firstName, lastName, email: profile.email });
+              
+              setAdminData({
+                firstName: firstName,
+                lastName: lastName,
+                name: `${firstName} ${lastName}`.trim() || firstName,
+                email: profile.email || ''
+              });
+              
+              // Also update userName for welcome message
+              if (userType === 'webOwner') {
+                const fullName = `${firstName} ${lastName}`.trim() || firstName;
+                console.log(`✅ webOwner - Setting userName to:`, fullName);
+                setUserName(fullName || '');
+              } else {
+                const displayName = `${firstName} ${lastName}`.trim() || 
+                  (profile.email ? profile.email.split('@')[0].split('.').map(part => 
+                    part.charAt(0).toUpperCase() + part.slice(1)
+                  ).join(' ') : '');
+                setUserName(displayName);
+              }
+            } else {
+              console.warn(`⚠️ ${userType} - Profile data missing or invalid:`, { data, profile });
             }
           }
         }
       } catch (error) {
-        console.error('Error fetching admin data:', error);
+        console.error('Error fetching user data:', error);
         // Keep default values if fetch fails
       } finally {
         setLoading(false);
@@ -373,7 +446,7 @@ export const UnifiedTopbar = ({
     };
 
     fetchAdminData();
-  }, []);
+  }, [userType]);
 
   const handleLogout = async () => {
     try {
@@ -461,8 +534,8 @@ export const UnifiedTopbar = ({
     <header className={cn(
       "bg-blue-50 border-b border-blue-200 shadow-sm w-full sticky top-0 z-50 font-sans antialiased",
       className
-    )}>
-      <div className="flex items-center justify-between px-4 lg:px-12 py-4">
+    )} style={{ width: '100%' }}>
+      <div className="flex items-center justify-between px-4 lg:px-12 py-6 min-h-[80px] w-full">
         {/* Mobile Menu Button */}
         <button
           onClick={onMobileMenuToggle}
@@ -480,12 +553,32 @@ export const UnifiedTopbar = ({
             <h1 className="text-4xl font-bold tracking-wide text-foreground leading-tight m-0">
               {pageTitle}
             </h1>
-            {(userType === 'trainee' || userType === 'supervisor' || userType === 'admin' || userType === 'webOwner') && userName && (pageTitle === 'Dashboard' || pageTitle === 'Home') && (
-              <p className="text-sm text-gray-600 mt-1 font-medium flex items-center gap-1.5">
-                <span>Welcome, {userName}</span>
-                <WavingHand style={{ display: 'inline-block', marginLeft: '2px' }} />
-              </p>
-            )}
+            {(userType === 'trainee' || userType === 'supervisor' || userType === 'admin' || userType === 'webOwner') && (pageTitle === 'Dashboard' || pageTitle === 'Home') && (() => {
+              // Determine display name based on user type
+              let displayName = '';
+              if (userType === 'webOwner') {
+                // For webOwner, use adminData (fetched from API) or userName as fallback
+                const fullName = `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim();
+                displayName = fullName || adminData.firstName || userName || '';
+              } else if (userType === 'admin') {
+                // For admin, use adminData
+                const fullName = `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim();
+                displayName = fullName || adminData.firstName || 'Admin';
+              } else {
+                // For trainee/supervisor, use userName or adminData
+                displayName = userName || (adminData.firstName && adminData.lastName 
+                  ? `${adminData.firstName} ${adminData.lastName}`.trim() 
+                  : adminData.firstName || 'User');
+              }
+              
+              // Only show welcome message if we have a name
+              return displayName ? (
+                <p className="text-sm text-gray-600 mt-1 font-medium flex items-center gap-1.5">
+                  <span>Welcome, {displayName}</span>
+                  <WavingHand style={{ display: 'inline-block', marginLeft: '2px' }} />
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
 

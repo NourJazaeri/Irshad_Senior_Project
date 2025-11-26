@@ -1185,6 +1185,13 @@ router.get('/trainee/view/:id', requireTrainee, async (req, res) => {
     const departmentId = trainee.EmpObjectUserID?.ObjectDepartmentID?._id;
     const groupId = trainee.ObjectGroupID;
 
+    console.log('🔍 Trainee access check:', {
+      traineeId: traineeId.toString(),
+      departmentId: departmentId?.toString(),
+      groupId: groupId?.toString(),
+      contentId: contentId
+    });
+
     // Find the content and check if it's assigned to this trainee
     const content = await Content.findById(contentId)
       .populate('assignedTo_GroupID', 'groupName')
@@ -1192,49 +1199,109 @@ router.get('/trainee/view/:id', requireTrainee, async (req, res) => {
       .lean();
 
     if (!content) {
+      console.log('❌ Content not found:', contentId);
       return res.status(404).json({ success: false, message: 'Content not found' });
     }
 
+    console.log('📋 Content assignments:', {
+      assignedToTrainees: content.assignedTo_traineeID ? 
+        (Array.isArray(content.assignedTo_traineeID) 
+          ? content.assignedTo_traineeID.map(id => id.toString())
+          : [content.assignedTo_traineeID.toString()]
+        ) : 'None',
+      assignedToGroups: content.assignedTo_GroupID ?
+        (Array.isArray(content.assignedTo_GroupID)
+          ? content.assignedTo_GroupID.map(g => ({ id: (g._id || g).toString(), name: g.groupName }))
+          : [{ id: (content.assignedTo_GroupID._id || content.assignedTo_GroupID).toString(), name: content.assignedTo_GroupID.groupName }]
+        ) : 'None',
+      assignedToDepartments: content.assignedTo_depID ?
+        content.assignedTo_depID.map(d => ({ id: d._id.toString(), name: d.departmentName }))
+        : 'None'
+    });
+
     // Check if content is assigned to this trainee
     let isAssigned = false;
+    let assignmentReason = '';
 
-    // Check individual assignment (now an array)
-    if (content.assignedTo_traineeID && Array.isArray(content.assignedTo_traineeID)) {
-      const isTraineeAssigned = content.assignedTo_traineeID.some(tid => 
-        tid.toString() === traineeId.toString()
-      );
-      if (isTraineeAssigned) {
-        isAssigned = true;
+    // 1. Check individual trainee assignment (now an array)
+    if (content.assignedTo_traineeID) {
+      if (Array.isArray(content.assignedTo_traineeID)) {
+        // Handle array of trainee IDs (populated or not)
+        const isTraineeAssigned = content.assignedTo_traineeID.some(tid => {
+          const tidString = (tid._id || tid).toString();
+          return tidString === traineeId.toString();
+        });
+        if (isTraineeAssigned) {
+          isAssigned = true;
+          assignmentReason = 'directly assigned to trainee';
+          console.log('✅ Access granted: Content is directly assigned to this trainee');
+        }
+      } else {
+        // Handle single trainee ID (backward compatibility)
+        const tidString = (content.assignedTo_traineeID._id || content.assignedTo_traineeID).toString();
+        if (tidString === traineeId.toString()) {
+          isAssigned = true;
+          assignmentReason = 'directly assigned to trainee (legacy)';
+          console.log('✅ Access granted: Content is directly assigned to this trainee (legacy)');
+        }
       }
-    } else if (content.assignedTo_traineeID && content.assignedTo_traineeID.toString() === traineeId.toString()) {
-      // Backward compatibility for old single-trainee assignments
-      isAssigned = true;
     }
 
-    // Check group assignment (support both array and single ID for backward compatibility)
+    // 2. Check group assignment (support both array and single ID for backward compatibility)
     if (!isAssigned && groupId && content.assignedTo_GroupID) {
       const groupIds = Array.isArray(content.assignedTo_GroupID)
         ? content.assignedTo_GroupID.map(id => (id._id || id).toString())
         : [(content.assignedTo_GroupID._id || content.assignedTo_GroupID).toString()];
       
+      console.log('🔍 Checking group assignment:', {
+        traineeGroupId: groupId.toString(),
+        contentGroupIds: groupIds
+      });
+      
       if (groupIds.includes(groupId.toString())) {
         isAssigned = true;
+        assignmentReason = 'assigned to trainee\'s group';
+        console.log('✅ Access granted: Content is assigned to trainee\'s group');
       }
     }
 
-    // Check department assignment
+    // 3. Check department assignment
     if (!isAssigned && departmentId && content.assignedTo_depID) {
-      const isDepartmentAssigned = content.assignedTo_depID.some(dep => 
-        dep._id.toString() === departmentId.toString()
-      );
+      // Handle both populated and unpopulated department references
+      const departmentIds = Array.isArray(content.assignedTo_depID)
+        ? content.assignedTo_depID.map(dep => (dep._id || dep).toString())
+        : [(content.assignedTo_depID._id || content.assignedTo_depID).toString()];
+      
+      console.log('🔍 Checking department assignment:', {
+        traineeDepartmentId: departmentId.toString(),
+        contentDepartmentIds: departmentIds
+      });
+      
+      const isDepartmentAssigned = departmentIds.includes(departmentId.toString());
       if (isDepartmentAssigned) {
         isAssigned = true;
+        assignmentReason = 'assigned to trainee\'s department';
+        console.log('✅ Access granted: Content is assigned to trainee\'s department');
       }
     }
 
     if (!isAssigned) {
-      return res.status(403).json({ success: false, message: 'Content not assigned to you' });
+      console.log('❌ Access denied: Content is not assigned to this trainee through any method');
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Content not assigned to you',
+        debug: {
+          traineeId: traineeId.toString(),
+          departmentId: departmentId?.toString(),
+          groupId: groupId?.toString(),
+          contentHasTraineeAssignment: !!content.assignedTo_traineeID,
+          contentHasGroupAssignment: !!content.assignedTo_GroupID,
+          contentHasDepartmentAssignment: !!content.assignedTo_depID
+        }
+      });
     }
+
+    console.log(`✅ Content access granted (${assignmentReason})`);
 
     // Fetch associated quiz questions if any
     const quiz = await Quiz.findOne({ ObjectContentID: contentId }).lean();
@@ -1288,15 +1355,10 @@ router.get('/:id', requireAdminOrSupervisor, async (req, res) => {
     const userRole = req.user.role;
     const userId = req.user.id;
     
-    let filter = { _id: req.params.id };
+    console.log(`🔍 Fetching content ${req.params.id} for ${userRole} ${userId}`);
     
-    // Security: Supervisors can only view content they created
-    if (userRole === 'Supervisor') {
-      filter.assignedBy_supervisorID = userId;
-    }
-    // Admins can view any content (no additional filter needed)
-    
-    const content = await Content.findOne(filter)
+    // First, fetch the content without security filter to check assignments
+    const content = await Content.findById(req.params.id)
       .populate('assignedTo_GroupID', 'groupName')
       .populate('assignedTo_depID', 'departmentName')
       .populate('assignedTo_traineeID', 'fname lname')
@@ -1304,36 +1366,119 @@ router.get('/:id', requireAdminOrSupervisor, async (req, res) => {
       .populate('assignedBy_supervisorID', 'firstName lastName');
 
     if (!content) {
+      console.log('❌ Content not found');
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
+    // Security check for supervisors
+    if (userRole === 'Supervisor') {
+      // Supervisors can only view content they created
+      
+      // Check if supervisor created this content (handle both populated and unpopulated references)
+      const supervisorId = content.assignedBy_supervisorID?._id || content.assignedBy_supervisorID;
+      const createdBySupervisor = supervisorId && supervisorId.toString() === userId.toString();
+      
+      console.log(`🔐 Supervisor access check:`, {
+        createdBySupervisor,
+        supervisorIdFromToken: userId.toString(),
+        contentAssignedBySupervisorId: supervisorId?.toString(),
+        contentAssignedBySupervisor: content.assignedBy_supervisorID
+      });
+      
+      // Deny access if supervisor didn't create it
+      if (!createdBySupervisor) {
+        console.log('❌ Access denied - supervisor cannot view this content');
+        return res.status(403).json({ 
+          ok: false, 
+          error: 'Access denied. You can only view content you created.' 
+        });
+      }
+      
+      console.log('✅ Access granted for supervisor');
+    }
+    // Admins can view any content (no additional check needed)
+
     // Fetch all trainees from ALL assigned groups
-    let allGroupTrainees = [];
+    let groupTrainees = [];
     if (content.assignedTo_GroupID) {
       const groupIds = Array.isArray(content.assignedTo_GroupID)
         ? content.assignedTo_GroupID.map(group => group._id || group)
         : [content.assignedTo_GroupID._id || content.assignedTo_GroupID];
       
-      allGroupTrainees = await Trainee.find({
+      // Get group names for reference
+      const Group = (await import('../models/Group.js')).default;
+      const groups = await Group.find({ _id: { $in: groupIds } }).select('_id groupName').lean();
+      const groupMap = new Map(groups.map(g => [g._id.toString(), g.groupName]));
+      
+      const traineeDocs = await Trainee.find({
         ObjectGroupID: { $in: groupIds }
-      }).populate('ObjectGroupID', 'groupName');
+      }).populate('EmpObjectUserID', 'fname lname email');
+      
+      // Format group trainees with employee data and group info
+      groupTrainees = traineeDocs.map(trainee => {
+        const emp = trainee.EmpObjectUserID;
+        const traineeGroupId = trainee.ObjectGroupID?.toString();
+        return {
+          _id: trainee._id,
+          fname: emp?.fname || '',
+          lname: emp?.lname || '',
+          name: `${emp?.fname || ''} ${emp?.lname || ''}`.trim() || 'Trainee',
+          email: emp?.email || '',
+          groupId: traineeGroupId,
+          groupName: traineeGroupId ? groupMap.get(traineeGroupId) : null,
+          ObjectGroupID: trainee.ObjectGroupID
+        };
+      });
     }
 
-    // Fetch completion status for all group trainees
+    // Fetch individually assigned trainees with employee data
+    let individualTrainees = [];
+    if (content.assignedTo_traineeID && Array.isArray(content.assignedTo_traineeID) && content.assignedTo_traineeID.length > 0) {
+      const traineeDocs = await Trainee.find({
+        _id: { $in: content.assignedTo_traineeID }
+      }).populate('EmpObjectUserID', 'fname lname email');
+      
+      individualTrainees = traineeDocs.map(trainee => {
+        const emp = trainee.EmpObjectUserID;
+        return {
+          _id: trainee._id,
+          fname: emp?.fname || '',
+          lname: emp?.lname || '',
+          name: `${emp?.fname || ''} ${emp?.lname || ''}`.trim() || 'Trainee',
+          email: emp?.email || ''
+        };
+      });
+    }
+
+    // Fetch completion status for all trainees
     const completedByRecords = await Progress.find({
       ObjectContentID: content._id,
       status: 'completed'
-    }).populate('TraineeObjectUserID', 'fname lname');
+    }).populate({
+      path: 'TraineeObjectUserID',
+      populate: {
+        path: 'EmpObjectUserID',
+        select: 'fname lname email'
+      }
+    });
 
-    const completedBy = completedByRecords.map(record => ({
-      traineeId: record.TraineeObjectUserID._id,
-      traineeName: `${record.TraineeObjectUserID.fname} ${record.TraineeObjectUserID.lname}`,
-      completedAt: record.completedAt
-    }));
+    const completedBy = completedByRecords.map(record => {
+      const trainee = record.TraineeObjectUserID;
+      const emp = trainee?.EmpObjectUserID;
+      return {
+        traineeId: trainee?._id,
+        fname: emp?.fname || '',
+        lname: emp?.lname || '',
+        name: `${emp?.fname || ''} ${emp?.lname || ''}`.trim() || 'Trainee',
+        email: emp?.email || '',
+        completedAt: record.completedAt
+      };
+    });
 
-    // Add completed by info and all trainees to response
+    // Add formatted data to response
+    content._doc.groupTrainees = groupTrainees;
+    content._doc.individualTrainees = individualTrainees;
     content._doc.completedBy = completedBy;
-    content._doc.allTrainees = allGroupTrainees;
 
     res.json({ ok: true, content });
   } catch (error) {
@@ -2320,7 +2465,9 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
           groupIdForQuery = groupId;
         }
         console.log('✅ Adding group condition to query:', groupIdForQuery.toString());
+        // Query: Find content where assignedTo_GroupID array contains this group ID
         queryConditions.push({ assignedTo_GroupID: { $in: [groupIdForQuery] } });
+        console.log('📋 Group query condition:', JSON.stringify({ assignedTo_GroupID: { $in: [groupIdForQuery.toString()] } }));
       } catch (err) {
         console.error('❌ Error processing group ID for query:', err);
         // Try with string comparison as fallback
@@ -2374,16 +2521,22 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
       
       // If content is assigned to a group, verify it matches trainee's group
       if (c.assignedTo_GroupID) {
-        const contentGroupId = c.assignedTo_GroupID._id || c.assignedTo_GroupID;
+        // Handle both array and single group ID (backward compatibility)
+        const contentGroupIds = Array.isArray(c.assignedTo_GroupID)
+          ? c.assignedTo_GroupID.map(g => (g._id || g).toString())
+          : [(c.assignedTo_GroupID._id || c.assignedTo_GroupID).toString()];
+        
         if (groupId) {
-          const matches = contentGroupId.toString() === groupId.toString();
+          const matches = contentGroupIds.includes(groupId.toString());
           if (!matches) {
-            console.log(`⚠️ Content "${c.title}" is ONLY assigned to group ${contentGroupId} but trainee is in group ${groupId} - excluding`);
+            console.log(`⚠️ Content "${c.title}" is ONLY assigned to groups [${contentGroupIds.join(', ')}] but trainee is in group ${groupId.toString()} - excluding`);
+          } else {
+            console.log(`✅ Content "${c.title}" matches trainee's group ${groupId.toString()}`);
           }
           return matches;
         }
         // If trainee has no group but content is ONLY assigned to a group, exclude it
-        console.log(`⚠️ Content "${c.title}" is ONLY assigned to group but trainee has no group - excluding`);
+        console.log(`⚠️ Content "${c.title}" is ONLY assigned to group(s) [${contentGroupIds.join(', ')}] but trainee has no group - excluding`);
         return false;
       }
       

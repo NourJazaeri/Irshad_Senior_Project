@@ -42,6 +42,10 @@ const ContentDetails = () => {
   
   const inGroupContext = isInGroupContext();
 
+  // Detect user role
+  const isTrainee = location.pathname.includes('/trainee');
+  const isSupervisor = location.pathname.includes('/supervisor');
+  
   // Fetch content details
   useEffect(() => {
     const fetchContent = async () => {
@@ -49,31 +53,90 @@ const ContentDetails = () => {
         const token = localStorage.getItem('token');
         const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
         
-        const response = await fetch(`${API_BASE}/api/content/${id}`, {
+        // Use different endpoint for trainees vs admins/supervisors
+        const endpoint = isTrainee 
+          ? `${API_BASE}/api/content/trainee/view/${id}`
+          : `${API_BASE}/api/content/${id}`;
+        
+        console.log('📥 Fetching content with ID:', id);
+        console.log('👤 User role:', { isTrainee, isSupervisor, isAdmin: !isTrainee && !isSupervisor });
+        console.log('🔗 Using endpoint:', endpoint);
+        
+        const response = await fetch(endpoint, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
 
+        console.log('📡 Response status:', response.status, response.statusText);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Content data received:', data);
           const contentData = data && data.content ? data.content : data;
+          
+          // Debug assignment data
+          console.log('📋 Assignment debug:', {
+            hasGroups: !!contentData.assignedTo_GroupID,
+            groupsIsArray: Array.isArray(contentData.assignedTo_GroupID),
+            groupsLength: Array.isArray(contentData.assignedTo_GroupID) ? contentData.assignedTo_GroupID.length : 'N/A',
+            hasTrainees: !!contentData.assignedTo_traineeID,
+            traineesIsArray: Array.isArray(contentData.assignedTo_traineeID),
+            traineesLength: Array.isArray(contentData.assignedTo_traineeID) ? contentData.assignedTo_traineeID.length : 'N/A',
+            hasIndividualTrainees: !!contentData.individualTrainees,
+            individualTraineesLength: contentData.individualTrainees?.length || 0,
+            hasGroupTrainees: !!contentData.groupTrainees,
+            groupTraineesLength: contentData.groupTrainees?.length || 0
+          });
           
           setContent(contentData);
           
-          // Fetch departments if content has assigned departments
-          if (contentData.assignedTo_depID && contentData.assignedTo_depID.length > 0) {
+          // For trainees, mark content as viewed (sets status to "in progress" if not started)
+          if (isTrainee) {
+            try {
+              const viewResponse = await fetch(`${API_BASE}/api/content/trainee/view/${id}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (viewResponse.ok) {
+                const viewData = await viewResponse.json();
+                console.log('✅ Content marked as viewed for trainee');
+              }
+            } catch (viewError) {
+              console.error('⚠️ Error marking content as viewed:', viewError);
+            }
+          }
+          
+          // Fetch departments if content has assigned departments (admin/supervisor only)
+          if (!isTrainee && contentData.assignedTo_depID && contentData.assignedTo_depID.length > 0) {
             fetchDepartments();
           }
           
           // Fetch quizzes for this content
           fetchQuizzes();
         } else {
-          console.error('Failed to fetch content');
+          // Try to get error details from response
+          const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Failed to fetch content:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+          
+          // Show error details to help debug
+          if (response.status === 404) {
+            console.error('Content not found - ID may be invalid or content was deleted');
+          } else if (response.status === 403) {
+            console.error('Access denied - you may not have permission to view this content');
+          }
         }
       } catch (error) {
-        console.error('Error fetching content:', error);
+        console.error('💥 Error fetching content:', error);
       } finally {
         setLoading(false);
       }
@@ -82,7 +145,7 @@ const ContentDetails = () => {
     if (id) {
       fetchContent();
     }
-  }, [id]);
+  }, [id, isTrainee]);
 
   // Fetch quizzes from database
   const fetchQuizzes = async () => {
@@ -987,24 +1050,29 @@ const ContentDetails = () => {
                 <FileText className="w-5 h-5 mr-2" />
                 View Content
               </Button>
-              <Button
-                onClick={() => setShowEditModal(true)}
-                variant="outline"
-                size="default"
-                className="btn-enhanced-secondary text-lg"
-              >
-                <Edit className="w-5 h-5 mr-2" />
-                Edit
-              </Button>
-              <Button
-                onClick={() => setShowDeleteConfirm(true)}
-                variant="outline"
-                size="default"
-                className="btn-enhanced-danger text-lg border-red-500 text-red-500 hover:bg-red-50"
-              >
-                <Trash2 className="w-5 h-5 mr-2" />
-                Delete
-              </Button>
+              {/* Hide Edit/Delete buttons for trainees */}
+              {!isTrainee && (
+                <>
+                  <Button
+                    onClick={() => setShowEditModal(true)}
+                    variant="outline"
+                    size="default"
+                    className="btn-enhanced-secondary text-lg"
+                  >
+                    <Edit className="w-5 h-5 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    variant="outline"
+                    size="default"
+                    className="btn-enhanced-danger text-lg border-red-500 text-red-500 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-5 h-5 mr-2" />
+                    Delete
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           
@@ -1134,52 +1202,130 @@ const ContentDetails = () => {
               </div>
             )}
 
-            {/* Groups */}
-            {content.assignedTo_GroupID && (
+            {/* Groups - Show all assigned groups with their names (only if groups are actually assigned) */}
+            {content.assignedTo_GroupID && 
+             (Array.isArray(content.assignedTo_GroupID) 
+               ? content.assignedTo_GroupID.length > 0 
+               : (content.assignedTo_GroupID !== null && content.assignedTo_GroupID !== undefined)) && (
               <div>
                 <p className="text-lg font-medium text-muted-foreground mb-3">Groups</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                  <span className="text-lg text-foreground font-medium">
-                    {typeof content.assignedTo_GroupID === 'object' 
-                      ? (content.assignedTo_GroupID.groupName || content.assignedTo_GroupID.name || 'Group')
-                      : String(content.assignedTo_GroupID)}
-                  </span>
+                <div className="space-y-2">
+                  {Array.isArray(content.assignedTo_GroupID) ? (
+                    // Multiple groups
+                    content.assignedTo_GroupID.map((group, index) => {
+                      const groupName = group?.groupName || group?.name || `Group ${index + 1}`;
+                      const groupId = group?._id || group;
+                      
+                      // Find trainees in this specific group
+                      const traineesInGroup = content.groupTrainees?.filter(t => 
+                        t.groupId?.toString() === groupId?.toString() || 
+                        t.ObjectGroupID?.toString() === groupId?.toString()
+                      ) || [];
+                      
+                      return (
+                        <div key={groupId || index} className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                            <span className="text-lg text-foreground font-medium">{groupName}</span>
+                            {traineesInGroup.length > 0 && (
+                              <span className="text-sm text-muted-foreground">
+                                ({traineesInGroup.length} trainee{traineesInGroup.length !== 1 ? 's' : ''})
+                              </span>
+                            )}
+                          </div>
+                          {/* Show trainees in this group */}
+                          {traineesInGroup.length > 0 && (
+                            <div className="ml-5 space-y-1">
+                              {traineesInGroup.map((trainee, traineeIndex) => (
+                                <div key={trainee._id || traineeIndex} className="flex items-center gap-3">
+                                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                                  <span className="text-base text-foreground">
+                                    {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    // Single group (backward compatibility)
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                        <span className="text-lg text-foreground font-medium">
+                          {content.assignedTo_GroupID?.groupName || content.assignedTo_GroupID?.name || 'Group'}
+                        </span>
+                        {content.groupTrainees && content.groupTrainees.length > 0 && (
+                          <span className="text-sm text-muted-foreground">
+                            ({content.groupTrainees.length} trainee{content.groupTrainees.length !== 1 ? 's' : ''})
+                          </span>
+                        )}
+                      </div>
+                      {/* Show all group trainees for single group */}
+                      {content.groupTrainees && content.groupTrainees.length > 0 && (
+                        <div className="ml-5 space-y-1">
+                          {content.groupTrainees.map((trainee, index) => (
+                            <div key={trainee._id || index} className="flex items-center gap-3">
+                              <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                              <span className="text-base text-foreground">
+                                {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Trainees - Show group trainees if assigned to group, otherwise show individual trainees */}
-            {((content.groupTrainees && content.groupTrainees.length > 0) ||
-              (content.individualTrainees && content.individualTrainees.length > 0)) && (
+            {/* Individual Trainees - Show only if NOT assigned to groups */}
+            {(!content.assignedTo_GroupID || 
+              (Array.isArray(content.assignedTo_GroupID) && content.assignedTo_GroupID.length === 0)) && 
+             (content.individualTrainees && content.individualTrainees.length > 0 || 
+              (content.assignedTo_traineeID && 
+               (Array.isArray(content.assignedTo_traineeID) ? content.assignedTo_traineeID.length > 0 : true))) && (
               <div>
                 <p className="text-lg font-medium text-muted-foreground mb-3">Trainees</p>
                 <div className="space-y-2">
-                  {/* If assigned to group, show only group trainees */}
-                  {content.groupTrainees && content.groupTrainees.length > 0 ? (
-                    <>
-                      {content.groupTrainees.map((trainee, index) => (
-                        <div key={trainee._id || index} className="flex items-center gap-3">
+                  {/* Show individualTrainees if available, otherwise show assignedTo_traineeID */}
+                  {(content.individualTrainees && content.individualTrainees.length > 0) ? (
+                    content.individualTrainees.map((trainee, index) => (
+                      <div key={trainee._id || index} className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                        <span className="text-lg text-foreground font-medium">
+                          {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    // Fallback: show from assignedTo_traineeID if individualTrainees not available
+                    Array.isArray(content.assignedTo_traineeID) ? (
+                      content.assignedTo_traineeID.map((trainee, index) => {
+                        const traineeName = typeof trainee === 'object' 
+                          ? (trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee')
+                          : 'Trainee';
+                        return (
+                          <div key={trainee._id || trainee || index} className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                            <span className="text-lg text-foreground font-medium">{traineeName}</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      content.assignedTo_traineeID && (
+                        <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
                           <span className="text-lg text-foreground font-medium">
-                            {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
+                            {typeof content.assignedTo_traineeID === 'object'
+                              ? (content.assignedTo_traineeID.name || content.assignedTo_traineeID.fname || 'Trainee')
+                              : 'Trainee'}
                           </span>
                         </div>
-                      ))}
-                    </>
-                  ) : (
-                    /* Otherwise, show individual trainee assignments */
-                    content.individualTrainees && content.individualTrainees.length > 0 && (
-                      <>
-                        {content.individualTrainees.map((trainee, index) => (
-                          <div key={trainee._id || index} className="flex items-center gap-3">
-                            <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                            <span className="text-lg text-foreground font-medium">
-                              {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
-                            </span>
-                          </div>
-                        ))}
-                      </>
+                      )
                     )
                   )}
                 </div>
@@ -1264,8 +1410,26 @@ const ContentDetails = () => {
                   {quiz.questions.map((q, idx) => {
                     const questionText = q.questionText || '';
                     const options = q.options || [];
-                    const correctAnswer = q.correctAnswer || '';
-                    const correctIdx = options.findIndex(o => String(o).trim() === String(correctAnswer).trim());
+                    
+                    // Determine correct answer index - handle both number (index) and string (text) formats
+                    let correctIdx = -1;
+                    if (typeof q.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer < options.length) {
+                      // Already stored as index (new format)
+                      correctIdx = q.correctAnswer;
+                    } else if (typeof q.correctAnswer === 'string' && q.correctAnswer.trim() !== '') {
+                      // Stored as text (old format or manual entry), find the index
+                      const correctText = q.correctAnswer.trim();
+                      correctIdx = options.findIndex(o => String(o).trim() === correctText);
+                    } else if (q.correctAnswer !== null && q.correctAnswer !== undefined) {
+                      // Try to parse as number if it's a string number
+                      const parsed = parseInt(q.correctAnswer);
+                      if (!isNaN(parsed) && parsed >= 0 && parsed < options.length) {
+                        correctIdx = parsed;
+                      }
+                    }
+                    
+                    // Only show correct answer highlight for admin/supervisor (not trainees)
+                    const showCorrectAnswer = !isTrainee;
                     
                     return (
                       <div key={idx} className="bg-white rounded-lg border-2 border-gray-200 p-5 hover:border-purple-300 transition-colors">
@@ -1276,32 +1440,35 @@ const ContentDetails = () => {
                           <div className="font-semibold text-lg text-foreground flex-1">{questionText}</div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-11">
-                          {options.map((opt, i) => (
-                            <div 
-                              key={i} 
-                              className={`px-4 py-3 rounded-lg border-2 transition-all ${
-                                i === correctIdx 
-                                  ? 'border-green-500 bg-green-50' 
-                                  : 'border-gray-200 bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {i === correctIdx && (
-                                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          {options.map((opt, i) => {
+                            const isCorrect = showCorrectAnswer && i === correctIdx;
+                            return (
+                              <div 
+                                key={i} 
+                                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                                  isCorrect
+                                    ? 'border-green-500 bg-green-50 shadow-sm' 
+                                    : 'border-gray-200 bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {isCorrect && (
+                                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                  )}
+                                  <span className={`text-sm ${
+                                    isCorrect
+                                      ? 'text-green-700 font-semibold' 
+                                      : 'text-gray-700'
+                                  }`}>
+                                    {opt}
+                                  </span>
+                                </div>
+                                {isCorrect && (
+                                  <span className="text-xs text-green-600 font-medium ml-7 mt-1 block">✓ Correct Answer</span>
                                 )}
-                                <span className={`text-sm ${
-                                  i === correctIdx 
-                                    ? 'text-green-700 font-semibold' 
-                                    : 'text-gray-700'
-                                }`}>
-                                  {opt}
-                                </span>
                               </div>
-                              {i === correctIdx && (
-                                <span className="text-xs text-green-600 font-medium ml-7">✓ Correct Answer</span>
-                              )}
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -1313,17 +1480,19 @@ const ContentDetails = () => {
         </div>
       ) : null}
 
-      {/* Edit Modal */}
-      <AddContentModal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onContentAdded={handleContentUpdated}
-        editMode={true}
-        editContent={content}
-      />
+      {/* Edit Modal - Only for admin/supervisor */}
+      {!isTrainee && (
+        <AddContentModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onContentAdded={handleContentUpdated}
+          editMode={true}
+          editContent={content}
+        />
+      )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
+      {/* Delete Confirmation Modal - Only for admin/supervisor */}
+      {!isTrainee && showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-elevated">
             <div className="flex items-center gap-4 mb-6">

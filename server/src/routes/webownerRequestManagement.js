@@ -4,6 +4,7 @@ import Company from "../models/Company.js";
 import Admin from "../models/Admin.js";
 import Employee from "../models/Employees.js";
 import { authenticateWebOwner } from "../middleware/authMiddleware.js";
+import { sendRegistrationApprovalEmail, sendRegistrationRejectionEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -52,10 +53,14 @@ const getRequest = async (req, res) => {
 // Approve a registration request
 const approveRequest = async (req, res) => {
   try {
+    console.log('🔵 START: Approving registration request:', req.params.id);
+    console.log('🔐 WebOwner authenticated:', req.webOwner?.id);
+    
     // Use direct collection access to bypass schema restrictions
     const mongoose = await import('mongoose');
     const collection = mongoose.default.connection.db.collection('RegistrationRequest');
     
+    console.log('🔍 Finding registration request...');
     // Find the registration request
     const rr = await collection.findOne({ 
       _id: new mongoose.default.Types.ObjectId(req.params.id), 
@@ -63,8 +68,11 @@ const approveRequest = async (req, res) => {
     });
     
     if (!rr) {
+      console.log('❌ Registration request not found or already processed');
       return res.status(404).json({ ok: false, error: "Request not found or already processed" });
     }
+    
+    console.log('✅ Registration request found:', rr._id);
 
     const c = rr.application.company;
     const a = rr.application.admin;
@@ -73,7 +81,11 @@ const approveRequest = async (req, res) => {
     const adminEmail = (a.LoginEmail || a.loginEmail || a.email || '').toLowerCase().trim();
     const adminPassword = a.passwordHash || a.password;
 
+    console.log('📧 Admin email:', adminEmail);
+    console.log('🔑 Password hash exists:', !!adminPassword);
+
     if (!adminEmail) {
+      console.log('❌ Admin email is missing');
       return res.status(400).json({ 
         ok: false, 
         error: "Cannot approve registration: Admin email is missing from the registration request." 
@@ -81,23 +93,29 @@ const approveRequest = async (req, res) => {
     }
 
     // Find existing employee by email (case-insensitive search)
+    console.log('🔍 Searching for employee with email:', adminEmail);
     const employeeCollection = mongoose.default.connection.db.collection('Employee');
     const employee = await employeeCollection.findOne({ 
       email: { $regex: new RegExp(`^${adminEmail}$`, 'i') } 
     });
     
     if (!employee) {
+      console.log('❌ Employee not found for email:', adminEmail);
       return res.status(400).json({ 
         ok: false, 
         error: `Cannot approve registration: Admin email "${adminEmail}" does not correspond to any existing employee in the system. Please ensure the employee exists before approving.` 
       });
     }
+    
+    console.log('✅ Employee found:', employee._id, employee.fname, employee.lname);
 
     // Create/find admin user using direct collection access
+    console.log('🔍 Checking if admin user already exists...');
     const adminCollection = mongoose.default.connection.db.collection('Admin');
     let adminUser = await adminCollection.findOne({ loginEmail: adminEmail });
     
     if (!adminUser) {
+      console.log('➕ Creating new admin user...');
       const adminId = new mongoose.default.Types.ObjectId();
       const employeeObjectId = employee._id instanceof mongoose.default.Types.ObjectId 
         ? employee._id 
@@ -110,6 +128,9 @@ const approveRequest = async (req, res) => {
         EmpObjectUserID: employeeObjectId
       };
       await adminCollection.insertOne(adminUser);
+      console.log('✅ Admin user created:', adminId);
+    } else {
+      console.log('✅ Admin user already exists:', adminUser._id);
     }
 
     // Ensure adminUser._id is a proper ObjectId for company creation
@@ -118,6 +139,7 @@ const approveRequest = async (req, res) => {
       : new mongoose.default.Types.ObjectId(adminUser._id);
 
     // Create company using direct collection access
+    console.log('🏢 Creating company document...');
     const companyCollection = mongoose.default.connection.db.collection('Company');
     const companyDoc = {
       _id: new mongoose.default.Types.ObjectId(),
@@ -138,8 +160,10 @@ const approveRequest = async (req, res) => {
       updatedAt: new Date()
     };
     await companyCollection.insertOne(companyDoc);
+    console.log('✅ Company created:', companyDoc._id, companyDoc.name);
 
     // Link ALL employees with matching company name to the new company
+    console.log('🔗 Linking employees to company...');
     const companyName = c.name.trim();
     const updateResult = await employeeCollection.updateMany(
       { 
@@ -153,6 +177,8 @@ const approveRequest = async (req, res) => {
         } 
       }
     );
+    console.log(`✅ Linked ${updateResult.modifiedCount} employees to company`);
+    
     // Ensure admin's employee record is linked (double-check)
     await employeeCollection.updateOne(
       { _id: employee._id },
@@ -164,8 +190,10 @@ const approveRequest = async (req, res) => {
         } 
       }
     );
+    console.log('✅ Admin employee record linked');
 
     // Update registration request
+    console.log('📝 Updating registration request status...');
     await collection.updateOne(
       { _id: rr._id },
       { 
@@ -178,16 +206,51 @@ const approveRequest = async (req, res) => {
         }
       }
     );
+    console.log('✅ Registration request marked as approved');
 
+    // Send approval email to admin
+    let emailResult = { success: false, error: null };
+    try {
+      const adminFirstName = employee.fname || 'Admin';
+      const adminLastName = employee.lname || '';
+      
+      console.log(`📧 Sending approval email to: ${adminEmail}`);
+      console.log(`📧 Company: ${c.name}`);
+      console.log(`📧 Admin name: ${adminFirstName} ${adminLastName}`);
+      
+      emailResult = await sendRegistrationApprovalEmail(
+        adminEmail,
+        c.name,
+        adminFirstName,
+        adminLastName
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Approval email sent successfully to ${adminEmail}`);
+      } else {
+        console.error(`❌ Failed to send approval email to ${adminEmail}:`, emailResult.error);
+      }
+    } catch (emailError) {
+      console.error(`❌ Error sending approval email:`, emailError);
+      emailResult = {
+        success: false,
+        error: emailError.message
+      };
+    }
+
+    console.log('🎉 SUCCESS: Registration approved successfully');
     res.json({
       ok: true,
       message: "Registration request approved successfully",
       companyID: companyDoc._id,
       adminUserID: adminUser._id,
       employeeID: employee._id,
+      emailSent: emailResult.success,
+      emailError: emailResult.error
     });
   } catch (err) {
-    console.error('Error approving request:', err);
+    console.error('❌ ERROR approving request:', err);
+    console.error('❌ Error stack:', err.stack);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 };
@@ -195,21 +258,37 @@ const approveRequest = async (req, res) => {
 // Reject a registration request
 const rejectRequest = async (req, res) => {
   try {
+    console.log('🔴 START: Rejecting registration request:', req.params.id);
+    console.log('🔐 WebOwner authenticated:', req.webOwner?.id);
+    console.log('📝 Rejection reason:', req.body?.rejectionReason);
+    
     // Use direct collection access to bypass schema restrictions
     const mongoose = await import('mongoose');
     const collection = mongoose.default.connection.db.collection('RegistrationRequest');
     
     // Find the registration request
+    console.log('🔍 Finding registration request...');
     const rr = await collection.findOne({ 
       _id: new mongoose.default.Types.ObjectId(req.params.id), 
       status: "pending" 
     });
     
     if (!rr) {
+      console.log('❌ Registration request not found or already processed');
       return res.status(404).json({ ok: false, error: "Request not found or already processed" });
     }
+    
+    console.log('✅ Registration request found:', rr._id);
+
+    const c = rr.application?.company || {};
+    const a = rr.application?.admin || {};
+    const adminEmail = (a.LoginEmail || a.loginEmail || a.email || '').toLowerCase().trim();
+    
+    console.log('📧 Admin email:', adminEmail);
 
     // Update registration request
+    console.log('📝 Updating registration request status to rejected...');
+    const rejectionReason = req.body?.rejectionReason || null;
     await collection.updateOne(
       { _id: rr._id },
       { 
@@ -217,17 +296,65 @@ const rejectRequest = async (req, res) => {
           status: "rejected",
           reviewedAt: new Date(),
           reviewedBy_userID: req.webOwner.id, // WebOwner who reviewed this request
+          rejectionReason: rejectionReason,
           updatedAt: new Date()
         }
       }
     );
+    console.log('✅ Registration request marked as rejected');
 
+    // Send rejection email to admin
+    let emailResult = { success: false, error: null };
+    if (adminEmail) {
+      try {
+        // Get employee details for personalized email
+        const employeeCollection = mongoose.default.connection.db.collection('Employee');
+        const employee = await employeeCollection.findOne({ 
+          email: { $regex: new RegExp(`^${adminEmail}$`, 'i') } 
+        });
+        
+        const adminFirstName = employee?.fname || 'Admin';
+        const adminLastName = employee?.lname || '';
+        
+        console.log(`📧 Sending rejection email to: ${adminEmail}`);
+        console.log(`📧 Company: ${c.name}`);
+        console.log(`📧 Admin name: ${adminFirstName} ${adminLastName}`);
+        console.log(`📧 Rejection reason: ${rejectionReason || 'Not specified'}`);
+        
+        emailResult = await sendRegistrationRejectionEmail(
+          adminEmail,
+          c.name,
+          adminFirstName,
+          adminLastName,
+          rejectionReason
+        );
+        
+        if (emailResult.success) {
+          console.log(`✅ Rejection email sent successfully to ${adminEmail}`);
+        } else {
+          console.error(`❌ Failed to send rejection email to ${adminEmail}:`, emailResult.error);
+        }
+      } catch (emailError) {
+        console.error(`❌ Error sending rejection email:`, emailError);
+        emailResult = {
+          success: false,
+          error: emailError.message
+        };
+      }
+    } else {
+      console.log('⚠️ No admin email found, skipping email notification');
+    }
+
+    console.log('🎉 SUCCESS: Registration rejected successfully');
     res.json({ 
       ok: true, 
-      message: "Registration request rejected successfully" 
+      message: "Registration request rejected successfully",
+      emailSent: emailResult.success,
+      emailError: emailResult.error
     });
   } catch (err) {
-    console.error('Error rejecting request:', err);
+    console.error('❌ ERROR rejecting request:', err);
+    console.error('❌ Error stack:', err.stack);
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 };
