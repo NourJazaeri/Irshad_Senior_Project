@@ -12,10 +12,12 @@ import {
   Link,
   Edit,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Users
 } from 'lucide-react';
 import CategoryBadge from '../components/CategoryBadge';
 import AddContentModal from '../components/AddContentModal';
+import ContentView from './ContentView';
 
 const ContentDetails = () => {
   const { id } = useParams();
@@ -978,15 +980,13 @@ const ContentDetails = () => {
             </h1>
           </div>
             <div className="flex items-center gap-4">
-              {content.contentType !== 'template' && (
-                <Button
-                  onClick={handleViewContent}
-                  className="btn-enhanced-primary bg-primary hover:bg-primary-hover shadow-soft text-lg px-6 py-3"
-                >
-                  <FileText className="w-5 h-5 mr-2" />
-                  View Content
-                </Button>
-              )}
+              <Button
+                onClick={handleViewContent}
+                className="btn-enhanced-primary bg-primary hover:bg-primary-hover shadow-soft text-lg px-6 py-3"
+              >
+                <FileText className="w-5 h-5 mr-2" />
+                View Content
+              </Button>
               <Button
                 onClick={() => setShowEditModal(true)}
                 variant="outline"
@@ -1149,17 +1149,39 @@ const ContentDetails = () => {
               </div>
             )}
 
-            {/* Trainees */}
-            {content.assignedTo_traineeID && (
+            {/* Trainees - Show group trainees if assigned to group, otherwise show individual trainees */}
+            {((content.groupTrainees && content.groupTrainees.length > 0) ||
+              (content.individualTrainees && content.individualTrainees.length > 0)) && (
               <div>
                 <p className="text-lg font-medium text-muted-foreground mb-3">Trainees</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                  <span className="text-lg text-foreground font-medium">
-                    {typeof content.assignedTo_traineeID === 'object'
-                      ? (content.assignedTo_traineeID.name || content.assignedTo_traineeID.fname || 'Trainee')
-                      : String(content.assignedTo_traineeID)}
-                  </span>
+                <div className="space-y-2">
+                  {/* If assigned to group, show only group trainees */}
+                  {content.groupTrainees && content.groupTrainees.length > 0 ? (
+                    <>
+                      {content.groupTrainees.map((trainee, index) => (
+                        <div key={trainee._id || index} className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                          <span className="text-lg text-foreground font-medium">
+                            {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    /* Otherwise, show individual trainee assignments */
+                    content.individualTrainees && content.individualTrainees.length > 0 && (
+                      <>
+                        {content.individualTrainees.map((trainee, index) => (
+                          <div key={trainee._id || index} className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                            <span className="text-lg text-foreground font-medium">
+                              {trainee.name || `${trainee.fname || ''} ${trainee.lname || ''}`.trim() || 'Trainee'}
+                            </span>
+                          </div>
+                        ))}
+                      </>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -1172,6 +1194,44 @@ const ContentDetails = () => {
         </div>
         </div>
       </div>
+
+      {/* Completed By Card */}
+      {content.completedBy && content.completedBy.length > 0 && (
+        <div className="bg-card rounded-xl border border-border p-8 mb-8 shadow-card">
+          <div className="flex flex-col gap-6">
+            <h3 className="text-2xl font-bold flex items-center gap-3 text-foreground">
+              <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              Completed By
+            </h3>
+            <div className="space-y-3">
+              {content.completedBy.map((trainee, index) => (
+                <div key={trainee.traineeId || index} className="flex items-center gap-3 bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-sm">
+                      {trainee.fname?.charAt(0) || 'T'}{trainee.lname?.charAt(0) || ''}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold text-green-900">{trainee.name || 'Trainee'}</p>
+                    {trainee.completedAt && (
+                      <p className="text-sm text-green-700">
+                        Completed on {new Date(trainee.completedAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    )}
+                  </div>
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quiz Card - Show quizzes from database */}
       {loadingQuizzes ? (
@@ -1252,21 +1312,6 @@ const ContentDetails = () => {
           })()}
         </div>
       ) : null}
-
-      {/* Template Content Display */}
-      {content.contentType === 'template' && content.templateData && (
-        <div className="bg-card rounded-xl border border-border p-10 mb-8 shadow-card">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-3 text-foreground">
-            <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center">
-              <LayoutTemplate className="w-8 h-8 text-purple-600" />
-            </div>
-            Template Content
-          </h3>
-          <div className="template-content-card">
-            {renderTemplateContent(content.templateData)}
-          </div>
-        </div>
-      )}
 
       {/* Edit Modal */}
       <AddContentModal

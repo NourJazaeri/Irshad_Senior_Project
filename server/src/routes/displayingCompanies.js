@@ -3,6 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { ObjectId } from 'mongodb';
 import Company from '../models/Company.js';
+import Manage from '../models/Manage.js';
 import { authenticateWebOwner } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -240,6 +241,32 @@ router.delete('/:id', authenticateWebOwner, async (req, res, next) => {
     // 8. Delete the company itself
     await Company.findByIdAndDelete(companyId);
     console.log(`[SUCCESS] Deleted company: ${companyName}`);
+
+    // 9. Store deletion record in Manage model
+    const webOwnerId = req.webOwner.id || req.webOwner._id;
+    const deletionRecord = {
+      userID: webOwnerId ? webOwnerId.toString() : 'unknown',
+      companyID: companyId.toString(),
+      companyName: companyName,
+      deletedAt: new Date(),
+      deletionDetails: {
+        departments: departments.length,
+        groups: totalGroups,
+        employees: employees.length,
+        admins: deletedAdmins + companyAdminResult.deletedCount,
+        supervisors: deletedSupervisors,
+        trainees: deletedTrainees,
+        traineesUnassigned: totalTraineesUnassigned
+      }
+    };
+
+    try {
+      await Manage.create(deletionRecord);
+      console.log(`[INFO] Deletion record saved for company: ${companyName}`);
+    } catch (deletionRecordError) {
+      console.error('[ERROR] Failed to save deletion record:', deletionRecordError);
+      // Don't fail the deletion if record saving fails
+    }
 
     res.json({
       ok: true,

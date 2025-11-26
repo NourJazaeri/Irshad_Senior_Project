@@ -112,7 +112,7 @@ function LoginCard({ onLogin }) {
         </div>
 
         <div className="form-row">
-          <button className="button-primary" type="submit">
+          <button className="button-primary btn-enhanced-primary" type="submit">
             Sign In
           </button>
         </div>

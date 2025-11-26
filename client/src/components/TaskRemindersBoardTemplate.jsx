@@ -4,7 +4,7 @@ import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
 import '../styles/TaskRemindersBoardTemplate.css';
 
-const TaskRemindersBoardTemplate = ({ onClose, onTemplateSaved }) => {
+const TaskRemindersBoardTemplate = ({ onClose, onTemplateSaved, templateData: initialTemplateData = null, isReadOnly = false }) => {
   const [saveMessage, setSaveMessage] = useState('');
   const [saving, setSaving] = useState(false);
   
@@ -302,22 +302,24 @@ const TaskRemindersBoardTemplate = ({ onClose, onTemplateSaved }) => {
           </div>
         </div>
 
-        <div className="board-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button 
-            className="bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-lg hover:scale-105"
-            onClick={handleCompleteTemplate}
-            disabled={saving}
-          >
-            {saving ? 'Completing...' : 'Complete Template'}
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="board-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button 
+              className="bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-lg hover:scale-105"
+              onClick={handleCompleteTemplate}
+              disabled={saving}
+            >
+              {saving ? 'Completing...' : 'Complete Template'}
+            </button>
+          </div>
+        )}
 
         {saveMessage && (
           <div className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>

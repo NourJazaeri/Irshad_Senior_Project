@@ -12,6 +12,7 @@ import Admin from '../models/Admin.js';
 import Employee from '../models/Employees.js';
 
 import { authenticateWebOwner } from '../middleware/authMiddleware.js';
+import { sendRegistrationApprovalEmail, sendRegistrationRejectionEmail } from '../services/emailService.js';
 
 const { Types } = mongoose;
 const __filename = fileURLToPath(import.meta.url);
@@ -299,12 +300,48 @@ router.post('/:id/approve', authenticateWebOwner, async (req, res, next) => {
     rr.AdminObjectUserID = adminUser._id;
     await rr.save();
 
+    console.log('✅ Registration request approved successfully');
+
+    // Send approval email to admin
+    let emailResult = null;
+    try {
+      const adminEmail = a.LoginEmail;
+      const adminFirstName = employee.fname || 'Admin';
+      const adminLastName = employee.lname || '';
+      
+      console.log(`📧 Preparing to send approval email to: ${adminEmail}`);
+      console.log(`📧 Company name: ${c.name}`);
+      console.log(`📧 Admin name: ${adminFirstName} ${adminLastName}`);
+      
+      emailResult = await sendRegistrationApprovalEmail(
+        adminEmail,
+        c.name,
+        adminFirstName,
+        adminLastName
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Approval email sent successfully to ${adminEmail}`);
+      } else {
+        console.error(`❌ Failed to send approval email to ${adminEmail}:`, emailResult.error);
+      }
+    } catch (emailError) {
+      console.error(`❌ Error sending approval email to ${a.LoginEmail}:`, emailError);
+      console.error(`❌ Full error details:`, emailError);
+      emailResult = {
+        success: false,
+        error: emailError.message
+      };
+    }
+
     res.json({
       ok: true,
       message: "Registration request approved successfully",
       companyID: companyDoc._id,
       adminUserID: adminUser._id,
       employeeID: employee._id,
+      emailSent: emailResult?.success || false,
+      emailError: emailResult?.error || null
     });
   } catch (err) {
     console.error('Error approving request:', err);
@@ -320,14 +357,54 @@ router.post('/:id/reject', authenticateWebOwner, async (req, res, next) => {
       return res.status(404).json({ ok: false, error: "Request not found or already processed" });
     }
 
+    console.log('❌ Rejecting registration request:', rr._id);
+
     rr.status = "rejected";
     rr.reviewedAt = new Date();
     rr.reviewedBy_userID = req.webOwner.id; // WebOwner who reviewed this request
     await rr.save();
 
+    console.log('✅ Registration request rejected successfully');
+
+    // Send rejection email to admin
+    const { rejectionReason } = req.body; // Optional rejection reason from frontend
+    const c = rr.application.company;
+    const a = rr.application.admin;
+    const adminEmail = a.LoginEmail || a.email || a.loginEmail;
+
+    let emailResult = null;
+    try {
+      console.log(`📧 Preparing to send rejection email to: ${adminEmail}`);
+      console.log(`📧 Company name: ${c.name}`);
+      console.log(`📧 Rejection reason: ${rejectionReason || 'Not specified'}`);
+      
+      emailResult = await sendRegistrationRejectionEmail(
+        adminEmail,
+        c.name,
+        'Admin',
+        '',
+        rejectionReason
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Rejection email sent successfully to ${adminEmail}`);
+      } else {
+        console.error(`❌ Failed to send rejection email to ${adminEmail}:`, emailResult.error);
+      }
+    } catch (emailError) {
+      console.error(`❌ Error sending rejection email to ${adminEmail}:`, emailError);
+      console.error(`❌ Full error details:`, emailError);
+      emailResult = {
+        success: false,
+        error: emailError.message
+      };
+    }
+
     res.json({ 
       ok: true, 
-      message: "Registration request rejected successfully" 
+      message: "Registration request rejected successfully",
+      emailSent: emailResult?.success || false,
+      emailError: emailResult?.error || null
     });
   } catch (err) {
     console.error('Error rejecting request:', err);

@@ -117,6 +117,10 @@ body.login-page::before { content: ''; position: fixed; inset: 0; background: va
   margin-bottom: 16px; 
   width: 100%;
 }
+
+.form-row:has(.button-primary) {
+  align-items: flex-end;
+}
 .label { 
   font-size: 14px; 
   color: #0f172a; 
@@ -251,24 +255,41 @@ body.login-page::before { content: ''; position: fixed; inset: 0; background: va
 }
 
 .button-primary { 
-  width: 100%; 
-  border: none; 
+  width: auto !important; 
+  min-width: 100px;
+  border: none !important; 
   cursor: pointer; 
-  color: white; 
-  padding: 14px 20px; 
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 10px; 
-  background-image: linear-gradient(135deg, var(--brand-2), var(--brand-3)); 
-  box-shadow: 0 10px 24px rgba(11, 91, 211, 0.35); 
+  color: white !important; 
+  padding: 8px 16px !important; /* Equal padding on all sides for centered text */
+  font-weight: 500 !important; /* font-medium */
+  font-size: 14px !important; /* text-sm */
+  border-radius: 8px !important; /* rounded-lg */
+  background-color: #2563eb !important; /* bg-blue-600 - System blue */
+  background-image: none !important; /* Remove any gradient */
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important; 
   margin-top: 8px;
-  transition: all 0.2s ease;
+  margin-left: auto !important; /* Align button to the right */
+  margin-right: 0 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  display: flex !important; /* Use flexbox for better centering */
+  align-items: center !important; /* Center vertically */
+  justify-content: center !important; /* Center horizontally */
+  white-space: nowrap; /* whitespace-nowrap */
+  text-align: center !important; /* Center the text within the button */
+  letter-spacing: 0 !important; /* Remove any letter spacing */
 }
 
 .button-primary:not(:disabled):hover {
+  background-color: #1d4ed8 !important; /* hover:bg-blue-700 */
+  background-image: none !important; /* Remove any gradient on hover */
   transform: translateY(-2px);
-  box-shadow: 0 14px 32px rgba(11, 91, 211, 0.45);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35) !important;
+}
+
+.button-primary:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .button-primary:not(:disabled):active { 

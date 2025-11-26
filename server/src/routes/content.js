@@ -276,69 +276,53 @@ async function createInitialProgressRecords(content) {
         traineesToAssign.push(content.assignedTo_traineeID);
       }
     } else if (content.assignedTo_GroupID) {
-      // Assigned to group - get all trainees in the group
+      // Assigned to group(s) - get all trainees in the group(s)
       // Trainees are linked to groups via ObjectGroupID field
+      // Support both array (multiple groups) and single group for backward compatibility
       console.log('📌 Processing GROUP assignment');
-      console.log('✅ Fetching trainees from group');
       console.log('✅ Content assignedTo_GroupID:', content.assignedTo_GroupID);
       console.log('✅ Content assignedTo_GroupID type:', typeof content.assignedTo_GroupID);
-      console.log('✅ Content assignedTo_GroupID constructor:', content.assignedTo_GroupID?.constructor?.name);
+      console.log('✅ Content assignedTo_GroupID is array:', Array.isArray(content.assignedTo_GroupID));
       
-      // Ensure group ID is an ObjectId for proper querying
-      let groupIdForQuery;
-      try {
-        if (content.assignedTo_GroupID instanceof mongoose.Types.ObjectId) {
-          groupIdForQuery = content.assignedTo_GroupID;
-        } else if (typeof content.assignedTo_GroupID === 'string') {
-          groupIdForQuery = new mongoose.Types.ObjectId(content.assignedTo_GroupID);
-        } else {
-          groupIdForQuery = content.assignedTo_GroupID;
+      // Normalize to array format
+      const groupIds = Array.isArray(content.assignedTo_GroupID)
+        ? content.assignedTo_GroupID
+        : [content.assignedTo_GroupID];
+      
+      // Convert all group IDs to ObjectIds for proper querying
+      const groupIdsForQuery = groupIds.map(groupId => {
+        try {
+          if (groupId instanceof mongoose.Types.ObjectId) {
+            return groupId;
+          } else if (typeof groupId === 'string') {
+            return new mongoose.Types.ObjectId(groupId);
+          } else if (groupId && groupId._id) {
+            // Handle populated group objects
+            return groupId._id instanceof mongoose.Types.ObjectId ? groupId._id : new mongoose.Types.ObjectId(groupId._id);
+          } else {
+            return groupId;
+          }
+        } catch (err) {
+          console.error('❌ Error converting group ID to ObjectId:', err);
+          return null;
         }
-        console.log('✅ Group ID for query (ObjectId):', groupIdForQuery);
-      } catch (err) {
-        console.error('❌ Error converting group ID to ObjectId:', err);
-        console.error('❌ Original group ID:', content.assignedTo_GroupID);
-        // Try to continue with original value
-        groupIdForQuery = content.assignedTo_GroupID;
-      }
+      }).filter(Boolean);
       
-      // Query for trainees with this group ID
-      const groupTrainees = await Trainee.find({ ObjectGroupID: groupIdForQuery });
+      console.log('✅ Group IDs for query:', groupIdsForQuery.map(id => String(id)));
+      console.log('✅ Fetching trainees from', groupIdsForQuery.length, 'group(s)');
+      
+      // Query for trainees with any of these group IDs
+      const groupTrainees = await Trainee.find({ ObjectGroupID: { $in: groupIdsForQuery } });
       
       console.log('✅ Query result - Found', groupTrainees?.length || 0, 'trainees');
       
       if (groupTrainees && groupTrainees.length > 0) {
         const traineeIds = groupTrainees.map(trainee => trainee._id);
-        console.log('✅ Found', traineeIds.length, 'trainees in group:', groupIdForQuery);
+        console.log('✅ Found', traineeIds.length, 'trainees across', groupIdsForQuery.length, 'group(s)');
         console.log('✅ Trainee IDs:', traineeIds.map(id => String(id)));
         traineesToAssign.push(...traineeIds);
       } else {
-        console.log('⚠️ No trainees found in group. Debugging...');
-        // Debug: Check if group exists
-        const Group = mongoose.model('Group');
-        const groupExists = await Group.findById(groupIdForQuery);
-        console.log('🔍 Group exists:', groupExists ? 'YES' : 'NO');
-        if (groupExists) {
-          console.log('🔍 Group details:', {
-            _id: groupExists._id,
-            groupName: groupExists.groupName
-          });
-        }
-        
-        // Debug: Check all trainees and their group assignments
-        const allTrainees = await Trainee.find({}).limit(10);
-        console.log('🔍 Sample trainees (first 10) with their group IDs:');
-        allTrainees.forEach(t => {
-          console.log(`  - Trainee ${t._id}: ObjectGroupID = ${t.ObjectGroupID} (type: ${typeof t.ObjectGroupID}, constructor: ${t.ObjectGroupID?.constructor?.name})`);
-        });
-        
-        // Try alternative query: find trainees where ObjectGroupID matches as string
-        if (typeof groupIdForQuery !== 'string') {
-          const groupTraineesString = await Trainee.find({ 
-            ObjectGroupID: String(groupIdForQuery) 
-          });
-          console.log('🔍 Alternative query (string match): Found', groupTraineesString?.length || 0, 'trainees');
-        }
+        console.log('⚠️ No trainees found in assigned group(s)');
       }
     } else if (content.assignedTo_depID) {
       // Assigned to department(s) - get all trainees in the department(s)
@@ -820,7 +804,19 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
     // Automatically determine content type based on file extension
     const contentTypeValue = detectContentTypeFromFile(req.file);
     
-    const normGroupId = normalizeIdField(assignedTo_GroupID);
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+    
     const content = new Content({
       title: title || req.file.originalname,
       description: description || '',
@@ -829,7 +825,7 @@ router.post('/upload', requireAdminOrSupervisor, upload.single('file'), async (r
       contentUrl,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: normGroupId,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
       assignedTo_depID: departmentIds,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
@@ -916,11 +912,22 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       console.log('🎥 Extracted video ID:', youtubeVideoId);
     }
 
-    const normGroupId = normalizeIdField(assignedTo_GroupID);
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
     
     console.log('🔍 LINK UPLOAD - Parsed trainee IDs:', traineeIds);
     console.log('🔍 LINK UPLOAD - Parsed department IDs:', departmentIds);
-    console.log('🔍 LINK UPLOAD - Normalized group ID:', normGroupId);
+    console.log('🔍 LINK UPLOAD - Parsed group IDs:', groupIds);
     
     const content = new Content({
       title: title || 'External Link',
@@ -931,7 +938,7 @@ router.post('/link', requireAdminOrSupervisor, async (req, res) => {
       youtubeVideoId: youtubeVideoId, // Add YouTube video ID if it's a YouTube URL
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: normGroupId,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
       assignedTo_depID: departmentIds,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
@@ -990,8 +997,22 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
     if (title) template.title = title;
     if (description) template.description = description;
     
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+    
     console.log('🔍 TEMPLATE UPLOAD - Parsed trainee IDs:', traineeIds);
     console.log('🔍 TEMPLATE UPLOAD - Parsed department IDs:', departmentIds);
+    console.log('🔍 TEMPLATE UPLOAD - Parsed group IDs:', groupIds);
     
     const content = new Content({
       title: template.title,
@@ -1002,7 +1023,7 @@ router.post('/template', requireAdminOrSupervisor, async (req, res) => {
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true || template.templateData.ackRequired === true,
       isTemplate: true, // Set to true when content is created from a template
-      assignedTo_GroupID: normalizeIdField(assignedTo_GroupID),
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
       assignedTo_depID: departmentIds,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined,
       assignedBy_adminID: req.user.role === 'Admin' ? req.user.id : null,
@@ -1190,9 +1211,15 @@ router.get('/trainee/view/:id', requireTrainee, async (req, res) => {
       isAssigned = true;
     }
 
-    // Check group assignment
-    if (!isAssigned && groupId && content.assignedTo_GroupID && content.assignedTo_GroupID._id.toString() === groupId.toString()) {
-      isAssigned = true;
+    // Check group assignment (support both array and single ID for backward compatibility)
+    if (!isAssigned && groupId && content.assignedTo_GroupID) {
+      const groupIds = Array.isArray(content.assignedTo_GroupID)
+        ? content.assignedTo_GroupID.map(id => (id._id || id).toString())
+        : [(content.assignedTo_GroupID._id || content.assignedTo_GroupID).toString()];
+      
+      if (groupIds.includes(groupId.toString())) {
+        isAssigned = true;
+      }
     }
 
     // Check department assignment
@@ -1280,6 +1307,33 @@ router.get('/:id', requireAdminOrSupervisor, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Content not found' });
     }
 
+    // Fetch all trainees from ALL assigned groups
+    let allGroupTrainees = [];
+    if (content.assignedTo_GroupID) {
+      const groupIds = Array.isArray(content.assignedTo_GroupID)
+        ? content.assignedTo_GroupID.map(group => group._id || group)
+        : [content.assignedTo_GroupID._id || content.assignedTo_GroupID];
+      
+      allGroupTrainees = await Trainee.find({
+        ObjectGroupID: { $in: groupIds }
+      }).populate('ObjectGroupID', 'groupName');
+    }
+
+    // Fetch completion status for all group trainees
+    const completedByRecords = await Progress.find({
+      ObjectContentID: content._id,
+      status: 'completed'
+    }).populate('TraineeObjectUserID', 'fname lname');
+
+    const completedBy = completedByRecords.map(record => ({
+      traineeId: record.TraineeObjectUserID._id,
+      traineeName: `${record.TraineeObjectUserID.fname} ${record.TraineeObjectUserID.lname}`,
+      completedAt: record.completedAt
+    }));
+
+    // Add completed by info and all trainees to response
+    content._doc.completedBy = completedBy;
+    content._doc.allTrainees = allGroupTrainees;
 
     res.json({ ok: true, content });
   } catch (error) {
@@ -1400,6 +1454,19 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       });
     }
 
+    // Parse group IDs (can be array or single ID)
+    let groupIds = [];
+    if (assignedTo_GroupID) {
+      try {
+        groupIds = typeof assignedTo_GroupID === 'string' ? JSON.parse(assignedTo_GroupID) : assignedTo_GroupID;
+        if (!Array.isArray(groupIds)) {
+          groupIds = [groupIds];
+        }
+      } catch {
+        groupIds = [assignedTo_GroupID];
+      }
+    }
+
     // Build update object
     const updateData = {
       title: title.trim(),
@@ -1408,7 +1475,7 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
       contentType: finalContentType,
       deadline: deadline ? new Date(deadline) : null,
       ackRequired: ackRequired === 'true' || ackRequired === true,
-      assignedTo_GroupID: assignedTo_GroupID || null,
+      assignedTo_GroupID: groupIds.length > 0 ? groupIds : undefined,
       assignedTo_depID: departmentIds,
       assignedTo_traineeID: traineeIds.length > 0 ? traineeIds : undefined
     };
@@ -1593,25 +1660,33 @@ router.put('/:id', requireAdminOrSupervisor, upload.single('file'), async (req, 
           }
         }
 
-        // Get trainees from group assignment
+        // Get trainees from group assignment (handle both array and single ID)
         if (content.assignedTo_GroupID) {
-          let groupIdForQuery;
-          try {
-            if (content.assignedTo_GroupID instanceof mongoose.Types.ObjectId) {
-              groupIdForQuery = content.assignedTo_GroupID;
-            } else if (typeof content.assignedTo_GroupID === 'string') {
-              groupIdForQuery = new mongoose.Types.ObjectId(content.assignedTo_GroupID);
-            } else {
-              groupIdForQuery = content.assignedTo_GroupID;
-            }
-          } catch (err) {
-            groupIdForQuery = content.assignedTo_GroupID;
-          }
+          const groupIds = Array.isArray(content.assignedTo_GroupID)
+            ? content.assignedTo_GroupID.map(group => {
+                const gid = group._id || group;
+                if (gid instanceof mongoose.Types.ObjectId) {
+                  return gid;
+                } else if (typeof gid === 'string' && mongoose.Types.ObjectId.isValid(gid)) {
+                  return new mongoose.Types.ObjectId(gid);
+                }
+                return gid;
+              }).filter(Boolean)
+            : [content.assignedTo_GroupID].map(gid => {
+                if (gid instanceof mongoose.Types.ObjectId) {
+                  return gid;
+                } else if (typeof gid === 'string' && mongoose.Types.ObjectId.isValid(gid)) {
+                  return new mongoose.Types.ObjectId(gid);
+                }
+                return gid;
+              }).filter(Boolean);
           
-          const groupTrainees = await Trainee.find({ ObjectGroupID: groupIdForQuery }).select('_id');
-          if (groupTrainees && groupTrainees.length > 0) {
-            const traineeIds = groupTrainees.map(t => t._id);
-            traineesToNotify.push(...traineeIds);
+          if (groupIds.length > 0) {
+            const groupTrainees = await Trainee.find({ ObjectGroupID: { $in: groupIds } }).select('_id');
+            if (groupTrainees && groupTrainees.length > 0) {
+              const traineeIds = groupTrainees.map(t => t._id);
+              traineesToNotify.push(...traineeIds);
+            }
           }
         }
 
@@ -2245,7 +2320,7 @@ router.get('/trainee/assigned', requireTrainee, async (req, res) => {
           groupIdForQuery = groupId;
         }
         console.log('✅ Adding group condition to query:', groupIdForQuery.toString());
-        queryConditions.push({ assignedTo_GroupID: groupIdForQuery });
+        queryConditions.push({ assignedTo_GroupID: { $in: [groupIdForQuery] } });
       } catch (err) {
         console.error('❌ Error processing group ID for query:', err);
         // Try with string comparison as fallback

@@ -313,10 +313,10 @@ export const sendPasswordResetEmail = async (email, resetLink) => {
   }
 };
 
-// Send registration approval email
-export const sendRegistrationApprovalEmail = async (adminEmail, companyName) => {
+// Send company registration approval email
+export const sendRegistrationApprovalEmail = async (adminEmail, companyName, adminFirstName, adminLastName) => {
   try {
-    console.log(`📧 Attempting to send approval email to: ${adminEmail}`);
+    console.log(`📧 Attempting to send registration approval email to: ${adminEmail}`);
     
     const transporter = createTransporter();
     
@@ -334,37 +334,33 @@ export const sendRegistrationApprovalEmail = async (adminEmail, companyName) => 
       return { success: false, error: `Email verification failed: ${verifyError.message}` };
     }
     
+    const adminName = `${adminFirstName} ${adminLastName}`.trim() || 'Admin';
+    
     const mailOptions = {
       from: `"Irshad Platform" <${process.env.EMAIL_USER}>`,
       to: adminEmail,
-      subject: `Registration Approved - ${companyName}`,
+      subject: `🎉 Congratulations! Your Company Registration Has Been Approved`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <h1 style="color: #28a745; text-align: center; margin-bottom: 30px;">✅ Registration Approved</h1>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="color: #28a745; text-align: center; margin-bottom: 30px;">🎉 Registration Approved!</h1>
             
             <div style="background-color: white; padding: 20px; border-radius: 6px; border-left: 4px solid #28a745;">
-              <h2 style="color: #333; margin-top: 0;">Congratulations!</h2>
-              <p>Your company registration request for <strong>${companyName}</strong> has been <strong style="color: #28a745;">approved</strong> by the platform administrator.</p>
+              <h2 style="color: #28a745; margin-top: 0;">Hello ${adminName}!</h2>
+              <p>We are pleased to inform you that your company registration has been <strong>approved</strong>!</p>
               
-              <div style="background-color: #d4edda; padding: 15px; border-radius: 4px; margin: 20px 0;">
-                <h3 style="color: #155724; margin-top: 0;">What's Next?</h3>
-                <ul style="color: #155724; margin-bottom: 0;">
-                  <li>Your company account has been created successfully</li>
-                  <li>You can now log in to the platform using your registered email and password</li>
-                  <li>Access your company profile and start managing your organization</li>
-                </ul>
-              </div>
-              
-              <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #ffc107; margin-top: 20px;">
-                <h4 style="color: #856404; margin-top: 0;">📝 Important Information</h4>
-                <p style="color: #856404; margin-bottom: 0;">If you have any questions or need assistance, please contact the platform support team.</p>
+              <div style="background-color: #d4edda; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #c3e6cb;">
+                <h3 style="color: #155724; margin-top: 0;">Company Details:</h3>
+                <p style="margin: 5px 0;"><strong>Company Name:</strong> ${companyName}</p>
+                <p style="margin: 5px 0;"><strong>Admin Email:</strong> ${adminEmail}</p>
+                <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: #28a745; font-weight: bold;">✓ Approved</span></p>
               </div>
             </div>
             
             <div style="text-align: center; margin-top: 30px; color: #666;">
-              <p>Thank you for choosing Irshad Platform!</p>
-              <p style="font-size: 12px; color: #999;">This is an automated system notification. Please do not reply to this email.</p>
+              <p>Welcome to Irshad Platform! We're excited to have you on board.</p>
+              <p style="font-size: 12px; color: #999;">If you have any questions, please contact our support team.</p>
+              <p style="font-size: 12px; color: #999;">This is an automated notification. Please do not reply to this email.</p>
             </div>
           </div>
         </div>
@@ -372,10 +368,10 @@ export const sendRegistrationApprovalEmail = async (adminEmail, companyName) => 
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ Approval email sent successfully to ${adminEmail}:`, result.messageId);
+    console.log(`✅ Registration approval email sent successfully to ${adminEmail}:`, result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error(`❌ Failed to send approval email to ${adminEmail}:`, error);
+    console.error(`❌ Failed to send registration approval email to ${adminEmail}:`, error);
     console.error('Error details:', {
       message: error.message,
       code: error.code,
@@ -386,10 +382,10 @@ export const sendRegistrationApprovalEmail = async (adminEmail, companyName) => 
   }
 };
 
-// Send registration rejection email
-export const sendRegistrationRejectionEmail = async (adminEmail, companyName) => {
+// Send company registration rejection email
+export const sendRegistrationRejectionEmail = async (adminEmail, companyName, adminFirstName, adminLastName, rejectionReason) => {
   try {
-    console.log(`📧 Attempting to send rejection email to: ${adminEmail}`);
+    console.log(`📧 Attempting to send registration rejection email to: ${adminEmail}`);
     
     const transporter = createTransporter();
     
@@ -407,37 +403,56 @@ export const sendRegistrationRejectionEmail = async (adminEmail, companyName) =>
       return { success: false, error: `Email verification failed: ${verifyError.message}` };
     }
     
+    const adminName = `${adminFirstName} ${adminLastName}`.trim() || 'Admin';
+    const reasonText = rejectionReason || 'Unfortunately, your registration did not meet our current requirements.';
+    
     const mailOptions = {
       from: `"Irshad Platform" <${process.env.EMAIL_USER}>`,
       to: adminEmail,
-      subject: `Registration Request Update - ${companyName}`,
+      subject: `Company Registration Status Update - ${companyName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <h1 style="color: #dc3545; text-align: center; margin-bottom: 30px;">Registration Request Update</h1>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h1 style="color: #dc3545; text-align: center; margin-bottom: 30px;">Registration Status Update</h1>
             
             <div style="background-color: white; padding: 20px; border-radius: 6px; border-left: 4px solid #dc3545;">
-              <h2 style="color: #333; margin-top: 0;">Registration Request Status</h2>
-              <p>We regret to inform you that your company registration request for <strong>${companyName}</strong> has been <strong style="color: #dc3545;">rejected</strong> by the platform administrator.</p>
+              <h2 style="color: #333; margin-top: 0;">Hello ${adminName},</h2>
+              <p>Thank you for your interest in joining the Irshad Platform.</p>
               
-              <div style="background-color: #f8d7da; padding: 15px; border-radius: 4px; margin: 20px 0;">
-                <h3 style="color: #721c24; margin-top: 0;">What This Means</h3>
-                <ul style="color: #721c24; margin-bottom: 0;">
-                  <li>Your registration request has been reviewed and cannot be approved at this time</li>
-                  <li>The company account has not been created</li>
-                  <li>You may need to review your submission and resubmit if needed</li>
+              <div style="background-color: #f8d7da; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #f5c6cb;">
+                <h3 style="color: #721c24; margin-top: 0;">Registration Status:</h3>
+                <p style="margin: 5px 0;"><strong>Company Name:</strong> ${companyName}</p>
+                <p style="margin: 5px 0;"><strong>Admin Email:</strong> ${adminEmail}</p>
+                <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: #dc3545; font-weight: bold;">✗ Not Approved</span></p>
+              </div>
+              
+              <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #ffc107; margin: 20px 0;">
+                <h4 style="color: #856404; margin-top: 0;">📋 Details:</h4>
+                <p style="color: #856404; margin-bottom: 0;">${reasonText}</p>
+              </div>
+              
+              <div style="background-color: #e7f3ff; padding: 15px; border-radius: 4px; border-left: 4px solid #007bff; margin: 20px 0;">
+                <h4 style="color: #004085; margin-top: 0;">💡 What Can You Do?</h4>
+                <ul style="color: #004085; margin-bottom: 0; padding-left: 20px;">
+                  <li>Review your application details and ensure all information is accurate</li>
+                  <li>Verify that your company documentation meets our requirements</li>
+                  <li>Contact our support team if you need clarification</li>
+                  <li>Submit a new registration request with updated information</li>
                 </ul>
               </div>
               
-              <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; border-left: 4px solid #ffc107; margin-top: 20px;">
-                <h4 style="color: #856404; margin-top: 0;">💡 Next Steps</h4>
-                <p style="color: #856404; margin-bottom: 0;">If you believe this was an error or have questions about the rejection, please contact the platform support team for assistance.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/registration" 
+                   style="background-color: #007bff; color: white; padding: 12px 30px; border-radius: 5px; text-decoration: none; display: inline-block; font-weight: bold;">
+                  Submit New Application
+                </a>
               </div>
             </div>
             
             <div style="text-align: center; margin-top: 30px; color: #666;">
-              <p>Thank you for your interest in Irshad Platform.</p>
-              <p style="font-size: 12px; color: #999;">This is an automated system notification. Please do not reply to this email.</p>
+              <p>We appreciate your understanding. If you have any questions, please don't hesitate to contact us.</p>
+              <p style="font-size: 12px; color: #999;">Support Email: support@irshadplatform.com</p>
+              <p style="font-size: 12px; color: #999;">This is an automated notification. Please do not reply to this email.</p>
             </div>
           </div>
         </div>
@@ -445,10 +460,10 @@ export const sendRegistrationRejectionEmail = async (adminEmail, companyName) =>
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ Rejection email sent successfully to ${adminEmail}:`, result.messageId);
+    console.log(`✅ Registration rejection email sent successfully to ${adminEmail}:`, result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error(`❌ Failed to send rejection email to ${adminEmail}:`, error);
+    console.error(`❌ Failed to send registration rejection email to ${adminEmail}:`, error);
     console.error('Error details:', {
       message: error.message,
       code: error.code,

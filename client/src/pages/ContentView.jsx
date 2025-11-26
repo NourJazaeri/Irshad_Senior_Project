@@ -466,6 +466,7 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
   };
 
   // Handle task/step completion toggle
+  // Handle task/step completion toggle
   const handleTaskCompletion = async (itemId, newCompletionStatus, itemType = 'tasks') => {
     if (!content || taskUpdateLoading) return;
 
@@ -475,87 +476,67 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
       const token = localStorage.getItem('token');
       const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
-      if (itemType === 'steps') {
-        // Handle steps for Tool/System Guide - use dedicated endpoint
-        const response = await fetch(`${API_BASE}/api/content/trainee/content/${actualContentId}/step/${itemId}/complete`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            completed: newCompletionStatus
-          })
+      let updatedTemplateData;
+
+      if (itemType === 'tasks') {
+        // Handle tasks for Task Reminders Board
+        const currentTask = content.templateData.tasks?.find(task => task.id === itemId);
+        if (!currentTask) return;
+
+        const completionStatus = newCompletionStatus !== undefined ? newCompletionStatus : !currentTask.completed;
+
+        const updatedTasks = content.templateData.tasks.map(task => {
+          if (task.id === itemId) {
+            return { ...task, completed: completionStatus };
+          }
+          return task;
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Step completion updated:', data);
+        updatedTemplateData = {
+          ...content.templateData,
+          tasks: updatedTasks
+        };
+      } else if (itemType === 'steps') {
+        // Handle steps for Tool/System Guide
+        const updatedSteps = content.templateData.steps?.map((step, stepIndex) => {
+          // Use step.id if available, otherwise use index comparison
+          const stepIdentifier = step.id !== undefined ? step.id : stepIndex;
           
-          // Update local content state for immediate UI feedback
-          const updatedSteps = content.templateData.steps?.map((step, stepIndex) => {
-            const stepIdentifier = step.id !== undefined ? step.id : stepIndex;
-            if (stepIdentifier === itemId) {
-              return { ...step, completed: newCompletionStatus };
-            }
-            return step;
-          });
+          if (stepIdentifier === itemId) {
+            return { ...step, completed: newCompletionStatus };
+          }
+          return step;
+        });
 
-          setContent(prev => ({
-            ...prev,
-            templateData: {
-              ...prev.templateData,
-              steps: updatedSteps
-            }
-          }));
-        } else {
-          const error = await response.json();
-          console.error('❌ Failed to update step:', error);
-        }
-        
-        setTaskUpdateLoading(false);
-        return;
+        updatedTemplateData = {
+          ...content.templateData,
+          steps: updatedSteps
+        };
       }
 
-      // Handle tasks for Task Reminders Board
-      if (itemType === 'tasks') {
-        const response = await fetch(`${API_BASE}/api/content/trainee/content/${actualContentId}/task/${itemId}/complete`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            completed: newCompletionStatus
-          })
-        });
+      // Update the actual Content document using the existing progress endpoint
+      const response = await fetch(`${API_BASE}/api/content/trainee/progress/${actualContentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          templateData: updatedTemplateData
+        })
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Task completion updated:', data);
-          
-          // Update local content state for immediate UI feedback
-          const updatedTasks = content.templateData.tasks.map(task => {
-            if (task.id === itemId) {
-              return { ...task, completed: newCompletionStatus };
-            }
-            return task;
-          });
+      if (response.ok) {
+        // Update local content state for immediate UI feedback
+        setContent(prev => ({
+          ...prev,
+          templateData: updatedTemplateData
+        }));
 
-          setContent(prev => ({
-            ...prev,
-            templateData: {
-              ...prev.templateData,
-              tasks: updatedTasks
-            }
-          }));
-        } else {
-          const error = await response.json();
-          console.error('❌ Failed to update task:', error);
-        }
-        
-        setTaskUpdateLoading(false);
-        return;
+        console.log(`✅ ${itemType === 'tasks' ? 'Task' : 'Step'} completion status updated successfully in Content database`);
+      } else {
+        const errorData = await response.json();
+        console.error(`❌ Failed to update ${itemType === 'tasks' ? 'task' : 'step'} completion status:`, errorData);
       }
     } catch (error) {
       console.error(`Error updating ${itemType === 'tasks' ? 'task' : 'step'} completion:`, error);
@@ -698,19 +679,23 @@ const ContentView = ({ contentId, onBack, onProgressUpdate, inlineMode = false }
 
     // For non-trainee users (admin/supervisor), use the original template components
     if (!isTrainee) {
+      const handleClose = () => {
+        navigate(-1); // Go back to previous page
+      };
+      
       switch(templateType) {
         case 'knowledge-cards':
-          return <KnowledgeCardsTemplate onClose={() => {}} onTemplateSaved={() => {}} isReadOnly={true} templateData={templateData} />;
+          return <KnowledgeCardsTemplate onClose={handleClose} onTemplateSaved={() => {}} isReadOnly={true} templateData={templateData} />;
         case 'recognition':
-          return <RecognitionTemplate onClose={() => {}} onTemplateSaved={() => {}} formData={templateData} />;
+          return <RecognitionTemplate onClose={handleClose} onTemplateSaved={() => {}} formData={templateData} isReadOnly={true} />;
         case 'event-announcement':
-          return <EventAnnouncementTemplate onClose={() => {}} onTemplateSaved={() => {}} formData={templateData} />;
+          return <EventAnnouncementTemplate onClose={handleClose} onTemplateSaved={() => {}} formData={templateData} isReadOnly={true} />;
         case 'tool-system-guide':
-          return <ToolSystemGuideTemplate onClose={() => {}} onTemplateSaved={() => {}} templateData={templateData} />;
+          return <ToolSystemGuideTemplate onClose={handleClose} onTemplateSaved={() => {}} templateData={templateData} isReadOnly={true} />;
         case 'task-reminders-board':
-          return <TaskRemindersBoardTemplate onClose={() => {}} onTemplateSaved={() => {}} templateData={templateData} />;
+          return <TaskRemindersBoardTemplate onClose={handleClose} onTemplateSaved={() => {}} templateData={templateData} isReadOnly={true} />;
         case 'welcome-intro':
-          return <WelcomeIntroTemplate onClose={() => {}} onTemplateSaved={() => {}} templateData={templateData} />;
+          return <WelcomeIntroTemplate onClose={handleClose} onTemplateSaved={() => {}} templateData={templateData} isReadOnly={true} />;
         default:
           return <p className="text-muted-foreground">Unknown template type: {templateType}</p>;
       }

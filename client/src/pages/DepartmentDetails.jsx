@@ -35,8 +35,7 @@ function DepartmentDetails() {
   });
 
   // Fetch department details and groups
-  useEffect(() => {
-    const fetchDepartmentData = async () => {
+  const fetchDepartmentData = async () => {
     try {
         setLoading(true);
         
@@ -75,7 +74,18 @@ function DepartmentDetails() {
     }
   };
 
+  useEffect(() => {
     fetchDepartmentData();
+  }, [departmentName]);
+
+  // Refetch data when navigating back to this page
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchDepartmentData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [departmentName]);
 
   const handleGroupUpdate = () => {
@@ -119,18 +129,24 @@ function DepartmentDetails() {
     if (!deleteModal) return;
 
     try {
+      console.log('Deleting group:', deleteModal);
       const response = await axios.delete(
         `${API_BASE}/api/groups/${deleteModal._id}`,
         { headers: authHeaders() }
       );
       
+      console.log('Delete response:', response.data);
+      
       if (response.data.ok) {
+        alert(`Group "${deleteModal.groupName}" deleted successfully`);
         handleGroupUpdate();
         setDeleteModal(null);
+      } else {
+        alert("Failed to delete group: " + (response.data.message || "Unknown error"));
       }
     } catch (err) {
       console.error("Error deleting group:", err);
-        alert("Failed to delete group");
+      alert("Failed to delete group: " + (err.response?.data?.message || err.message));
     }
   };
 

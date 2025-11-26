@@ -1048,6 +1048,12 @@ router.post('/:id/supervisor', requireAdmin, async (req, res) => {
     // Assign supervisor to group
     await Group.findByIdAndUpdate(id, { SupervisorObjectUserID: supervisorRecord._id });
 
+    // Update the group's numOfMembers count after assigning supervisor
+    const traineeCount = await Trainee.countDocuments({ ObjectGroupID: id });
+    const oldGroup = await Group.findById(id);
+    console.log(`👔 ASSIGN SUPERVISOR to group ${id} - Trainees: ${traineeCount}, Old count: ${oldGroup?.numOfMembers}, New count: ${traineeCount + 1}`);
+    await Group.updateOne({ _id: id }, { numOfMembers: traineeCount + 1 }); // +1 for supervisor
+
     // Send email to newly created supervisors
     if (newlyCreated && supervisorRecord.plainPassword && supervisorRecord.employeeName) {
       try {
@@ -1110,6 +1116,11 @@ router.delete('/:id/supervisor', requireAdmin, async (req, res) => {
     const g = await Group.findByIdAndUpdate(id, { SupervisorObjectUserID: null }, { new: true });
     
     if (!g) return res.status(404).json({ ok: false, error: 'Group not found' });
+
+    // Update the group's numOfMembers count after removing supervisor
+    const traineeCount = await Trainee.countDocuments({ ObjectGroupID: id });
+    console.log(`👔❌ REMOVE SUPERVISOR from group ${id} - Trainees: ${traineeCount}, Old count: ${g.numOfMembers}, New count: ${traineeCount}`);
+    await Group.updateOne({ _id: id }, { numOfMembers: traineeCount }); // Only trainees now
 
     res.json({ ok: true, message: 'Supervisor removed' });
   } catch (err) {
@@ -1303,6 +1314,12 @@ router.post('/:id/trainees', requireAdmin, async (req, res) => {
       }
     }
 
+    // Update the group's numOfMembers count after adding trainees
+    const traineeCount = await Trainee.countDocuments({ ObjectGroupID: id });
+    const newCount = traineeCount + (group.SupervisorObjectUserID ? 1 : 0);
+    console.log(`➕ ADD TRAINEES to group ${id} - Trainees: ${traineeCount}, Has supervisor: ${!!group.SupervisorObjectUserID}, Old count: ${group.numOfMembers}, New count: ${newCount}`);
+    await Group.updateOne({ _id: id }, { numOfMembers: newCount });
+
     res.json({
       ok: true,
       message: `Processed ${traineeIds.length} trainees`,
@@ -1320,6 +1337,7 @@ router.post('/:id/trainees', requireAdmin, async (req, res) => {
 router.delete('/:id/trainees/:traineeId', requireAdmin, async (req, res) => {
   try {
     const { id, traineeId } = req.params;
+    console.log(`🗑️ REMOVE TRAINEE: ${traineeId} from GROUP: ${id}`);
 
     const t = await Trainee.findOneAndUpdate(
       { _id: traineeId, ObjectGroupID: id },
@@ -1331,6 +1349,18 @@ router.delete('/:id/trainees/:traineeId', requireAdmin, async (req, res) => {
       return res
         .status(404)
         .json({ ok: false, error: 'Trainee not found in this group' });
+    }
+
+    console.log(`✅ Trainee ${traineeId} unassigned from group`);
+    
+    // Update the group's numOfMembers count after removing trainee
+    const traineeCount = await Trainee.countDocuments({ ObjectGroupID: id });
+    const group = await Group.findById(id);
+    if (group) {
+      const oldCount = group.numOfMembers;
+      const newCount = traineeCount + (group.SupervisorObjectUserID ? 1 : 0);
+      await Group.updateOne({ _id: id }, { numOfMembers: newCount });
+      console.log(`🔄 Updated group member count: ${oldCount} → ${newCount}`);
     }
 
     res.json({ ok: true, message: 'Trainee removed from group' });

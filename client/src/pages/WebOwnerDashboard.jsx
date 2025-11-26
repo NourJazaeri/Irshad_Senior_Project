@@ -47,7 +47,9 @@ export default function WebOwnerDashboard() {
 
   return (
     <div>
-      <KPIs companyCount={companyCount} pendingCount={pendingCount} />
+      <div style={{ marginTop: '72px' }}>
+        <KPIs companyCount={companyCount} pendingCount={pendingCount} />
+      </div>
       <QuickLinks />
     </div>
   )

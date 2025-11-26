@@ -4,7 +4,7 @@ import { saveContent } from '../services/api.js';
 import { getCurrentUser, getUserRole } from '../utils/auth.js';
 import '../styles/ToolSystemGuideTemplate.css';
 
-const ToolSystemGuideTemplate = ({ onClose, onTemplateSaved }) => {
+const ToolSystemGuideTemplate = ({ onClose, onTemplateSaved, templateData: initialTemplateData = null, isReadOnly = false }) => {
   const [templateData, setTemplateData] = useState({
     title: 'Tool/System Guide',
     description: 'Create step-by-step guides for tools and systems',
@@ -382,21 +382,23 @@ const ToolSystemGuideTemplate = ({ onClose, onTemplateSaved }) => {
           </div>
         </div>
 
-        <div className="action-buttons" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button 
-            className="bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-lg hover:scale-105"
-            onClick={handleCompleteTemplate}
-            disabled={!currentUser || (userRole !== 'Admin' && userRole !== 'Supervisor')}
-          >
-            Complete Template
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="action-buttons" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button 
+              className="bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-md hover:scale-105"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap hover:shadow-lg hover:scale-105"
+              onClick={handleCompleteTemplate}
+              disabled={!currentUser || (userRole !== 'Admin' && userRole !== 'Supervisor')}
+            >
+              Complete Template
+            </button>
+          </div>
+        )}
 
         {saveMessage && (
           <div className={`save-message ${saveMessage.includes('successfully') ? 'success' : 'error'}`}>
